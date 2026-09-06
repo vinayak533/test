@@ -412,9 +412,16 @@ a{ color: inherit; }
   display: grid; place-items: center; width: 32px; height: 32px; flex: none;
   border-radius: 50%; background: rgba(168,185,114,.18); color: var(--flush);
 }
+/* On a phone the label is dropped and the launcher becomes a plain circle,
+   which left a 19px glyph inside a 51px button — small to find over a
+   photograph and small to hit. The circle, the ring and the glyph are all
+   scaled together so the proportions stay as drawn; the SVG needs its own
+   rule because its size is set by width/height attributes on the element. */
 @media (max-width: 620px){
-  .launch{ padding: .55rem; border-radius: 50%; }
+  .launch{ padding: .6rem; border-radius: 50%; }
   .launch__txt{ display: none; }
+  .launch__bot{ width: 44px; height: 44px; }
+  .launch__bot svg{ width: 26px; height: 26px; }
 }
 
 .scrim{ position: fixed; inset: 0; z-index: 55; background: rgba(31,42,36,.4); }
