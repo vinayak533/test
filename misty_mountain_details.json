@@ -1,0 +1,414 @@
+{
+  "property": {
+    "name": "Misty Mountain Plantation Resort",
+    "brand_name": "Misty Mountain Experience",
+    "website": "https://mistymountainexperience.in",
+    "tagline": "An old story waiting for new eyes",
+    "summary": "Misty Mountain Plantation Resort is set amidst a lush 600-acre estate in the idyllic village of Peermade on the Sahyadri Hills of the Western Ghats of Kerala. A peaceful escape nestled in the greenery of Kuttikkanam, offering estate life experiences from tea factory tours to guided crop walks with a resident naturalist.",
+    "key_facts": {
+      "years_of_history": "40",
+      "estate_size": "600 acres",
+      "activities_advertised": "8+",
+      "average_rating_claimed": "4.3",
+      "total_rooms": 7
+    },
+    "awards": [
+      {
+        "award": "Hospitality Brand of the Year 2026",
+        "presented_by": "Cochin Chamber of Commerce & Altacit Global",
+        "event": "Keralam Retail Conclave 2026",
+        "recipient": "Misty Mountain Experience"
+      },
+      {
+        "award": "Best Cafe & Casual Dining",
+        "presented_by": "Manorama Online Golden Clove Food Awards",
+        "years_mentioned_on_site": [
+          "2024",
+          "2026"
+        ],
+        "recipient": "Teyla Plantation Restaurant",
+        "note": "The homepage shows both a 2024 and a 2026 badge; the dining page describes the 2026 award."
+      }
+    ],
+    "current_offer": "Prebook Activities & Enjoy 10% OFF"
+  },
+  "rooms_accommodations": {
+    "overview": "Seven rooms in total: three Wooden Chalets and four rooms at the Reverie Cottage. All rooms are designed so guests can take in the surrounding landscape, with sit-outs or balconies.",
+    "total_rooms": 7,
+    "max_occupancy_per_room": "3 people (per Terms & Conditions)",
+    "types": [
+      {
+        "name": "Wooden Chalet",
+        "count": 3,
+        "description": "Three wooden chalets that seamlessly blend into the surroundings of the plantation. The chalets have private sit-outs, where guests commonly read a book or enjoy a hot beverage while soaking in the surroundings.",
+        "features": [
+          "Private sit-out",
+          "Blends into plantation surroundings",
+          "Wooden construction"
+        ],
+        "in_room_amenities": [
+          "LED TV",
+          "Wi-Fi",
+          "Fan",
+          "Air Conditioning",
+          "Tea & Coffee supplies",
+          "UV-filtered drinking water in glass bottles"
+        ],
+        "pricing": null
+      },
+      {
+        "name": "Reverie Cottages",
+        "count": 4,
+        "description": "Set on two floors with two rooms on each floor, constructed with stone architecture that exudes an old-world charm. Every room has a balcony so guests can enjoy the sounds of nature and the crisp, cool breeze.",
+        "features": [
+          "Balcony in every room",
+          "Stone architecture / old-world charm",
+          "Two floors, two rooms per floor"
+        ],
+        "in_room_amenities": [
+          "LED TV",
+          "Wi-Fi",
+          "Fan",
+          "Air Conditioning",
+          "Tea & Coffee supplies",
+          "UV-filtered drinking water in glass bottles"
+        ],
+        "pricing": null
+      }
+    ],
+    "pricing_note": "No room rates are published anywhere on mistymountainexperience.in. Rates are quoted only through the third-party booking engine at https://hotels.travelnet.in/booking/misty-mountain-plantation-resort, which requires specific check-in/check-out dates, or by contacting the resort directly.",
+    "booking_engine": "https://hotels.travelnet.in/booking/misty-mountain-plantation-resort"
+  },
+  "food_and_dining": {
+    "overview": "Two restaurants on property. The kitchen spans local Kerala delicacies, North Indian classics, continental creations and Asian specialties.",
+    "cuisine_types": [
+      "Local Kerala delicacies",
+      "North Indian",
+      "Indian",
+      "Continental",
+      "Chinese",
+      "Asian",
+      "Bakery & Patisserie"
+    ],
+    "restaurants": [
+      {
+        "name": "Teyla Plantation Restaurant",
+        "format": "Quick-service restaurant / cafe",
+        "cuisine": "Continental and more",
+        "timings": "7:00 AM - 9:30 PM",
+        "phone": "+91 90721 91920",
+        "description": "A vibrant quick-service restaurant offering a diverse menu that brings together global flavours with a modern twist - Continental classics, Chinese favourites, burgers and handcrafted sandwiches, plus an in-house bakery.",
+        "menu_highlights": [
+          "Continental dishes",
+          "Chinese dishes",
+          "Burgers",
+          "Artisanal / handcrafted sandwiches",
+          "In-house bakery: cakes",
+          "In-house bakery: pastries",
+          "Desserts"
+        ],
+        "award": "Best Cafe & Casual Dining - Manorama Online Golden Clove Food Awards 2026"
+      },
+      {
+        "name": "Elam Restaurant",
+        "format": "Sit-down restaurant",
+        "cuisine": "Indian",
+        "timings": "12:00 PM - 3:00 PM & 7:00 PM - 9:30 PM",
+        "phone": "+91 90721 91920",
+        "description": "Nestled within sprawling tea plantations, an idyllic setting for a relaxed family meal. Serves authentic Indian cuisine where vibrant flavours and rich aromas come together in dishes reflecting tradition and heartfelt passion.",
+        "menu_highlights": [
+          "Authentic Indian cuisine",
+          "North Indian classics",
+          "Signature desserts crafted by the pastry chef"
+        ],
+        "award": null
+      }
+    ],
+    "other_food_experiences": [
+      {
+        "name": "Bakery & Patisserie",
+        "description": "In-house bakery producing freshly made cakes, pastries and desserts."
+      },
+      {
+        "name": "Barbecue Night",
+        "description": "Chef-grilled specialties such as marinated chicken, fresh vegetables and estate-grown spices cooked over open flames, served under the stars with live music."
+      },
+      {
+        "name": "Tea tasting",
+        "description": "Freshly brewed estate tea served as part of the Orthodox Tea Tour, followed by lunch at the lounge."
+      }
+    ],
+    "dietary_note": "The site lists 'Do you cater to special dietary requirements?' as an FAQ, but the answer text is not published on the page. One published guest review notes vegetarian choices were limited."
+  },
+  "resources_amenities": {
+    "in_room": [
+      "LED TV",
+      "Wi-Fi",
+      "Fan",
+      "Air Conditioning (year-round comfort)",
+      "Tea & Coffee supplies",
+      "UV-filtered drinking water served in glass bottles"
+    ],
+    "bathroom": [
+      "Soap",
+      "Shampoo",
+      "Conditioner",
+      "Dental kit",
+      "Shaving kit (on request)",
+      "Comb",
+      "Bath towels",
+      "Hand towels",
+      "Bath mat",
+      "Toilet roll"
+    ],
+    "on_call": [
+      "Hair Dryer",
+      "Iron & Ironing Board",
+      "Laundry services"
+    ],
+    "property_facilities": [
+      "Car parking for all rooms",
+      "Two restaurants (Teyla and Elam)",
+      "In-house bakery",
+      "Tea factory tour",
+      "Golf Room with virtual golf simulator",
+      "Campfire area",
+      "Barbecue setup",
+      "Bicycles available on property",
+      "Kayaks",
+      "Fishing rods and bait (guide-assisted)",
+      "Private sit-outs / balconies",
+      "Natural waterfall on the property",
+      "Water reserve / dam reservoir nearby",
+      "Resident naturalist and estate guides"
+    ],
+    "notes": [
+      "Certain activities or facilities may be subject to seasonal availability, weather conditions, or maintenance schedules.",
+      "Charges may apply for selected amenities, activities, or services."
+    ],
+    "not_available": [
+      "Pets are not allowed"
+    ],
+    "unconfirmed": "The site lists 'Do you have facilities for differently-abled guests?' as an FAQ, but no answer text is published. No swimming pool or spa is mentioned anywhere on the site."
+  },
+  "activities": {
+    "count_advertised": "8+",
+    "items": [
+      {
+        "name": "The Orthodox Tea Tour",
+        "description": "A guided jeep tour of the estate covering every stage of the tea-making process, starting with the leaf itself, plus the estate's other crops and wildlife. Includes a factory tour, tea tasting, and lunch at the lounge; begins after breakfast in your cabin."
+      },
+      {
+        "name": "Jeep Safari",
+        "description": "Explore the rugged terrain of the biodiverse Western Ghats, observing native flora and fauna and learning how the estate's crops are farmed. Includes a visit to the natural waterfall on the property, most spectacular after the monsoon."
+      },
+      {
+        "name": "Plantation Walks",
+        "description": "A leisurely guided stroll through the plantations with crisp mountain air and birdsong, learning the nuances of farming from resident guides."
+      },
+      {
+        "name": "Cycling",
+        "description": "Bicycles are available on the property for a relaxed ride along the estate trails."
+      },
+      {
+        "name": "Fishing",
+        "description": "Spend time by the tranquil water reserve at Misty Mountain; guides help set guests up with fishing rods and bait."
+      },
+      {
+        "name": "Kayaking",
+        "description": "Paddle across the calm waters of the nearby dam reservoir in stable kayaks suited to beginners and experts alike, spotting birds and fish along the way."
+      },
+      {
+        "name": "Barbecue Night",
+        "description": "An evening barbecue under the stars with chef-grilled specialties, live music, laughter, stargazing and storytelling. Suited to couples, families or groups."
+      },
+      {
+        "name": "Campfire",
+        "description": "A crackling campfire in a safe, scenic clearing with plush seating, blankets and acoustic performances - roasting marshmallows, sharing tales and hot beverages under Peermade's clear skies."
+      },
+      {
+        "name": "Golf Room",
+        "description": "A Golf Room featuring a custom virtual golf simulator - a relaxing indoor alternative to the outdoor adventures, suitable for all ages."
+      }
+    ],
+    "other_mentions": [
+      "Tea factory visit",
+      "Birdwatching",
+      "Stargazing and storytelling",
+      "Live / acoustic music"
+    ],
+    "booking_note": "Activities are subject to weather conditions. Prebooking activities carries a 10% discount.",
+    "pricing_note": "No activity prices are published on the website."
+  },
+  "contact_and_location": {
+    "address_contact_page": "Misty Mountain Experience, Kuttikanam PO, Peermade, Idukki District, Kerala-686531",
+    "address_homepage_footer": "Peermade, Kuttikkanam, Kerala 685531",
+    "address_discrepancy_note": "The site publishes two different PIN codes: 686531 on the Contact page and 685531 in the homepage footer. Verify with the resort before relying on either.",
+    "region": {
+      "village": "Kuttikkanam",
+      "town": "Peermade",
+      "district": "Idukki",
+      "state": "Kerala",
+      "country": "India",
+      "setting": "Sahyadri Hills, Western Ghats"
+    },
+    "phone": "+91 944 784 8123",
+    "phone_e164": "+919447848123",
+    "restaurant_phone": "+91 90721 91920",
+    "email": "sales@mistymountain.in",
+    "whatsapp": "https://api.whatsapp.com/send/?phone=919447848123",
+    "google_maps": "https://maps.app.goo.gl/KhaJhmVDHHeFbAjbA",
+    "social": {
+      "instagram": "https://www.instagram.com/mistymountainexperience/",
+      "instagram_handle": "@mistymountainexperience",
+      "facebook": "https://www.facebook.com/mistyresort/"
+    },
+    "online_shop": "https://www.mistymountain.in/",
+    "booking_engine": "https://hotels.travelnet.in/booking/misty-mountain-plantation-resort",
+    "contact_form": "https://mistymountainexperience.in/contact",
+    "distances": [
+      {
+        "place": "Munnar",
+        "km_homepage": 96,
+        "km_contact_page": 96,
+        "route": "Kattappana > Elappara > Kuttikkanam"
+      },
+      {
+        "place": "Alappuzha",
+        "km_homepage": 102,
+        "km_contact_page": 102,
+        "route": "Changanassery > Manthuruthy > Kodungoor > Ponkunnam > Kanjirapally > Mundakayam > Kuttikkanam"
+      },
+      {
+        "place": "Kochi",
+        "km_homepage": 121,
+        "km_contact_page": 121,
+        "route": "Maradu > Udayamperoor > Kanjiramattom > Kaduthuruthy > Kuravilangad > Pala > Paika > Pinnakkanad > Parathode > Mundakayam > Kuttikkanam"
+      },
+      {
+        "place": "Fort Kochi",
+        "km_homepage": 127,
+        "km_contact_page": 127,
+        "route": "Thoppumpady > Kundanoor Thevara Bridge > Maradu > Udayamperoor > Kanjiramattom > Kaduthuruthy > Kuravilangad > Pala > Paika > Pinnakkanad > Parathode > Mundakayam > Kuttikkanam"
+      },
+      {
+        "place": "Cochin International Airport",
+        "km_homepage": 130,
+        "km_contact_page": 130,
+        "route": "Kalady > Perumbavoor > Muvattupuzha > Thodupuzha > Pala > Paika > Pinnakkanad > Parathode > Mundakayam > Kuttikkanam"
+      },
+      {
+        "place": "Madurai Airport",
+        "km_homepage": 183,
+        "km_contact_page": 173,
+        "route": "Usilampatti > Theni > Cumbum > Kumily > Peermade > Kuttikkanam"
+      },
+      {
+        "place": "Bengaluru International Airport",
+        "km_homepage": 577,
+        "km_contact_page": 543,
+        "route": "Hosur > Krishnagiri > Salem > Namakkal > Dindigul > Theni > Cumbum > Kumily > Peermade > Kuttikkanam"
+      },
+      {
+        "place": "Chennai International Airport",
+        "km_homepage": 588,
+        "km_contact_page": 615,
+        "route": "Tindivanam > Tiruchirapalli > Dindigul > Theni > Cumbum > Kumily > Peermade > Kuttikkanam"
+      }
+    ],
+    "distance_discrepancy_note": "Madurai, Bengaluru and Chennai distances differ between the homepage and the Contact page; both figures are recorded above."
+  },
+  "policies": {
+    "last_updated_on_site": "August 12, 2025",
+    "check_in": "From 2:00 PM onwards",
+    "check_out": "By 12:00 PM noon",
+    "early_late_note": "Early check-ins or late check-outs may incur additional charges.",
+    "payment": "A 30% advance or full payment is required at the time of booking, depending on the rate plan chosen.",
+    "identification": "Valid government-issued photo ID required for all guests at check-in. Foreign nationals must produce a passport and a copy of their visa.",
+    "occupancy": "Maximum occupancy of 3 people per room.",
+    "children": "Children under 5 may stay free with accompanying adults.",
+    "pets": "Not allowed.",
+    "activities": "Activities are subject to weather conditions.",
+    "cancellation": {
+      "flexible_rate": "Cancellations at least 30 days before check-in are eligible for a full refund. Within 30 days, only a partial refund is issued. Guests may reschedule without forfeiting the booking amount, but must pay the difference if the new dates fall in a higher-rate period.",
+      "close_cancellation": "Cancellations 1 or 2 days prior to check-in are subject to full retention - no refund.",
+      "no_show": "Failure to check in without prior intimation results in full retention of the booking amount."
+    },
+    "liability": [
+      "The resort is not responsible for loss, theft, or damage to personal belongings.",
+      "Guests are liable for any damage to resort property caused during their stay."
+    ]
+  },
+  "gift_cards": {
+    "page": "https://mistymountainexperience.in/gift-card",
+    "pricing_note": "All vouchers are listed as 'In Stock' with an 'Enquire Now' action; no prices are published.",
+    "items": [
+      {
+        "name": "Staycation Voucher",
+        "subtitle": "A Relaxing 1-Night Getaway for Two - Includes Breakfast",
+        "description": "A peaceful escape in a Deluxe Room or Suite. Suited to birthdays, anniversaries, or a break."
+      },
+      {
+        "name": "Couple's Retreat Voucher",
+        "subtitle": "A Romantic Escape for Two - Includes Candlelight Dinner",
+        "description": "Ideal for honeymoons, anniversaries, or wedding gifts."
+      },
+      {
+        "name": "Dining Experience Voucher",
+        "subtitle": "Dinner for Two at Our Signature Multi-Cuisine Restaurant",
+        "description": "A curated dining experience spanning local delicacies, North Indian classics, continental dishes and Asian specialties."
+      },
+      {
+        "name": "Adventure / Activity Voucher",
+        "subtitle": "Unplug, Explore, and Reconnect with Nature",
+        "description": "Covers a jeep safari, tea plantation tour, nature walk, or campfire."
+      },
+      {
+        "name": "Group / Family Voucher",
+        "subtitle": "Special Offers for Families & Groups (4+ Guests)",
+        "description": "Family-friendly perks including free stay for kids under 5, complimentary snacks, and group rates for multiple rooms."
+      }
+    ]
+  },
+  "gallery": {
+    "page": "https://mistymountainexperience.in/gallery",
+    "categories": [
+      "Wooden Chalet",
+      "Reverie Cottages",
+      "Outdoor",
+      "Restaurants",
+      "Activities"
+    ]
+  },
+  "faq_questions_listed": [
+    "What are the check-in and check-out timings?",
+    "Is the resort pet-friendly?",
+    "Do you have facilities for differently-abled guests?",
+    "Can I request an extra bed or a crib?",
+    "Do all rooms have a view?",
+    "Do you cater to special dietary requirements?"
+  ],
+  "faq_note": "These six questions appear on the homepage FAQ accordion, but the answer text is not present in the page DOM even after expanding each item - it is not published. Check-in/out, pet and occupancy answers were recovered from the Terms & Conditions page instead.",
+  "_meta": {
+    "source_site": "https://mistymountainexperience.in",
+    "scraped_on": "2026-09-05",
+    "robots_txt": "User-agent: * / Allow: / - no disallowed paths; nothing was skipped.",
+    "pages_scraped": [
+      "https://mistymountainexperience.in/",
+      "https://mistymountainexperience.in/experiences",
+      "https://mistymountainexperience.in/interior",
+      "https://mistymountainexperience.in/dining",
+      "https://mistymountainexperience.in/gallery",
+      "https://mistymountainexperience.in/contact",
+      "https://mistymountainexperience.in/gift-card",
+      "https://mistymountainexperience.in/terms-and-conditions",
+      "https://mistymountainexperience.in/cancellation-policy"
+    ],
+    "pages_not_scraped": {
+      "/blog and its 30+ posts": "Destination/travel editorial, not property information.",
+      "/contact-old": "Superseded duplicate of /contact.",
+      "/privacy-policy": "Not in scope for the requested categories."
+    },
+    "site_platform": "Framer"
+  }
+}

@@ -1,0 +1,15 @@
+# OS and editor cruft
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*~
+
+# Local scratch
+alone/
+idletest/
+node_modules/
+
+# Not part of this project: a scraped React shell that points at
+# /static/js assets which are not in this repository.
+bookeng.html

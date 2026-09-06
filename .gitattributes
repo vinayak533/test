@@ -1,0 +1,9 @@
+# The project is written and tested with LF throughout, including on Windows.
+# Without this, core.autocrlf rewrites every file on checkout and the diffs
+# become noise.
+* text=auto eol=lf
+
+# Binary-ish payloads that must never be touched.
+*.png binary
+*.jpg binary
+*.webp binary
