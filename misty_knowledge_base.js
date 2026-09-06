@@ -1,8 +1,8 @@
 /* ============================================================================
    MISTY MOUNTAIN — CHATBOT KNOWLEDGE BASE
    ----------------------------------------------------------------------------
-   Loaded by misty_mountain_prototype.html as a classic script (no modules, so
-   it works from file:// as well as from a server). Everything is published on
+   Loaded by index.html as a classic script (no modules, so it works from
+   file:// as well as from a server). Everything is published on
    window.MM_* and the page degrades gracefully if this file is absent.
 
    Three datasets:

@@ -7,7 +7,7 @@ concierge assistant (the ChatBot).
 
 | File | What it is |
 |---|---|
-| `misty_mountain_prototype.html` | The page and the assistant. Self-contained apart from the data files below. |
+| `index.html` | The page and the assistant. Self-contained apart from the data files below. |
 | `misty_i18n.js` | The language pack: English, Malayalam, Hindi and Tamil. |
 | `sync_i18n_inline.js` | Copies `LANGS` and `UI` from the pack into the HTML. Run it after editing either. |
 | `smoke_test.js` | Pre-deploy checks. Run it before shipping. |
@@ -24,7 +24,7 @@ in the same folder as the HTML. Serve the folder over HTTP:
 python -m http.server 8777
 ```
 
-Then open <http://localhost:8777/misty_mountain_prototype.html>.
+Then open <http://localhost:8777/>.
 
 If the knowledge-base files fail to load for any reason, the assistant falls back to
 the ~60 hand-written intents built into the page and keeps working — it simply

@@ -1,8 +1,8 @@
 /* ============================================================================
    MISTY MOUNTAIN — CHATBOT LANGUAGE PACK
    ----------------------------------------------------------------------------
-   Loaded by misty_mountain_prototype.html as a classic script, the same way as
-   the knowledge base, so it works from file:// as well as over HTTP. Everything
+   Loaded by index.html as a classic script, the same way as the knowledge
+   base, so it works from file:// as well as over HTTP. Everything
    is published on window.MM_I18N and the page degrades to English if this file
    is absent.
 

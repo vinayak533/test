@@ -1,0 +1,23 @@
+# Static site. There is no build step and there must not be one: the page and
+# its three data files are served exactly as they sit in the repository.
+#
+# This file exists so the settings live with the code rather than in the
+# Netlify UI, where an auto-detected build command or a publish directory
+# pointing somewhere other than the repository root is what serves a 404
+# instead of the page.
+#
+# sync_i18n_inline.js is deliberately NOT a build command. It is a maintenance
+# script: it copies LANGS and UI from misty_i18n.js into index.html, and it is
+# run by hand after editing either, with the result committed. Running it at
+# deploy time would rewrite a tracked file on the build machine for no gain.
+
+[build]
+  base = "."
+  publish = "."
+
+# No `command` key. Netlify treats an absent command as "publish as-is",
+# which is what a plain HTML and JavaScript project wants.
+#
+# No redirects either. This is one static page with in-page anchors, not a
+# single-page app, so a catch-all rewrite to index.html would only hide real
+# 404s. `/` resolves to index.html on its own, including on refresh.

@@ -46,7 +46,7 @@ const block = [
   END
 ].join("\n");
 
-const F = "misty_mountain_prototype.html";
+const F = "index.html";
 let html = fs.readFileSync(F, "utf8");
 
 const i = html.indexOf(BEGIN), j = html.indexOf(END);

@@ -45,7 +45,7 @@ const MEDIA  = global.window.MM_MEDIA;
 const PLACES = global.window.MM_PLACES;
 const QA     = global.window.MM_QA;
 const CATS   = global.window.MM_CATEGORIES;
-const HTML   = fs.readFileSync("misty_mountain_prototype.html", "utf8");
+const HTML   = fs.readFileSync("index.html", "utf8");
 
 const CODES = I18N.LANGS.map(l => l.code);
 const OTHER = CODES.filter(c => c !== "en");
