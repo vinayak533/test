@@ -57,9 +57,19 @@ test("room_board: every room with its status — booked rooms are never shown as
   assert.equal(after.rows[0].status, "available", "free again from the check-out day");
 }));
 
+test("room_board: a room free for the chosen nights still shows its later booking", () => scenario(async c => {
+  const { rows } = await c.query("select room_number, status, next_booked::text, next_mine from public.room_board($1, $2, $3) where room_number in (1, 7, 2) order by 1",
+    [HOTEL, "2027-06-18", "2027-06-19"]);
+  assert.deepEqual(rows, [
+    { room_number: 1, status: "available", next_booked: IN, next_mine: true },
+    { room_number: 2, status: "available", next_booked: null, next_mine: false },
+    { room_number: 7, status: "available", next_booked: IN, next_mine: false }
+  ]);
+}));
+
 test("room_board returns no guest details and needs a signed-in user", () => scenario(async c => {
   const cols = (await c.query("select * from public.room_board($1, $2, $3) limit 1", [HOTEL, IN, OUT])).fields.map(f => f.name);
-  assert.deepEqual(cols.sort(), ["is_active", "max_guests", "mine", "name", "price_per_night", "room_id", "room_number", "room_type", "status"].sort());
+  assert.deepEqual(cols.sort(), ["is_active", "max_guests", "mine", "name", "next_booked", "next_mine", "price_per_night", "room_id", "room_number", "room_type", "status"].sort());
   await c.query("select set_config('request.jwt.claims', '{}', true)");
   await assert.rejects(c.query("select * from public.room_board($1, $2, $3)", [HOTEL, IN, OUT]), /forbidden/);
 }));

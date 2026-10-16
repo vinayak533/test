@@ -552,8 +552,12 @@
     const r = tn.get(room.id);
     const isToday = day === todayISO();
     if (!r){
+      // Free that night, but already sold for a later one: shown as booked
+      // (with the date), so a confirmed ChatBot booking is visible on the
+      // board straight away whatever night it starts.
       const next = S.res.filter(x => x.room_id === room.id && LIVE.has(eff(x)) && x.check_in > day).sort((a, b) => a.check_in < b.check_in ? -1 : 1)[0];
-      return { cls: "available", label: "Available", who: next ? "Next: " + fmtShort(next.check_in) : "No upcoming stays" };
+      if (next) return { cls: "reserved", label: "Booked · " + fmtShort(next.check_in), who: (isToday ? "Free tonight" : "Free this night") + (next.guest_name ? " · " + next.guest_name : ""), ref: next.booking_ref };
+      return { cls: "available", label: "Available", who: "No upcoming stays" };
     }
     if (r.status === "held") return { cls: "held", label: "Held", who: "Guest is booking now", ref: r.booking_ref };
     if (r.status === "checked_in") return { cls: "occupied", label: "In house", who: r.guest_name || "", ref: r.booking_ref };
@@ -602,10 +606,11 @@
     const day = S.boardDate && S.boardDate >= today ? S.boardDate : today;
     const tnDay = day === today ? tn : tonight(day);
     const freeOnDay = active.filter(r => !tnDay.get(r.id)).length;
+    const ahead = active.filter(r => roomState(r, tnDay, day).cls === "reserved").length;
     $("#boardDate").min = today;
     $("#boardDate").value = day;
     $("#boardTitle").textContent = day === today ? "Room status tonight" : "Room status · night of " + fmtShort(day);
-    $("#boardSub").textContent = `${fmtDate(day)} · ${freeOnDay} of ${active.length} available`;
+    $("#boardSub").textContent = `${fmtDate(day)} · ${freeOnDay} of ${active.length} free ${day === today ? "tonight" : "that night"}${ahead ? ` · ${ahead} booked for later dates` : ""}`;
     $("#roomBoard").innerHTML = S.rooms.map(room => {
       const st = roomState(room, tnDay, day);
       return `<button type="button" class="mm-tile mm-tile--${st.cls} mm-tile--${esc(room.room_type)}" ${st.ref ? `data-ref="${esc(st.ref)}"` : `data-room="${esc(room.id)}"`}
