@@ -4,8 +4,21 @@
     {
       "name": "misty",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8791"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8791"
+      ],
       "port": 8791
+    },
+    {
+      "name": "misty-live",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--env-file=.env",
+        "scripts/dev_server.js"
+      ],
+      "port": 8792
     }
   ]
 }

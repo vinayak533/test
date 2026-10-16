@@ -1,0 +1,27 @@
+{
+  "name": "misty-mountain-chatbot",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Misty Mountain hotel dashboard and booking ChatBot, backed by Supabase.",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "netlify dev --port 8888",
+    "test": "node --test \"tests/*.test.js\"",
+    "test:db": "node --env-file=.env --test --test-concurrency=1 \"tests/db/*.test.js\"",
+    "smoke": "node smoke_test.js",
+    "db:inspect": "node --env-file=.env scripts/inspect_schema.js",
+    "db:migrate": "node --env-file=.env scripts/migrate.js",
+    "admin:create": "node --env-file=.env scripts/create_admin.js",
+    "serve": "node --env-file=.env scripts/dev_server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^27.12.1",
+    "pg": "^8.23.1"
+  }
+}

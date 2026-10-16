@@ -374,6 +374,47 @@ check("answers carry no unbalanced markup", () => {
   return p;
 });
 
+/* ---- the dashboard and the booking front end --------------------------- */
+
+const ADMIN_JS = fs.readFileSync("hotel_admin.js", "utf8");
+
+check("the dashboard has its five pages and the sign-in gate", () => {
+  const p = [];
+  for (const v of ["dashboard", "rooms", "reservations", "guests", "reports"]){
+    if (!HTML.includes('data-view-panel="' + v + '"')) p.push("page " + v + " is gone");
+    if (!HTML.includes('data-view="' + v + '"')) p.push("nav link to " + v + " is gone");
+  }
+  ["mmGate", "mmApp", "mmSignin", "kpis", "roomBoard", "roomsTable", "resTable", "guestTable", "reportKpis", "drawer"]
+    .forEach(id => { if (!HTML.includes('id="' + id + '"')) p.push("#" + id + " is gone"); });
+  if (!HTML.includes('class="mm-app" id="mmApp" hidden')) p.push("the admin app must start hidden until sign-in");
+  return p;
+});
+
+check("the Supabase library is pinned, integrity-checked and loaded before the dashboard", () => {
+  const lib = HTML.match(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@(\d+\.\d+\.\d+)\/dist\/umd\/supabase\.js" integrity="sha384-[A-Za-z0-9+/=]+" crossorigin="anonymous"><\/script>/);
+  if (!lib) return ["supabase-js must be an exact version with an integrity hash"];
+  return HTML.indexOf(lib[0]) < HTML.indexOf('<script src="hotel_admin.js">') ? [] : ["supabase-js must load before hotel_admin.js"];
+});
+
+check("no secret ever reaches the browser", () => {
+  const p = [];
+  for (const [name, text] of [["index.html", HTML], ["hotel_admin.js", ADMIN_JS]]){
+    if (/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/.test(text)) p.push(name + " contains a JWT-shaped key");
+    if (/sb_(secret|publishable)_/.test(text)) p.push(name + " contains a Supabase key");
+    if (/service_role|SERVICE_ROLE|JEV_API_KEY|postgres(?:ql)?:\/\//.test(text)) p.push(name + " mentions a server-only credential");
+  }
+  return p;
+});
+
+check("the booking client keeps its state in memory only and offers typing beside every option", () => {
+  const p = [];
+  if (!/let chatState = null;/.test(HTML)) p.push("the booking state variable is gone");
+  if (!/chatState = null;\s*\n\s*hintFor\(null\);/.test(HTML)) p.push("clearing the chat no longer drops the booking state");
+  if (!/function bkOptions\(/.test(HTML) || !/function bkDate\(/.test(HTML) || !/function bkForm\(/.test(HTML)) p.push("a booking widget renderer is gone");
+  if (!/function hintFor\(/.test(HTML)) p.push("the typing hint is gone");
+  return p;
+});
+
 /* ---- verdict ------------------------------------------------------------ */
 
 console.log("\n" + pass + " passed, " + fails.length + " failed");

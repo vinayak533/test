@@ -1,36 +1,37 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Misty Mountain Plantation Resort</title>
+<title>Misty Mountain — Hotel Dashboard &amp; Booking</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..600;1,6..72,200..600&family=Instrument+Sans:ital,wght@0,400..600;1,400..600&display=swap">
+<link rel="stylesheet" href="hotel_admin.css">
 
 <style>
 /* ============================================================
-   MISTY MOUNTAIN PLANTATION RESORT — prototype
-   Palette drawn from Peermade at altitude: cold, wet, green.
-   Deliberately single-theme: this is a brand pitch, and the
-   brand has one visual world. Every colour painted explicitly.
+   MISTY MOUNTAIN — hotel management dashboard and ChatBot
+   Palette: deep navy grounds, warm gold accents, ivory paper.
+   The token names are the original ones (bark, flush, leaf…),
+   re-toned in place so every rule that uses them follows; the
+   dashboard's own tokens live in hotel_admin.css.
    ============================================================ */
 
 :root{
   /* --- colour --- */
-  --shadow:      #0E1512;   /* Ghat Shadow — kept for ink, no longer a ground */
-  --bark:        #24332B;   /* the dark grounds: nav, desk, footer          */
-  --leaf:        #26362C;   /* Mature Leaf  */
-  --mist:        #6E7F72;   /* Peermade Mist — rules, not text on light */
-  --mist-ink:    #4E5C52;   /* secondary text on light (4.6:1)          */
-  --mist-lift:   #A9B7AC;   /* secondary text on dark                   */
-  --cloud:       #EFF2EA;   /* light ink on dark grounds                */
-  --paper:       #F4F6F1;   /* page ground — deliberately near-white so the
-                               page is light to scroll for any length of time */
+  --shadow:      #060B18;   /* deepest navy, ink only                  */
+  --bark:        #0A1128;   /* the dark grounds: sidebar, launcher      */
+  --leaf:        #111827;   /* body ink on light                        */
+  --mist:        #8C9AA8;   /* rules, not text on light                 */
+  --mist-ink:    #4B5563;   /* secondary text on light (7.6:1)          */
+  --mist-lift:   #B6C0CF;   /* secondary text on dark                   */
+  --cloud:       #F7F4EE;   /* ivory ink on dark grounds                */
+  --paper:       #F7F4EE;   /* ivory page ground                        */
   --wash:        #FFFFFF;   /* raised surface */
-  --flush:       #A8B972;   /* New Flush — dark grounds only */
-  --teak:        #5E4C3B;   /* material tint, illustration only */
+  --flush:       #D4AF37;   /* warm gold — on dark grounds only         */
+  --teak:        #8E6E14;   /* deep gold, illustration only             */
   --stone:       #7C8078;   /* material tint, illustration only */
 
-  --rule:        rgba(38,54,44,.22);
-  --rule-dark:   rgba(239,242,234,.18);
+  --rule:        rgba(10,17,40,.16);
+  --rule-dark:   rgba(247,244,238,.16);
   --ring:        var(--leaf);
 
   /* --- type --- */
@@ -400,17 +401,17 @@ a{ color: inherit; }
 .launch{
   position: fixed; right: clamp(1rem,3vw,1.75rem); bottom: clamp(1rem,3vw,1.75rem);
   z-index: 60; display: inline-flex; align-items: center; gap: .55rem;
-  background: var(--bark); color: #EFF2EA;
-  border: 1px solid rgba(168,185,114,.42); border-radius: 999px;
+  background: var(--bark); color: var(--cloud);
+  border: 1px solid rgba(212,175,55,.5); border-radius: 999px;
   padding: .5rem 1rem .5rem .55rem;
   font: inherit; font-size: 13.5px; font-weight: 500;
-  cursor: pointer; box-shadow: 0 10px 26px rgba(31,42,36,.22);
+  cursor: pointer; box-shadow: 0 10px 26px rgba(6,11,24,.22);
   transition: transform .18s ease, border-color .18s ease;
 }
 .launch:hover{ transform: translateY(-2px); border-color: var(--flush); }
 .launch__bot{
   display: grid; place-items: center; width: 32px; height: 32px; flex: none;
-  border-radius: 50%; background: rgba(168,185,114,.18); color: var(--flush);
+  border-radius: 50%; background: rgba(212,175,55,.16); color: var(--flush);
 }
 /* On a phone the label is dropped and the launcher becomes a plain circle,
    which left a 19px glyph inside a 51px button — small to find over a
@@ -424,7 +425,7 @@ a{ color: inherit; }
   .launch__bot svg{ width: 26px; height: 26px; }
 }
 
-.scrim{ position: fixed; inset: 0; z-index: 55; background: rgba(31,42,36,.4); }
+.scrim{ position: fixed; inset: 0; z-index: 55; background: rgba(6,11,24,.4); }
 @media (min-width: 621px){ .scrim{ display: none; } }
 
 /* ============================ DOCK ============================ */
@@ -440,20 +441,21 @@ a{ color: inherit; }
   height: min(646px, calc(100vh - 3.5rem));
 
   --d-bg:        #FFFFFF;
-  --d-raised:    #F4F7F1;
-  --d-head:      #24332B;
-  --d-head-ink:  #EFF2EA;
-  --d-ink:       #22302A;
-  --d-ink-2:     #58665E;
-  --d-line:      rgba(38,54,44,.14);
-  --d-line-firm: rgba(38,54,44,.22);
-  --d-accent:    #3E6B4C;
-  --d-accent-2:  #2F5539;
-  --d-soft:      rgba(62,107,76,.09);
+  --d-raised:    #F7F4EE;
+  --d-head:      #0A1128;
+  --d-head-ink:  #F7F4EE;
+  --d-ink:       #111827;
+  --d-ink-2:     #4B5563;
+  --d-line:      rgba(10,17,40,.12);
+  --d-line-firm: rgba(10,17,40,.22);
+  --d-accent:    #192C5E;
+  --d-accent-2:  #0E1838;
+  --d-soft:      rgba(25,44,94,.08);
+  --d-gold:      #B89224;
 
   background: var(--d-bg); color: var(--d-ink);
   border: 1px solid var(--d-line-firm); border-radius: 14px;
-  box-shadow: 0 22px 60px rgba(31,42,36,.24);
+  box-shadow: 0 22px 60px rgba(6,11,24,.24);
   display: grid; grid-template-rows: auto minmax(0,1fr) auto;
   overflow: hidden; --ring: var(--d-accent);
   animation: dockIn .2s ease-out;
@@ -472,7 +474,7 @@ a{ color: inherit; }
 }
 .dock__bot{
   display: grid; place-items: center; width: 34px; height: 34px; flex: none;
-  border-radius: 50%; background: rgba(168,185,114,.18); color: var(--flush);
+  border-radius: 50%; background: rgba(212,175,55,.16); color: var(--flush);
 }
 .dock__title{ display: grid; gap: .05rem; flex: 1; min-width: 0; }
 .dock__title b, .dock__title > span{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -591,7 +593,7 @@ a{ color: inherit; }
   background: var(--d-raised); position: relative; isolation: isolate;
   transition: border-color .18s ease, box-shadow .18s ease;
 }
-.home__hero:hover{ border-color: var(--d-accent); box-shadow: 0 8px 22px rgba(31,42,36,.16); }
+.home__hero:hover{ border-color: var(--d-accent); box-shadow: 0 8px 22px rgba(6,11,24,.16); }
 /* The big frame. A button, not a decorative image: pressing it asks the
    rooms question, so the photograph leads somewhere rather than merely
    filling space. The caption sits over the foot of the picture on a scrim,
@@ -951,6 +953,129 @@ a{ color: inherit; }
 .panel__stops b{ color: var(--d-ink); font-weight: 600; font-size: 13.5px; }
 .panel__stops span{ color: var(--d-ink-2); font-size: 12.5px; line-height: 1.5; }
 
+/* Live availability, under a backend answer. Same panel, same tokens:
+   one large figure, the stay it applies to, and a bar per room type. */
+.avail .panel__cap{ display: flex; align-items: center; gap: .45rem; }
+.avail__live{
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: var(--d-accent); box-shadow: 0 0 0 3px var(--d-soft);
+}
+.avail--full .avail__live{ background: var(--d-ink-2); }
+.avail__hero{
+  display: flex; align-items: baseline; gap: .55rem;
+  padding: .8rem .8rem .2rem;
+}
+.avail__num{
+  font-family: var(--display); font-size: 40px; line-height: 1; font-weight: 400;
+  color: var(--d-accent); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.avail--full .avail__num{ color: var(--d-ink-2); }
+.avail__label{ font-size: 13.5px; color: var(--d-ink); font-weight: 500; }
+.avail__dates{
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem;
+  margin: 0; padding: .55rem .8rem .8rem; border-bottom: 1px solid var(--d-line);
+}
+.avail__dates div{ display: grid; gap: .1rem; min-width: 0; }
+.avail__dates dt{ font-size: 11px; color: var(--d-ink-2); letter-spacing: .03em; }
+.avail__dates dd{ margin: 0; font-size: 12.5px; color: var(--d-ink); font-variant-numeric: tabular-nums; }
+.avail__type{ padding: .6rem .8rem; border-bottom: 1px solid var(--d-line); display: grid; gap: .35rem; }
+.avail__type .panel__head b{ font-size: 13px; }
+.avail__bar{ height: 5px; border-radius: 3px; background: var(--d-soft); overflow: hidden; }
+.avail__bar i{ display: block; height: 100%; border-radius: inherit; background: var(--d-accent); transition: width .5s ease; }
+.avail__actions{ padding: .7rem .8rem; }
+.avail-chips{ display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+.avail-chips--inline{ display: contents; }
+@media (max-width: 380px){
+  .avail__dates{ grid-template-columns: 1fr 1fr; }
+}
+@media (prefers-reduced-motion: reduce){ .avail__bar i{ transition: none; } }
+
+/* ---- booking: options, pickers, room choice, guest form, summaries ----
+   Every question the booking flow asks comes with tappable answers; typing
+   still works for all of them. A widget is live until it is answered, then
+   it greys out so an old button can't be mistaken for the current one. */
+.bk-opts{ display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .65rem; }
+.bk-opts .connect__btn{ min-height: 36px; }
+.connect__btn.bk-quiet{ border-style: dashed; color: var(--d-ink-2); }
+.connect__btn[aria-pressed="true"]{ background: var(--d-soft); border-color: var(--d-accent); color: var(--d-accent); }
+.bk-spent{ opacity: .55; }
+.bk-spent .connect__btn, .bk-spent input, .bk-spent button{ pointer-events: none; }
+
+.bk-date{ display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-top: .55rem; }
+.bk-date label{ font-size: 12px; color: var(--d-ink-2); width: 100%; }
+.bk-date input, .bk-form input{
+  font: inherit; font-size: 14px; color: var(--d-ink);
+  border: 1px solid var(--d-line-firm); border-radius: 8px; background: var(--d-bg);
+  padding: .45rem .6rem; min-height: 38px;
+}
+.bk-date input{ flex: 1 1 150px; }
+.bk-date input:focus-visible, .bk-form input:focus-visible{ outline: 2px solid var(--d-accent); outline-offset: 1px; }
+
+.bk-rooms__list{ display: grid; }
+.bk-room{
+  display: grid; grid-template-columns: auto auto minmax(0,1fr) auto; align-items: center; gap: .6rem;
+  padding: .6rem .8rem; border-bottom: 1px solid var(--d-line); cursor: pointer;
+}
+.bk-room:hover{ background: var(--d-raised); }
+.bk-room input{ width: 18px; height: 18px; accent-color: var(--d-accent); margin: 0; }
+.bk-room__no{
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px;
+  background: var(--d-soft); color: var(--d-accent); font-weight: 600; font-variant-numeric: tabular-nums;
+}
+/* Luxury rooms carry the same midnight-and-champagne mark as the room
+   boards, so the two types can't be confused at a glance. */
+.bk-room--Luxury{ background: linear-gradient(90deg, rgba(227,197,120,.16), rgba(227,197,120,0) 70%); box-shadow: inset 3px 0 0 #C9A44C; }
+.bk-room--Luxury .bk-room__no{ background: linear-gradient(145deg, #241B3D, #120E22); color: #E9CF86; box-shadow: inset 0 0 0 1px rgba(233,207,134,.55); }
+.bk-room--Luxury .bk-room__meta b::after{ content: " ★"; color: #A8842A; }
+.bk-auth p{ margin: 0 0 .4rem; font-size: 13.5px; }
+.bk-room__meta{ display: grid; min-width: 0; }
+.bk-room__meta b{ font-size: 13.5px; font-weight: 600; }
+.bk-room__meta small{ font-size: 12px; color: var(--d-ink-2); }
+.bk-room__total{ font-size: 13px; font-variant-numeric: tabular-nums; color: var(--d-ink); text-align: right; }
+.bk-room:has(input:checked){ background: var(--d-soft); }
+.bk-rooms__foot{
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem;
+  padding: .7rem .8rem; background: var(--d-raised);
+}
+.bk-rooms__sum{ font-size: 12.5px; color: var(--d-ink-2); font-variant-numeric: tabular-nums; }
+.bk-rooms__sum b{ color: var(--d-ink); }
+
+.bk-sum__ref{
+  padding: .8rem .8rem .2rem; font-family: var(--display); font-size: 26px; letter-spacing: .04em;
+  color: var(--d-accent); font-variant-numeric: tabular-nums;
+}
+.bk-sum__badge{
+  display: inline-flex; align-items: center; gap: .3rem; font-size: 11px; font-weight: 600;
+  padding: .12rem .5rem; border-radius: 999px; background: var(--d-soft); color: var(--d-accent);
+}
+.bk-sum__badge--confirmed, .bk-sum__badge--checked_in{ background: #ECFDF5; color: #065F46; }
+.bk-sum__badge--hold, .bk-sum__badge--review{ background: #FFFBEB; color: #92400E; }
+.bk-sum__badge--cancelled, .bk-sum__badge--no_show{ background: #FEF2F2; color: #991B1B; }
+.bk-line{
+  display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .2rem 1rem;
+  padding: .55rem .8rem; border-bottom: 1px solid var(--d-line); font-size: 12.5px;
+}
+.bk-line b{ font-weight: 600; color: var(--d-ink); }
+.bk-line span{ color: var(--d-ink-2); }
+.bk-line em{ font-style: normal; text-align: right; font-variant-numeric: tabular-nums; color: var(--d-ink); }
+.bk-total{
+  display: flex; justify-content: space-between; align-items: baseline; padding: .7rem .8rem;
+  background: var(--d-raised); font-size: 13px;
+}
+.bk-total b{ font-size: 17px; font-variant-numeric: tabular-nums; color: var(--d-ink); }
+
+.bk-form{ display: grid; gap: .55rem; margin-top: .7rem; padding: .8rem; border: 1px solid var(--d-line); border-radius: 8px; }
+.bk-form label{ display: grid; gap: .25rem; font-size: 12px; color: var(--d-ink-2); }
+.bk-form__err{ margin: 0; font-size: 12.5px; color: #991B1B; }
+.bk-form__err:empty{ display: none; }
+.bk-form [aria-invalid="true"]{ border-color: #DC2626; }
+
+.bk-full .avail__num{ color: var(--d-ink-2); }
+@media (max-width: 380px){
+  .bk-room{ grid-template-columns: auto auto minmax(0,1fr); }
+  .bk-room__total{ grid-column: 3; text-align: left; }
+}
+
 /* ============================ PICTURES ============================ */
 /* Photographs attached to an answer. Same card grammar as .panel so the
    strip reads as part of the reply rather than as an advert. Images that
@@ -1152,484 +1277,469 @@ a{ color: inherit; }
 }
 </style>
 
+<a class="skip" href="#main-content">Skip to main content</a>
 <a class="skip" href="#desk">Skip to the ChatBot</a>
 
-<nav class="nav" aria-label="Primary">
-  <div class="wrap nav__in">
-    <a class="nav__mark" href="#top">Misty Mountain <em>Plantation Resort</em></a>
-    <div class="nav__links">
-      <a href="#estate">The estate</a>
-      <a href="#rooms">Rooms</a>
-      <a href="#dining">Kitchens</a>
-      <a href="#doing">Days</a>
-      <a href="#desk" class="nav__desk" id="deskLink">Ask the ChatBot</a>
+<!-- ======================= SIGN-IN / GUEST WELCOME =======================
+     Shown until someone signs in. Guests sign in or create an account here
+     (Supabase Auth) and land on the guest area (#mmGuest); staff accounts
+     with the admin role land on the dashboard (#mmApp). The ChatBot entry
+     (#desk, #enqList) is public and holds no guest data. Everything behind
+     sign-in is read from Supabase under Row Level Security, so hiding it here
+     is presentation, not protection. -->
+<div class="mm-gate" id="mmGate">
+  <section class="mm-gate__brand" aria-labelledby="gateTitle">
+    <div class="mm-crest" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2 20l7-11 4 6 3-4 6 9z"/><path d="M14.5 6.5a2 2 0 1 0 0-.01"/></svg>
     </div>
-  </div>
-</nav>
+    <p class="mm-eyebrow">Kuttikkanam · Peermade · Kerala</p>
+    <h1 class="mm-gate__title" id="gateTitle">Misty <em>Mountain</em></h1>
+    <p class="mm-gate__lede">A working tea and cardamom estate in the Western Ghats, with ten rooms above the clouds.</p>
 
-<header class="hero" id="top">
-  <div class="hero__mist" aria-hidden="true"></div>
-  <svg class="hero__ridges" viewBox="0 0 1440 400" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-    <path fill="#2A3A31" d="M0,250 L90,215 L170,238 L260,190 L350,228 L455,178 L560,222 L670,170 L780,214 L890,182 L1000,226 L1110,192 L1220,232 L1330,200 L1440,236 L1440,400 L0,400 Z"/>
-    <path fill="#1F2C25" d="M0,290 L110,258 L210,282 L320,240 L430,278 L545,236 L660,276 L775,244 L890,284 L1005,252 L1120,288 L1240,256 L1350,290 L1440,268 L1440,400 L0,400 Z"/>
-    <path fill="#16201B" d="M0,330 L130,306 L250,330 L370,296 L500,328 L630,300 L760,332 L890,304 L1020,334 L1150,308 L1280,336 L1400,312 L1440,326 L1440,400 L0,400 Z"/>
-    <path fill="#0E1512" d="M0,368 L180,356 L360,366 L540,352 L720,364 L900,354 L1080,366 L1260,356 L1440,368 L1440,400 L0,400 Z"/>
-  </svg>
-
-  <div class="wrap">
-    <div class="hero__place">
-      <span>Kuttikkanam, Peermade</span>
-      <span>Sahyadri Hills, Kerala</span>
-    </div>
-
-    <h1>An old story<br>waiting for <em>new eyes</em></h1>
-
-    <p class="hero__sub">
-      Six hundred acres of tea, cardamom and cloud forest in the Western Ghats,
-      forty years in one family's care. <b>Seven rooms</b>, and no more than that.
-    </p>
-
-    <dl class="ledger">
-      <div><dt>600</dt><dd>acres of working plantation, factory included</dd></div>
-      <div><dt>Forty</dt><dd>years the estate has been in one family's hands</dd></div>
-      <div><dt>Seven</dt><dd>rooms in total — three chalets, four cottages</dd></div>
-      <div><dt>Two</dt><dd>kitchens, one of them an award-winner twice over</dd></div>
+    <dl class="mm-gate__facts">
+      <div><dt>Rooms</dt><dd>Normal &amp; Luxury</dd></div>
+      <div><dt>Check-in</dt><dd>From 2:00 PM</dd></div>
+      <div><dt>Check-out</dt><dd>By 12:00 noon</dd></div>
     </dl>
-  </div>
-</header>
 
-<main>
+    <div id="desk" class="mm-desk">
+      <h2 class="mm-desk__title">Planning a stay?</h2>
+      <p class="mm-desk__text">Our ChatBot checks live availability and books your room in a few taps — no forms to hunt for.</p>
+      <button type="button" class="mm-btn mm-btn--gold" data-open="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Book with the ChatBot</span>
+      </button>
+      <p class="mm-desk__label">Or start with a question</p>
+      <ul class="enq__list mm-enq" id="enqList">
+        <li><button type="button" class="enq__btn">How many rooms are available?</button></li>
+        <li><button type="button" class="enq__btn">Which hotels are available?</button></li>
+        <li><button type="button" class="enq__btn">Tell me about the rooms</button></li>
+        <li><button type="button" class="enq__btn">What are the check-in and check-out times?</button></li>
+        <li><button type="button" class="enq__btn">I want to check my booking</button></li>
+      </ul>
+    </div>
+  </section>
 
-<!-- ======================= THE ESTATE ======================= -->
-<section class="sec" id="estate">
-  <div class="wrap">
-    <div class="intro">
-      <div class="intro__body">
-        <p>
-          The road up from Mundakayam climbs through rubber, then cardamom, then
-          the tea begins — and somewhere in the last few kilometres the cloud
-          comes down to meet you.
-        </p>
-        <p>
-          Misty Mountain sits at the top of that climb, in the village of
-          Kuttikkanam near Peermade, on a working plantation that has been
-          producing orthodox tea for four decades. The estate is not a resort
-          that happens to have a view of a plantation. It is a plantation that
-          keeps seven rooms.
-        </p>
-        <p>
-          That distinction shapes everything. Guests are taken through the
-          factory rather than past it. The naturalist who walks you through the
-          cardamom is the one who farms it. There is a waterfall on the property
-          and a reservoir below it, and after the monsoon both are worth the
-          walk down.
-        </p>
+  <section class="mm-gate__panel" aria-labelledby="authTitle" id="authPanel">
+    <div class="mm-auth">
+      <p class="mm-eyebrow mm-eyebrow--dark">Guests &amp; staff</p>
+      <h2 class="mm-signin__title" id="authTitle">Welcome to Misty Mountain</h2>
+      <div class="mm-auth__tabs" role="tablist" aria-label="Sign in or create an account">
+        <button type="button" role="tab" class="mm-auth__tab" id="tabSignin" aria-controls="mmSignin" aria-selected="true" data-auth-tab="signin">Sign in</button>
+        <button type="button" role="tab" class="mm-auth__tab" id="tabSignup" aria-controls="mmSignup" aria-selected="false" tabindex="-1" data-auth-tab="signup">Create account</button>
       </div>
+      <p class="mm-auth__notice" id="authNotice" role="status" hidden></p>
 
-      <aside class="intro__note" aria-label="Recognition">
-        <p>
-          <b>Hospitality Brand of the Year, 2026</b>
-          Cochin Chamber of Commerce &amp; Altacit Global
-        </p>
-        <p>
-          <b>Best Café &amp; Casual Dining, 2024 and 2026</b>
-          Manorama Golden Clove Food Awards, for Teyla Plantation Restaurant
-        </p>
-      </aside>
+      <form class="mm-signin" id="mmSignin" role="tabpanel" aria-labelledby="tabSignin" novalidate>
+        <p class="mm-signin__text">Sign in to book rooms, see live availability and manage your bookings. Staff accounts open the hotel dashboard.</p>
+        <label class="mm-field">
+          <span>Email address</span>
+          <input type="email" name="email" id="signinEmail" autocomplete="username" inputmode="email" maxlength="254" required>
+        </label>
+        <label class="mm-field">
+          <span>Password</span>
+          <span class="mm-pw">
+            <input type="password" name="password" id="signinPassword" autocomplete="current-password" required>
+            <button type="button" class="mm-pw__toggle" data-pw-toggle aria-label="Show password" aria-pressed="false">Show</button>
+          </span>
+        </label>
+        <p class="mm-form-error" id="signinError" role="alert"></p>
+        <button type="button" class="mm-link mm-auth__resend" id="resendBtn" hidden>Send the verification email again</button>
+        <button type="submit" class="mm-btn mm-btn--navy mm-btn--block" id="signinBtn">Sign in</button>
+        <p class="mm-signin__foot">New here? <button type="button" class="mm-link mm-link--inline" data-auth-tab="signup">Create an account</button> · Your session ends when this tab is closed.</p>
+      </form>
+
+      <form class="mm-signin" id="mmSignup" role="tabpanel" aria-labelledby="tabSignup" novalidate hidden>
+        <p class="mm-signin__text">Create a free guest account to book rooms with our ChatBot and keep all your bookings in one place.</p>
+        <label class="mm-field">
+          <span>Full name</span>
+          <input type="text" name="name" id="signupName" autocomplete="name" maxlength="120" required aria-describedby="signupNameErr">
+          <small class="mm-field__err" id="signupNameErr"></small>
+        </label>
+        <label class="mm-field">
+          <span>Email address</span>
+          <input type="email" name="email" id="signupEmail" autocomplete="email" inputmode="email" maxlength="254" required aria-describedby="signupEmailErr">
+          <small class="mm-field__err" id="signupEmailErr"></small>
+        </label>
+        <label class="mm-field">
+          <span>Password</span>
+          <span class="mm-pw">
+            <input type="password" name="password" id="signupPassword" autocomplete="new-password" maxlength="72" required aria-describedby="pwRules">
+            <button type="button" class="mm-pw__toggle" data-pw-toggle aria-label="Show password" aria-pressed="false">Show</button>
+          </span>
+        </label>
+        <ul class="mm-pwrules" id="pwRules" aria-label="Password requirements">
+          <li data-rule="len">At least 8 characters</li>
+          <li data-rule="case">Upper- and lower-case letters</li>
+          <li data-rule="num">At least one number</li>
+        </ul>
+        <label class="mm-field">
+          <span>Confirm password</span>
+          <input type="password" name="confirm" id="signupConfirm" autocomplete="new-password" maxlength="72" required aria-describedby="signupConfirmErr">
+          <small class="mm-field__err" id="signupConfirmErr"></small>
+        </label>
+        <p class="mm-form-error" id="signupError" role="alert"></p>
+        <button type="submit" class="mm-btn mm-btn--gold mm-btn--block" id="signupBtn">Create account</button>
+        <p class="mm-signin__foot">Already have an account? <button type="button" class="mm-link mm-link--inline" data-auth-tab="signin">Sign in</button></p>
+      </form>
     </div>
-  </div>
-</section>
+  </section>
+</div>
 
-<!-- ======================= ROOMS ======================= -->
-<section class="sec" id="rooms" style="background:var(--wash)">
-  <div class="wrap">
-    <div class="sec__head">
-      <p class="label">Rooms</p>
-      <h2>Seven rooms, and <em>no more than that</em></h2>
-      <p class="lede" style="color:var(--mist-ink)">
-        Two buildings, two materials, one idea — that a room should let the
-        weather in without letting it get to you. Three guests to a room at most.
-      </p>
-    </div>
-
-    <div class="rooms">
-      <article class="room">
-        <div class="room__field field--wood">
-          <p class="room__count">Three of them</p>
-          <svg class="room__mark" width="112" height="58" viewBox="0 0 112 58" fill="none" aria-hidden="true" focusable="false">
-            <path d="M8 26 L56 5 L104 26" stroke="#E7EAE2" stroke-width="1.2" stroke-opacity=".85"/>
-            <path d="M18 26 L18 44 L94 44 L94 26" stroke="#E7EAE2" stroke-width="1.2" stroke-opacity=".85"/>
-            <path d="M4 44 L108 44" stroke="#E7EAE2" stroke-width="1.2" stroke-opacity=".6"/>
-            <path d="M10 44 L10 54 M102 44 L102 54" stroke="#E7EAE2" stroke-width="1.2" stroke-opacity=".6"/>
-            <path d="M4 49 L108 49" stroke="#E7EAE2" stroke-width="1" stroke-opacity=".35"/>
-          </svg>
-        </div>
-        <div class="room__text">
-          <h3>Wooden Chalet</h3>
-          <p>
-            Timber-built and set low so the plantation closes around them. Each
-            has a private sit-out, which is where most guests end up — a hot
-            drink, a book, and the sound of rain coming across the tea.
-          </p>
-          <dl class="inv">
-            <div><dt>Sleeps</dt><dd>Up to 3</dd></div>
-            <div><dt>Outdoor</dt><dd>Private sit-out</dd></div>
-            <div><dt>In the room</dt><dd>LED TV, Wi-Fi, fan, air conditioning</dd></div>
-            <div><dt>Provided</dt><dd>Tea &amp; coffee, UV-filtered water in glass</dd></div>
-          </dl>
-        </div>
-      </article>
-
-      <article class="room">
-        <div class="room__field field--stone">
-          <p class="room__count">Four rooms</p>
-          <svg class="room__mark" width="112" height="58" viewBox="0 0 112 58" fill="none" aria-hidden="true" focusable="false">
-            <path d="M10 20 L56 4 L102 20" stroke="#E7EAE2" stroke-width="1.2" stroke-opacity=".85"/>
-            <path d="M20 20 L20 52 L92 52 L92 20 Z" stroke="#E7EAE2" stroke-width="1.2" stroke-opacity=".85"/>
-            <path d="M20 36 L92 36" stroke="#E7EAE2" stroke-width="1.2" stroke-opacity=".6"/>
-            <path d="M26 30 L48 30 M64 30 L86 30" stroke="#E7EAE2" stroke-width="1" stroke-opacity=".5"/>
-            <path d="M26 46 L48 46 M64 46 L86 46" stroke="#E7EAE2" stroke-width="1" stroke-opacity=".5"/>
-          </svg>
-        </div>
-        <div class="room__text">
-          <h3>Reverie Cottages</h3>
-          <p>
-            Stone-built over two floors, two rooms to a floor, with the
-            old-world heaviness that stone gives a building in a wet climate.
-            Every one of the four has its own balcony.
-          </p>
-          <dl class="inv">
-            <div><dt>Sleeps</dt><dd>Up to 3</dd></div>
-            <div><dt>Outdoor</dt><dd>Balcony to every room</dd></div>
-            <div><dt>In the room</dt><dd>LED TV, Wi-Fi, fan, air conditioning</dd></div>
-            <div><dt>Provided</dt><dd>Tea &amp; coffee, UV-filtered water in glass</dd></div>
-          </dl>
-        </div>
-      </article>
+<!-- ============================ ADMIN APP ============================ -->
+<div class="mm-app" id="mmApp" hidden>
+  <aside class="mm-side" id="mmSide" aria-label="Dashboard navigation">
+    <div class="mm-side__brand">
+      <span class="mm-crest mm-crest--sm" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M2 20l7-11 4 6 3-4 6 9z"/></svg>
+      </span>
+      <span><b id="sideHotel">Misty Mountain</b><small>Hotel management</small></span>
     </div>
 
-    <div class="rooms__foot">
-      <p style="max-width:52ch">
-        Rates are not published here — they move with the season, and the estate
-        would rather quote you properly.
-      </p>
-      <p>
-        <a class="link" href="https://hotels.travelnet.in/booking/misty-mountain-plantation-resort" target="_blank" rel="noopener">Check dates and availability</a>
-        &nbsp; or call &nbsp;<a class="link" href="tel:+919447848123">+91 944 784 8123</a>
-      </p>
-    </div>
-  </div>
-</section>
+    <nav class="mm-nav">
+      <a href="#dashboard" class="mm-nav__item" data-view="dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="#rooms" class="mm-nav__item" data-view="rooms">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>
+        <span>Rooms</span>
+        <span class="mm-nav__count" id="navRooms"></span>
+      </a>
+      <a href="#reservations" class="mm-nav__item" data-view="reservations">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span>Reservations</span>
+        <span class="mm-nav__count" id="navReservations"></span>
+      </a>
+      <a href="#guests" class="mm-nav__item" data-view="guests">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Guests</span>
+      </a>
+      <a href="#reports" class="mm-nav__item" data-view="reports">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        <span>Reports</span>
+      </a>
+    </nav>
 
-<!-- ======================= DINING ======================= -->
-<section class="sec" id="dining">
-  <div class="wrap">
-    <div class="sec__head">
-      <p class="label">Two kitchens</p>
-      <h2>One opens early. <em>One waits for the light to go</em></h2>
-    </div>
+    <button type="button" class="mm-side__bot" data-open="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span><b>Guest ChatBot</b><small>Test the booking assistant</small></span>
+    </button>
 
-    <div class="tt">
-      <div class="tt__grid">
-        <div class="tt__hours">
-          <div></div>
-          <div class="tt__scale" aria-hidden="true">
-            <span class="tt__tick" style="left:0%">7 am</span>
-            <span class="tt__tick" style="left:20%">10 am</span>
-            <span class="tt__tick" style="left:40%">1 pm</span>
-            <span class="tt__tick" style="left:60%">4 pm</span>
-            <span class="tt__tick" style="left:80%">7 pm</span>
-            <span class="tt__tick" style="left:100%">10 pm</span>
-          </div>
-        </div>
-
-        <div class="tt__row">
-          <div class="tt__name">
-            <b>Teyla</b>
-            <span>7:00 am–9:30 pm</span>
-          </div>
-          <div class="tt__track">
-            <!-- 7:00 → 21:30 across a 7am–10pm (15h) scale -->
-            <div class="tt__bar" style="left:0%; width:96.7%">Straight through, 7:00 am to 9:30 pm</div>
-          </div>
-        </div>
-
-        <div class="tt__row">
-          <div class="tt__name">
-            <b>Elam</b>
-            <span>12:00–3:00 pm, 7:00–9:30 pm</span>
-          </div>
-          <div class="tt__track">
-            <div class="tt__bar tt__bar--alt" style="left:33.3%; width:20%">Lunch</div>
-            <div class="tt__bar tt__bar--alt" style="left:80%; width:16.7%">Dinner</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="dine">
-      <div class="dine__col">
-        <h3>Teyla Plantation Restaurant</h3>
-        <p>
-          The all-day room. Continental plates, Chinese, burgers and sandwiches
-          made to order, and an in-house bakery turning out cakes, pastries and
-          desserts. If you want breakfast at seven or cake at nine, this is where
-          you go.
-        </p>
-        <p class="award">Best Café &amp; Casual Dining, Manorama Golden Clove Food Awards — 2024 and again in 2026.</p>
-      </div>
-      <div class="dine__col">
-        <h3>Elam Restaurant</h3>
-        <p>
-          Set down among the tea, and open only for lunch and dinner. Authentic
-          Indian and North Indian cooking, unhurried, finished with desserts the
-          pastry chef makes for this room specifically. It is the meal you sit
-          down to rather than pick up.
-        </p>
-      </div>
-    </div>
-
-    <div class="dine__after">
-      <p>
-        <b>Barbecue Night.</b> Chef-grilled over open flame once the sun is off
-        the ridge, with live music and, if the cloud lifts, a fairly serious
-        number of stars.
-      </p>
-      <p>
-        <b>Tea tasting.</b> Held at the end of the Orthodox Tea Tour, in the
-        lounge, with the leaf you watched being made that morning.
-        <br>Both kitchens take calls on <a class="link" href="tel:+919072191920">+91 90721 91920</a>.
-      </p>
-    </div>
-  </div>
-</section>
-
-<!-- ======================= ACTIVITIES ======================= -->
-<section class="sec" id="doing" style="background:var(--wash)">
-  <div class="wrap">
-    <div class="sec__head">
-      <p class="label">Days on the estate</p>
-      <h2>Nine things to do, and <em>no obligation to do any of them</em></h2>
-      <p class="lede" style="color:var(--mist-ink)">
-        Roughly how a day here tends to arrange itself. Nothing is fixed —
-        the guides work around you, and the weather has opinions of its own.
-      </p>
-    </div>
-
-    <div class="trail">
-      <div class="daypart">
-        <p class="daypart__when">Morning</p>
-        <div class="stops">
-          <article class="stop">
-            <h3>The Orthodox Tea Tour</h3>
-            <p>The long one. A jeep collects you after breakfast for a guided run through the estate and into the factory, following the leaf through every stage of orthodox processing. Ends with a tasting and lunch in the lounge.</p>
-          </article>
-          <article class="stop">
-            <h3>Plantation walks</h3>
-            <p>On foot, with the resident naturalist, through tea and cardamom. Slower, quieter, and the better option if you want to actually ask questions.</p>
-          </article>
-          <article class="stop">
-            <h3>Jeep safari</h3>
-            <p>Out across the rougher ground of the Western Ghats for the flora and fauna, and down to the waterfall on the property — which is worth timing for just after the monsoon.</p>
-          </article>
-        </div>
-      </div>
-
-      <div class="daypart">
-        <p class="daypart__when">Afternoon</p>
-        <div class="stops">
-          <article class="stop">
-            <h3>Kayaking</h3>
-            <p>On the dam reservoir below the estate. Stable boats, calm water, and no experience assumed.</p>
-          </article>
-          <article class="stop">
-            <h3>Fishing</h3>
-            <p>At the water reserve. Rods and bait are provided and a guide will set you up, which is the difference between an afternoon of fishing and an afternoon of untangling line.</p>
-          </article>
-          <article class="stop">
-            <h3>Cycling</h3>
-            <p>Bicycles live on the property. The estate roads are yours — mostly downhill on the way out, which is worth remembering.</p>
-          </article>
-          <article class="stop">
-            <h3>The Golf Room</h3>
-            <p>An indoor virtual golf simulator, which sounds incongruous until the cloud comes down and stays down for a day.</p>
-          </article>
-        </div>
-      </div>
-
-      <div class="daypart">
-        <p class="daypart__when">After dark</p>
-        <div class="stops">
-          <article class="stop">
-            <h3>Barbecue night</h3>
-            <p>Grilled over open flame with live music, out under whatever the sky is doing.</p>
-          </article>
-          <article class="stop">
-            <h3>Campfire</h3>
-            <p>Blankets, marshmallows, acoustic music, and the particular quiet a plantation has at night.</p>
-          </article>
-        </div>
-      </div>
-    </div>
-
-    <p class="trail__foot">
-      <b>Book activities before you arrive and they come 10% cheaper.</b>
-      Prices aren't published — they depend on group size and how long you want to be out. The ChatBot below can point you to the right person.
-    </p>
-  </div>
-</section>
-
-<!-- ======================= THE CHATBOT ======================= -->
-<section class="sec desk" id="desk" aria-labelledby="deskHead">
-  <div class="wrap desk__grid">
-
-    <div class="desk__intro">
-      <p class="label label--dark">The ChatBot</p>
-      <h2 id="deskHead">Ask us anything, <em>the way you'd ask at the desk</em></h2>
-      <p>
-        A concierge that has read every page of this estate — the rooms, the
-        kitchens, the days, the policies, and the road in. It answers from what
-        the estate actually publishes, and tells you plainly when something
-        isn't published rather than inventing it.
-      </p>
-
-      <button class="ring" type="button" data-open>
-        <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
-          <path d="M10 2.6v1.3M4.6 15.4c0-3 .5-4.6.9-6.3.5-2.3 2.3-3.8 4.5-3.8s4 1.5 4.5 3.8c.4 1.7.9 3.3.9 6.3H4.6ZM8.2 17.4a1.9 1.9 0 0 0 3.6 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Open the ChatBot
+    <div class="mm-side__user">
+      <span class="mm-avatar" id="userAvatar" aria-hidden="true">·</span>
+      <span class="mm-side__who"><b id="userEmail">—</b><small>Administrator</small></span>
+      <button type="button" class="mm-icon-btn mm-icon-btn--dark" id="signOutBtn" aria-label="Sign out" title="Sign out">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
       </button>
     </div>
+  </aside>
+  <div class="mm-scrim" id="mmScrim" hidden></div>
 
-    <div>
-      <div class="invite">
-        <p class="invite__cap">Common enquiries — pick one and the desk will answer</p>
-        <ul class="enq__list" id="enqList" style="border-top:0">
-          <li><button type="button" class="enq__btn">Tell me about the rooms</button></li>
-          <li><button type="button" class="enq__btn">What food do you serve?</button></li>
-          <li><button type="button" class="enq__btn">What is there to do?</button></li>
-          <li><button type="button" class="enq__btn">Can I bring my dog?</button></li>
-          <li><button type="button" class="enq__btn">How far is Munnar?</button></li>
-          <li><button type="button" class="enq__btn">Is there a spa?</button></li>
-          <li><button type="button" class="enq__btn">What does a night cost?</button></li>
-        </ul>
+  <div class="mm-main">
+    <header class="mm-top">
+      <button type="button" class="mm-icon-btn mm-menu" id="menuBtn" aria-label="Open navigation" aria-controls="mmSide" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <div class="mm-top__title">
+        <span class="mm-top__crumb">Misty Mountain</span>
+        <span class="mm-top__page" id="topPage">Dashboard</span>
       </div>
-      <p class="desk__disc">
-        A working prototype. Answers are matched against the estate's own
-        published information — no rates are quoted, because none are published.
-      </p>
-    </div>
+      <form class="mm-search" id="globalSearch" role="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="search" id="globalSearchInput" placeholder="Search bookings, guests, phone…" aria-label="Search reservations">
+      </form>
+      <span class="mm-live" id="liveStatus" title="Live updates">
+        <span class="mm-live__dot" aria-hidden="true"></span><span class="mm-live__text">Connecting…</span>
+      </span>
+      <a href="#desk" class="mm-btn mm-btn--outline mm-btn--sm mm-top__bot" id="deskLink">
+        <span class="mm-live__dot mm-live__dot--gold" aria-hidden="true"></span>Ask ChatBot
+      </a>
+    </header>
 
+    <main class="mm-content" id="main-content" tabindex="-1">
+      <div class="mm-banner" id="loadBanner" role="status" hidden></div>
+
+      <!-- ============================ DASHBOARD ============================ -->
+      <section class="mm-view" data-view-panel="dashboard" aria-labelledby="hDashboard">
+        <div class="mm-view__head">
+          <div>
+            <p class="mm-eyebrow mm-eyebrow--dark" id="todayLabel">Today</p>
+            <h1 class="mm-view__title" id="hDashboard">Operations <em>overview</em></h1>
+          </div>
+          <div class="mm-view__actions">
+            <span class="mm-chip" id="policyChip">Check-in 2:00 PM · Check-out 12:00 PM</span>
+            <button type="button" class="mm-btn mm-btn--outline mm-btn--sm" id="refreshBtn">Refresh</button>
+          </div>
+        </div>
+
+        <div class="mm-kpis" id="kpis" aria-live="polite"></div>
+
+        <div class="mm-grid mm-grid--2-1">
+          <article class="mm-card">
+            <header class="mm-card__head">
+              <div><h2 class="mm-card__title" id="boardTitle">Room status tonight</h2><p class="mm-card__sub" id="boardSub">All rooms</p></div>
+              <label class="mm-field mm-field--date"><span>Night of</span><input type="date" id="boardDate"></label>
+              <ul class="mm-legend mm-legend--full" aria-label="Status key">
+                <li><i class="st st--available"></i>Available</li>
+                <li><i class="st st--arriving"></i>Arriving</li>
+                <li><i class="st st--occupied"></i>Booked / in house</li>
+                <li><i class="st st--held"></i>Held</li>
+                <li><i class="st st--inactive"></i>Inactive</li>
+                <li><i class="st st--luxury"></i>Luxury room</li>
+              </ul>
+            </header>
+            <div class="mm-board" id="roomBoard"></div>
+          </article>
+
+          <article class="mm-card">
+            <header class="mm-card__head">
+              <div><h2 class="mm-card__title">Next 7 days</h2><p class="mm-card__sub">Arrivals and departures</p></div>
+              <div class="mm-seg" role="tablist" aria-label="Movements">
+                <button type="button" role="tab" class="mm-seg__btn" aria-selected="true" data-move="arrivals">Arrivals</button>
+                <button type="button" role="tab" class="mm-seg__btn" aria-selected="false" data-move="departures">Departures</button>
+              </div>
+            </header>
+            <ul class="mm-moves" id="moves"></ul>
+          </article>
+        </div>
+
+        <div class="mm-grid mm-grid--1-1">
+          <article class="mm-card">
+            <header class="mm-card__head">
+              <div><h2 class="mm-card__title">Occupancy, next 14 nights</h2><p class="mm-card__sub">Rooms with a confirmed or in-house stay, of active rooms</p></div>
+            </header>
+            <div class="mm-chart" id="occChart"></div>
+          </article>
+
+          <article class="mm-card">
+            <header class="mm-card__head">
+              <div><h2 class="mm-card__title">Latest bookings</h2><p class="mm-card__sub">Newest first · updates live</p></div>
+              <a class="mm-link" href="#reservations">All reservations →</a>
+            </header>
+            <div class="mm-table-wrap"><table class="mm-table mm-table--compact" id="recentTable"></table></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============================== ROOMS ============================== -->
+      <section class="mm-view" data-view-panel="rooms" aria-labelledby="hRooms" hidden>
+        <div class="mm-view__head">
+          <div>
+            <p class="mm-eyebrow mm-eyebrow--dark">Inventory &amp; pricing</p>
+            <h1 class="mm-view__title" id="hRooms">Rooms</h1>
+          </div>
+        </div>
+
+        <article class="mm-card">
+          <header class="mm-card__head">
+            <div><h2 class="mm-card__title">Check availability</h2><p class="mm-card__sub">The same calculation the ChatBot uses</p></div>
+          </header>
+          <form class="mm-filters" id="availForm">
+            <label class="mm-field mm-field--inline"><span>Check-in</span><input type="date" name="in" required></label>
+            <label class="mm-field mm-field--inline"><span>Check-out</span><input type="date" name="out" required></label>
+            <button type="submit" class="mm-btn mm-btn--navy">Check</button>
+            <p class="mm-avail-result" id="availResult" aria-live="polite"></p>
+          </form>
+        </article>
+
+        <article class="mm-card">
+          <header class="mm-card__head">
+            <div><h2 class="mm-card__title">Room types &amp; rates</h2><p class="mm-card__sub">Set one nightly rate for every active room of a type</p></div>
+          </header>
+          <div class="mm-typerates" id="typeRates"></div>
+        </article>
+
+        <article class="mm-card">
+          <header class="mm-card__head">
+            <div><h2 class="mm-card__title">All rooms</h2><p class="mm-card__sub">Edit type, nightly rate (INR), capacity and whether a room can be booked. Existing bookings keep the rate they were made at.</p></div>
+          </header>
+          <div class="mm-table-wrap"><table class="mm-table mm-table--rooms" id="roomsTable"></table></div>
+        </article>
+      </section>
+
+      <!-- =========================== RESERVATIONS =========================== -->
+      <section class="mm-view" data-view-panel="reservations" aria-labelledby="hRes" hidden>
+        <div class="mm-view__head">
+          <div>
+            <p class="mm-eyebrow mm-eyebrow--dark">Bookings</p>
+            <h1 class="mm-view__title" id="hRes">Reservations</h1>
+          </div>
+        </div>
+
+        <article class="mm-card">
+          <form class="mm-filters" id="resFilters">
+            <label class="mm-field mm-field--grow"><span>Search</span><input type="search" name="q" placeholder="Reference, guest, email, phone, room…"></label>
+            <label class="mm-field mm-field--inline"><span>Status</span>
+              <select name="status">
+                <option value="active">Upcoming &amp; in house</option>
+                <option value="all">All</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="checked_in">Checked in</option>
+                <option value="checked_out">Checked out</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="no_show">No-show</option>
+                <option value="held">Held (in progress)</option>
+              </select>
+            </label>
+            <label class="mm-field mm-field--inline"><span>Room type</span>
+              <select name="type"><option value="">Any</option><option>Normal</option><option>Luxury</option></select>
+            </label>
+            <label class="mm-field mm-field--inline"><span>Stay from</span><input type="date" name="from"></label>
+            <label class="mm-field mm-field--inline"><span>to</span><input type="date" name="to"></label>
+            <button type="reset" class="mm-btn mm-btn--ghost">Clear</button>
+          </form>
+          <p class="mm-count" id="resCount" aria-live="polite"></p>
+          <div class="mm-table-wrap"><table class="mm-table mm-table--res" id="resTable"></table></div>
+          <div class="mm-pager" id="resPager"></div>
+        </article>
+      </section>
+
+      <!-- ============================== GUESTS ============================== -->
+      <section class="mm-view" data-view-panel="guests" aria-labelledby="hGuests" hidden>
+        <div class="mm-view__head">
+          <div>
+            <p class="mm-eyebrow mm-eyebrow--dark">Profiles &amp; history</p>
+            <h1 class="mm-view__title" id="hGuests">Guests</h1>
+          </div>
+        </div>
+        <article class="mm-card">
+          <form class="mm-filters" id="guestFilters">
+            <label class="mm-field mm-field--grow"><span>Search</span><input type="search" name="q" placeholder="Name, email or phone…"></label>
+          </form>
+          <p class="mm-count" id="guestCount" aria-live="polite"></p>
+          <div class="mm-table-wrap"><table class="mm-table mm-table--guests" id="guestTable"></table></div>
+        </article>
+      </section>
+
+      <!-- ============================== REPORTS ============================= -->
+      <section class="mm-view" data-view-panel="reports" aria-labelledby="hReports" hidden>
+        <div class="mm-view__head">
+          <div>
+            <p class="mm-eyebrow mm-eyebrow--dark">From actual reservations</p>
+            <h1 class="mm-view__title" id="hReports">Reports</h1>
+          </div>
+          <div class="mm-view__actions">
+            <button type="button" class="mm-btn mm-btn--outline mm-btn--sm" id="exportCsv">Export CSV</button>
+          </div>
+        </div>
+
+        <article class="mm-card">
+          <form class="mm-filters" id="reportForm">
+            <div class="mm-seg" role="group" aria-label="Period">
+              <button type="button" class="mm-seg__btn" data-range="month" aria-pressed="true">This month</button>
+              <button type="button" class="mm-seg__btn" data-range="last30" aria-pressed="false">Last 30 days</button>
+              <button type="button" class="mm-seg__btn" data-range="next30" aria-pressed="false">Next 30 days</button>
+            </div>
+            <label class="mm-field mm-field--inline"><span>From</span><input type="date" name="from" required></label>
+            <label class="mm-field mm-field--inline"><span>To</span><input type="date" name="to" required></label>
+            <button type="submit" class="mm-btn mm-btn--navy">Apply</button>
+          </form>
+          <p class="mm-card__note">Revenue counts each night of a confirmed, in-house or completed stay at the rate it was booked. Held, expired, cancelled and no-show bookings are excluded. Occupancy uses the rooms active today.</p>
+        </article>
+
+        <div class="mm-kpis" id="reportKpis" aria-live="polite"></div>
+
+        <div class="mm-grid mm-grid--1-1">
+          <article class="mm-card">
+            <header class="mm-card__head"><div><h2 class="mm-card__title">Room revenue by night</h2><p class="mm-card__sub" id="revSub">INR</p></div></header>
+            <div class="mm-chart" id="revChart"></div>
+          </article>
+          <article class="mm-card">
+            <header class="mm-card__head"><div><h2 class="mm-card__title">Occupancy by night</h2><p class="mm-card__sub">Rooms sold of active rooms</p></div></header>
+            <div class="mm-chart" id="repOccChart"></div>
+          </article>
+        </div>
+
+        <article class="mm-card">
+          <header class="mm-card__head"><div><h2 class="mm-card__title">Revenue by room type</h2><p class="mm-card__sub">Room-nights and revenue in the period</p></div></header>
+          <div id="typeSplit"></div>
+        </article>
+      </section>
+    </main>
   </div>
-</section>
+</div>
 
-<!-- ======================= PRACTICALITIES ======================= -->
-<section class="sec sec--tight" id="practical">
-  <div class="wrap">
-    <div class="sec__head">
-      <p class="label">Before you come</p>
-      <h2>The practical <em>back matter</em></h2>
-    </div>
+<!-- ============================ GUEST AREA ============================
+     For a signed-in guest (any account without the admin role). Room status
+     comes from room_board(), bookings from my_bookings() — both Supabase
+     functions that return no other guest's details. Live: the page listens
+     to inventory_pulse and re-reads both whenever a booking or room changes. -->
+<div class="mm-guest" id="mmGuest" hidden>
+  <header class="mm-ghead">
+    <a class="mm-ghead__brand" href="#guest-rooms">
+      <span class="mm-crest mm-crest--sm" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M2 20l7-11 4 6 3-4 6 9z"/></svg>
+      </span>
+      <span><b>Misty Mountain</b><small>Kuttikkanam · Kerala</small></span>
+    </a>
+    <span class="mm-live mm-live--dark" id="gLive" title="Live updates"><span class="mm-live__dot" aria-hidden="true"></span><span class="mm-live__text">Connecting…</span></span>
+    <button type="button" class="mm-btn mm-btn--gold mm-btn--sm mm-ghead__bot" data-open="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Book with the ChatBot</span>
+    </button>
+    <span class="mm-ghead__user">
+      <span class="mm-avatar" id="gAvatar" aria-hidden="true">·</span>
+      <span class="mm-ghead__who"><b id="gName">—</b><small id="gEmail"></small></span>
+      <button type="button" class="mm-icon-btn mm-icon-btn--dark" id="gSignOut" aria-label="Sign out" title="Sign out">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </span>
+  </header>
 
-    <div class="back">
-      <div class="back__block">
-        <h3>Arriving and leaving</h3>
-        <dl class="dl">
-          <div><dt>Check-in</dt><dd>2:00 pm</dd></div>
-          <div><dt>Check-out</dt><dd>12:00 noon</dd></div>
-          <div><dt>At booking</dt><dd>30% advance, or full</dd></div>
-          <div><dt>On arrival</dt><dd class="wide">Photo ID for every guest; passport and visa copy for foreign nationals</dd></div>
-          <div><dt>Per room</dt><dd>3 guests maximum</dd></div>
-          <div><dt>Under fives</dt><dd>Stay free</dd></div>
-          <div><dt>Pets</dt><dd>Not accepted</dd></div>
-        </dl>
+  <main class="mm-gmain" id="guest-main" tabindex="-1">
+    <section class="mm-ghero" aria-labelledby="gHello">
+      <p class="mm-eyebrow">Your stay</p>
+      <h1 class="mm-gate__title mm-ghero__title" id="gHello">Welcome, <em>guest</em></h1>
+      <p class="mm-gate__lede">Live room availability at Misty Mountain. Choose your dates to see which rooms are free — bookings made through the ChatBot appear here the moment they are confirmed.</p>
+      <form class="mm-gdates" id="gDates">
+        <label class="mm-field"><span>Check-in</span><input type="date" name="in" required></label>
+        <label class="mm-field"><span>Check-out</span><input type="date" name="out" required></label>
+        <button type="submit" class="mm-btn mm-btn--gold">Show rooms</button>
+      </form>
+    </section>
 
-        <h3 style="margin-top:2rem">If plans change</h3>
-        <dl class="dl">
-          <div><dt>30 days or more before</dt><dd>Full refund</dd></div>
-          <div><dt>Inside 30 days</dt><dd>Partial refund</dd></div>
-          <div><dt>1–2 days before</dt><dd>No refund</dd></div>
-          <div><dt>No-show</dt><dd>No refund</dd></div>
-        </dl>
-      </div>
-
-      <div class="back__block">
-        <h3>The drive up</h3>
-        <dl class="dl">
-          <div><dt>Munnar</dt><dd>96 km</dd></div>
-          <div><dt>Alappuzha</dt><dd>102 km</dd></div>
-          <div><dt>Kochi</dt><dd>121 km</dd></div>
-          <div><dt>Cochin International Airport</dt><dd>130 km</dd></div>
-        </dl>
-
-        <h3 style="margin-top:2rem">On the property</h3>
-        <ul class="amen">
-          <li>Car parking</li>
-          <li>Tea factory tour</li>
-          <li>Golf Room</li>
-          <li>Campfire area</li>
-          <li>Barbecue setup</li>
-          <li>Bicycles</li>
-          <li>Kayaks</li>
-          <li>Fishing gear</li>
-          <li>Natural waterfall</li>
-          <li>Dam reservoir</li>
-          <li>Resident naturalist</li>
-          <li>Laundry, iron, hair dryer on call</li>
+    <section class="mm-card mm-gcard" id="guest-rooms" aria-labelledby="gRoomsTitle">
+      <header class="mm-card__head">
+        <div>
+          <h2 class="mm-card__title" id="gRoomsTitle">Room availability</h2>
+          <p class="mm-card__sub" id="gRoomsSub" aria-live="polite">Loading…</p>
+        </div>
+        <ul class="mm-legend" aria-label="Status key">
+          <li><i class="st st--available"></i>Available</li>
+          <li><i class="st st--booked"></i>Booked</li>
+          <li><i class="st st--held"></i>Being booked</li>
+          <li><i class="st st--luxury"></i>Luxury</li>
         </ul>
+      </header>
+      <div class="mm-gsummary" id="gSummary"></div>
+      <div id="gBoard" aria-live="polite"></div>
+      <p class="mm-form-error mm-gerror" id="gError" role="alert"></p>
+    </section>
 
-        <h3 style="margin-top:2rem">Not here</h3>
-        <ul class="amen amen--none" style="columns:2">
-          <li>No swimming pool</li>
-          <li>No spa</li>
-          <li>No pets</li>
-        </ul>
+    <section class="mm-card mm-gcard" id="guest-bookings" aria-labelledby="gBookTitle">
+      <header class="mm-card__head">
+        <div><h2 class="mm-card__title" id="gBookTitle">My bookings</h2><p class="mm-card__sub">Bookings made while signed in to this account</p></div>
+      </header>
+      <div id="gBookings"></div>
+    </section>
+  </main>
+</div>
 
-        <h3 style="margin-top:2rem">Vouchers</h3>
-        <ul class="vouch">
-          <li><b>Staycation</b><span>One night for two, breakfast included</span></li>
-          <li><b>Couple's Retreat</b><span>With a candlelight dinner</span></li>
-          <li><b>Dining Experience</b><span>Dinner for two</span></li>
-          <li><b>Adventure</b><span>An activity of their choosing</span></li>
-          <li><b>Group &amp; Family</b><span>For parties of four and over</span></li>
-        </ul>
-        <p style="font-size:var(--step--1); color:var(--mist-ink); margin-top:.9rem">
-          Priced on enquiry — <a class="link" href="mailto:sales@mistymountain.in">sales@mistymountain.in</a>
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
+<!-- Reservation and guest detail -->
+<div class="mm-drawer-back" id="drawerBack" hidden></div>
+<aside class="mm-drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden>
+  <header class="mm-drawer__head">
+    <h2 class="mm-drawer__title" id="drawerTitle">Details</h2>
+    <button type="button" class="mm-icon-btn" id="drawerClose" aria-label="Close details">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </header>
+  <div class="mm-drawer__body" id="drawerBody"></div>
+</aside>
 
-</main>
+<div class="mm-toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
 
-<footer class="foot">
-  <div class="wrap">
-    <div class="foot__grid">
-      <div>
-        <h2>Come up when the <em>cloud is in</em></h2>
-      </div>
-      <div class="foot__col">
-        <b>The estate</b>
-        <a href="tel:+919447848123">+91 944 784 8123</a>
-        <a href="mailto:sales@mistymountain.in">sales@mistymountain.in</a>
-        <a href="https://api.whatsapp.com/send/?phone=919447848123" target="_blank" rel="noopener">WhatsApp</a>
-        <a href="https://hotels.travelnet.in/booking/misty-mountain-plantation-resort" target="_blank" rel="noopener">Check availability</a>
-      </div>
-      <div class="foot__col">
-        <b>Find us</b>
-        <span>Kuttikkanam PO, Peermade</span>
-        <span>Idukki District, Kerala 685531</span>
-        <a href="https://www.instagram.com/mistymountainexperience/" target="_blank" rel="noopener">@mistymountainexperience</a>
-        <a href="https://www.facebook.com/mistyresort/" target="_blank" rel="noopener">facebook.com/mistyresort</a>
-      </div>
-    </div>
-    <div class="foot__end">
-      <span>Misty Mountain Plantation Resort — Kuttikkanam, Peermade</span>
-      <span>Design prototype</span>
-    </div>
-  </div>
-</footer>
 
 <!-- ======================= THE CHATBOT WIDGET ======================= -->
 <button class="launch" id="launch" type="button" data-i18n-aria="openAria" aria-label="Open the ChatBot assistant" aria-haspopup="dialog">
@@ -3776,6 +3886,342 @@ function attachConnecting(bubble){
   timers.add(timer);
 }
 
+/* ---- live answers from the backend -----------------------------
+   Every question goes to POST /api/chat first. The backend decides what
+   is being asked and answers what it owns — which hotels there are, room
+   availability, the booking itself and booking look-ups — from Supabase,
+   with fixed wording. Anything it does not own comes back
+   { handled: false } and respond() answers it from the knowledge base
+   exactly as before.
+
+   A booking is a conversation: each answer carries tappable options (and
+   sometimes a date picker, a room list or a short form), and every one of
+   them can also be typed. The backend's memory of that conversation comes
+   back as a signed `state` token, which lives in this variable only — it
+   is dropped with the transcript, never stored.
+
+   A signed-in guest's access token goes with every request
+   (Authorization: Bearer), from the Supabase session hotel_admin.js keeps.
+   The backend checks it with Supabase Auth: holding and confirming rooms
+   need a signed-in guest, and the booking is saved to that account.
+
+   No key or database address is in this page: the backend holds them.
+   If the backend cannot be reached, the knowledge base answers — except
+   a booking or availability question, which gets an honest "can't check
+   right now" instead of a guess.
+   --------------------------------------------------------------- */
+const API_URL = "/api/chat";
+const API_TIMEOUT_MS = 12000;
+const LOOKS_LIKE_BOOKING = /\b(availab\w*|vacan\w*|fully booked|sold out|any rooms?|rooms? (?:free|left|open)|free rooms?|book(?:ing)?|reserv\w*|hotels?)\b/i;
+
+let chatState = null;
+
+async function askBackend(payload){
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
+  try {
+    const headers = { "Content-Type": "application/json" };
+    let token = null;
+    try { token = window.MMAuth ? await window.MMAuth.token() : null; } catch { token = null; }
+    if (token) headers.Authorization = "Bearer " + token;
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...payload, lang: LANG, state: chatState }),
+      signal: ctrl.signal,
+      credentials: "same-origin"
+    });
+    const body = res.headers.get("content-type")?.includes("application/json") ? await res.json() : null;
+    return { ok: res.ok && !!body, status: res.status, body };
+  } catch (e){
+    return { ok: false, status: 0, body: null };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const liveDown = () => ({
+  reply: esc(t("liveDown", "I can't reach our live booking system just now, so I can't check rooms or make a booking. Nothing has been booked. Please try again in a moment, or ask the front desk.")),
+  desk: true
+});
+
+/* Backend result → the answer shape respond() returns, or null to let the
+   knowledge base answer. */
+function fromBackend(r, q){
+  const b = r.ok ? r.body : null;
+  if (b && b.handled){
+    if ("state" in b) chatState = b.state;
+    // A hold, a confirmation or a release changes what the room board
+    // shows: let the dashboard / guest area re-read Supabase straight away
+    // rather than wait for the Realtime signal.
+    const p = b.ui && b.ui.panel;
+    if ((b.data && b.data.type === "booking") || (p && p.type === "summary")){
+      window.dispatchEvent(new CustomEvent("mm:booking-changed", { detail: { ref: (b.data && b.data.bookingRef) || (p && p.ref) || null } }));
+    }
+    const note = LANG === "en" ? "" : t("corpusNote");
+    return {
+      reply: esc(b.reply) + (note ? ' <span class="from-en">' + esc(note) + "</span>" : ""),
+      panel: bookingUi(b.ui) || null,
+      desk:  !!b.desk
+    };
+  }
+  if ((!b || b.error) && q && LOOKS_LIKE_BOOKING.test(q)) return liveDown();
+  return null;
+}
+
+/* ---- booking widgets ------------------------------------------------
+   Built from the backend's `ui` description. Every button carries the
+   action it sends in data-act; the server validates it like typed text. */
+const actAttr = a => esc(JSON.stringify(a));
+
+function bkOptions(options){
+  if (!options || !options.length) return "";
+  return '<div class="bk-opts bk-live" role="group" aria-label="' + esc(t("bkChoose", "Choose an answer")) + '">'
+    + options.map(o => '<button type="button" class="connect__btn'
+        + (o.tone === "primary" ? " connect__btn--primary" : o.tone === "quiet" ? " bk-quiet" : "")
+        + '" data-act="' + actAttr(o.action) + '">' + esc(o.label) + "</button>").join("")
+    + "</div>";
+}
+
+let seq = 0;
+
+function bkDate(d){
+  if (!d) return "";
+  return '<form class="bk-date bk-live" data-slot="' + esc(d.slot) + '">'
+    + '<label for="bkDate' + seq + '">' + esc(d.label || t("bkPickDate", "Pick a date")) + "</label>"
+    + '<input id="bkDate' + seq + '" type="date" required min="' + esc(d.min) + '" max="' + esc(d.max) + '">'
+    + '<button type="submit" class="connect__btn connect__btn--primary">' + esc(t("bkUseDate", "Use this date")) + "</button>"
+    + "</form>";
+}
+
+function bkStay(p){
+  const nights = p.nights === 1 ? t("availOneNight", "1 night") : fmt(t("availNights", "{n} nights"), { n: p.nights });
+  return '<dl class="avail__dates">'
+    + "<div><dt>" + esc(t("availIn", "Check-in")) + "</dt><dd>" + esc(p.checkInLabel) + "</dd></div>"
+    + "<div><dt>" + esc(t("availOut", "Check-out")) + "</dt><dd>" + esc(p.checkOutLabel) + "</dd></div>"
+    + "<div><dt>" + esc(t("availStay", "Stay")) + "</dt><dd>" + esc(nights) + "</dd></div>"
+    + "</dl>";
+}
+
+function bkRooms(p){
+  const one = p.need === 1;
+  const rows = p.available.map(r =>
+    '<label class="bk-room bk-room--' + esc(r.type) + '">'
+    + '<input type="' + (one ? "radio" : "checkbox") + '" name="bkRoom' + seq + '" value="' + esc(r.id) + '" data-total="' + Number(r.stayTotal) + '"'
+    + (p.selected.includes(r.id) ? " checked" : "") + ">"
+    + '<span class="bk-room__no" aria-hidden="true">' + Number(r.number) + "</span>"
+    + '<span class="bk-room__meta"><b>' + esc(r.type) + " · Room " + Number(r.number) + "</b>"
+    + "<small>" + esc(r.priceLabel) + " / night · sleeps " + Number(r.maxGuests) + "</small></span>"
+    + '<span class="bk-room__total">' + esc(r.stayTotalLabel) + "</span></label>").join("");
+  return '<div class="panel bk-rooms bk-live" data-need="' + Number(p.need) + '" data-nights="' + Number(p.nights) + '">'
+    + '<p class="panel__cap"><span class="avail__live" aria-hidden="true"></span>'
+    + esc(fmt(t("bkLiveCap", "Live availability · {free} of {total} rooms free"), { free: p.freeCount, total: p.totalRooms })) + "</p>"
+    + bkStay(p)
+    + '<div class="bk-rooms__list" role="group" aria-label="' + esc(t("bkRoomsAria", "Available rooms")) + '">' + rows + "</div>"
+    + '<div class="bk-rooms__foot"><span class="bk-rooms__sum" aria-live="polite"></span>'
+    + '<button type="button" class="connect__btn connect__btn--primary" data-book>'
+    + esc(one ? t("bkBookOne", "Book This Room") : t("bkBookMany", "Book These Rooms")) + "</button></div>"
+    + "</div>";
+}
+
+const BADGE_TEXT = { hold: "Held", review: "Not yet booked", confirmed: "Confirmed", checked_in: "Checked in",
+                     checked_out: "Completed", cancelled: "Cancelled", no_show: "No-show" };
+
+function bkSummary(p){
+  const caps = {
+    hold: t("bkCapHold", "Your selection · held until {time}"),
+    review: t("bkCapReview", "Booking summary · held until {time}"),
+    confirmed: t("bkCapConfirmed", "Booking confirmed"),
+    lookup: t("bkCapLookup", "Your booking")
+  };
+  const badge = p.stage === "lookup" ? (p.status || "") : p.stage;
+  const badgeText = BADGE_TEXT[badge] || badge;
+  const lines = p.rooms.map(r =>
+    '<div class="bk-line"><b>Room ' + Number(r.number) + " · " + esc(r.type) + "</b><em>" + esc(r.totalLabel) + "</em>"
+    + "<span>" + esc(r.priceLabel) + " × " + Number(p.nights) + (p.nights === 1 ? " night" : " nights")
+    + " · " + Number(r.guests) + (r.guests === 1 ? " guest" : " guests") + "</span></div>").join("");
+  const g = p.guest;
+  return '<div class="panel bk-sum">'
+    + '<p class="panel__cap" style="display:flex;justify-content:space-between;gap:.5rem;align-items:center">'
+    + "<span>" + esc(fmt(caps[p.stage] || "", { time: p.holdUntil || "" })) + "</span>"
+    + (badgeText ? '<span class="bk-sum__badge bk-sum__badge--' + esc(badge) + '">' + esc(badgeText) + "</span>" : "") + "</p>"
+    + (p.ref ? '<div class="bk-sum__ref">' + esc(p.ref) + "</div>" : "")
+    + bkStay(p)
+    + '<div class="bk-line"><span>Arrival</span><em>' + esc(p.arrival) + "</em></div>"
+    + '<div class="bk-line"><span>Check-out by</span><em>' + esc(p.departure) + "</em></div>"
+    + lines
+    + (g ? '<div class="bk-line"><span>Guest</span><em>' + esc(g.name || "") + "</em></div>"
+         + '<div class="bk-line"><span>Mobile</span><em>' + esc(g.phone || "") + "</em></div>"
+         + '<div class="bk-line"><span>Email</span><em>' + esc(g.email || "") + "</em></div>" : "")
+    + '<div class="bk-total"><span>Total · ' + Number(p.guests) + (p.guests === 1 ? " guest" : " guests") + "</span><b>" + esc(p.totalLabel) + "</b></div>"
+    + "</div>";
+}
+
+function bkUnavailable(p){
+  return '<div class="panel avail bk-full">'
+    + '<p class="panel__cap"><span class="avail__live" aria-hidden="true"></span>' + esc(t("bkLiveCapShort", "Live availability")) + "</p>"
+    + '<div class="avail__hero"><span class="avail__num">' + Number(p.matching) + "</span>"
+    + '<span class="avail__label">' + esc(fmt(t("bkMatching", "matching rooms free · {free} of {total} free in all"), { free: p.freeCount, total: p.totalRooms })) + "</span></div>"
+    + bkStay(p) + "</div>";
+}
+
+function bkForm(f){
+  if (!f || f.type !== "guest") return "";
+  const errs = (f.errors || []).join(" ");
+  return '<form class="bk-form bk-live" novalidate>'
+    + "<label>" + esc(t("bkName", "Full name")) + '<input name="name" autocomplete="name" maxlength="120" required value="' + esc(f.name) + '"></label>'
+    + "<label>" + esc(t("bkPhone", "Mobile number")) + '<input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" required value="' + esc(f.phone) + '"></label>'
+    + "<label>" + esc(t("bkEmail", "Email address")) + '<input name="email" type="email" autocomplete="email" maxlength="254" required value="' + esc(f.email) + '"></label>'
+    + '<p class="bk-form__err" role="alert">' + esc(errs) + "</p>"
+    + '<button type="submit" class="connect__btn connect__btn--primary">' + esc(t("bkContinue", "Continue")) + "</button>"
+    + "</form>";
+}
+
+/* Booking needs a signed-in guest: two buttons that open the sign-in or
+   sign-up form on the page. The conversation is kept, so "Continue
+   booking" carries on once the guest is signed in. */
+function bkAuth(on){
+  if (!on) return "";
+  const signedIn = !!(window.MMAuth && window.MMAuth.signedIn());
+  return '<div class="panel bk-auth bk-live">'
+    + '<p class="panel__cap">' + esc(t("bkAuthCap", "Guest account")) + "</p>"
+    + "<p>" + esc(signedIn ? t("bkAuthDone", "You're signed in now — tap Continue booking.")
+                           : t("bkAuthText", "Sign in, or create a free account in under a minute. Your booking will be saved to it.")) + "</p>"
+    + (signedIn ? "" : '<div class="bk-opts">'
+        + '<button type="button" class="connect__btn connect__btn--primary" data-auth="signin">' + esc(t("bkAuthSignin", "Sign in")) + "</button>"
+        + '<button type="button" class="connect__btn" data-auth="signup">' + esc(t("bkAuthSignup", "Create account")) + "</button></div>")
+    + "</div>";
+}
+
+function bookingUi(ui){
+  if (!ui) return "";
+  seq += 1;
+  hintFor(ui.hint);
+  const p = ui.panel;
+  const panel = !p ? ""
+    : p.type === "rooms" ? bkRooms(p)
+    : p.type === "summary" ? bkSummary(p)
+    : p.type === "unavailable" ? bkUnavailable(p) : "";
+  return panel + bkAuth(ui.auth) + bkForm(ui.form) + bkDate(ui.date) + bkOptions(ui.options);
+}
+
+/* The input's placeholder follows the question, so typing is always
+   offered alongside the buttons ("Tap a time, or type one…"). */
+function hintFor(h){
+  ask.placeholder = h || t("askPlaceholder", "Ask about rooms, food, the drive up…");
+}
+
+/* Running total under the room list, and the selection limit. */
+function syncRooms(box){
+  const need = Number(box.dataset.need), nights = Number(box.dataset.nights);
+  const picked = [...box.querySelectorAll("input:checked")];
+  if (need > 1){
+    box.querySelectorAll("input").forEach(i => { i.disabled = !i.checked && picked.length >= need; });
+  }
+  const sum = picked.reduce((s, i) => s + Number(i.dataset.total), 0);
+  const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(sum);
+  box.querySelector(".bk-rooms__sum").innerHTML = "<b>" + picked.length + " of " + need + "</b> selected · <b>" + esc(inr) + "</b> for "
+    + nights + (nights === 1 ? " night" : " nights");
+  box.querySelector("[data-book]").disabled = picked.length !== need;
+}
+
+/* Once anything is answered, earlier widgets stop being clickable. */
+function spendWidgets(){
+  log.querySelectorAll(".bk-live").forEach(w => {
+    w.classList.remove("bk-live"); w.classList.add("bk-spent");
+    w.querySelectorAll("button, input").forEach(n => { n.disabled = true; });
+  });
+}
+
+/* A tap: show it as the guest's answer, send the action. */
+function sendAction(action, label){
+  if (busy || !action) return;
+  spendWidgets();
+  showPage("pgChat");
+  addGuest(label);
+  setBusy(true);
+  refreshClear();
+  const think = addThinking();
+  const mine = session;
+  const started = performance.now();
+  askBackend({ action }).then(r => {
+    if (mine !== session) return;
+    const answer = fromBackend(r, null) || Object.assign(liveDown(), {
+      panel: bkOptions([{ label: t("bkRetry", "Try again"), action, tone: "primary" }])
+    });
+    later(Math.max(0, 420 - (performance.now() - started)), () => {
+      think.remove();
+      addBot(answer, () => { setBusy(false); refreshClear(); touched(); afterRender(); });
+    });
+  });
+}
+
+/* Wire up whatever the last answer rendered. */
+function afterRender(){
+  log.querySelectorAll(".bk-rooms.bk-live").forEach(syncRooms);
+}
+
+log.addEventListener("click", e => {
+  const auth = e.target.closest("[data-auth]");
+  if (auth && window.MMAuth){
+    // The panel closes so the form underneath can be used; once signed in
+    // it reopens on this same conversation.
+    closeDock();
+    window.MMAuth.open(auth.dataset.auth, { resumeChat: true });
+    return;
+  }
+  const b = e.target.closest("[data-act]");
+  if (b && !busy && !b.disabled){
+    let action;
+    try { action = JSON.parse(b.dataset.act); } catch { return; }
+    b.setAttribute("aria-pressed", "true");
+    sendAction(action, b.textContent.trim());
+    return;
+  }
+  const book = e.target.closest("[data-book]");
+  if (book && !busy){
+    const box = book.closest(".bk-rooms");
+    const picked = [...box.querySelectorAll("input:checked")];
+    if (picked.length !== Number(box.dataset.need)) return;
+    const nums = picked.map(i => i.closest(".bk-room").querySelector(".bk-room__no").textContent);
+    sendAction({ type: "book", roomIds: picked.map(i => i.value) },
+      (nums.length === 1 ? "Book room " : "Book rooms ") + nums.join(", "));
+  }
+});
+log.addEventListener("change", e => {
+  const box = e.target.closest(".bk-rooms");
+  if (box) syncRooms(box);
+});
+log.addEventListener("submit", e => {
+  const date = e.target.closest(".bk-date");
+  if (date){
+    e.preventDefault();
+    const v = date.querySelector("input").value;
+    if (!v) return;
+    const nice = new Date(v + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    sendAction({ type: "set", slot: date.dataset.slot, value: v }, nice);
+    return;
+  }
+  const form = e.target.closest(".bk-form");
+  if (form){
+    e.preventDefault();
+    const val = n => form.elements[n].value.trim();
+    const missing = ["name", "phone", "email"].filter(n => !val(n));
+    ["name", "phone", "email"].forEach(n => form.elements[n].setAttribute("aria-invalid", missing.includes(n) ? "true" : "false"));
+    if (missing.length){
+      form.querySelector(".bk-form__err").textContent = t("bkFillAll", "Please fill in all three fields.");
+      form.elements[missing[0]].focus();
+      return;
+    }
+    sendAction({ type: "guest", name: val("name"), phone: val("phone"), email: val("email") },
+      val("name") + " · " + val("phone") + " · " + val("email"));
+  }
+});
+
+/* After a knowledge-base answer in the middle of a booking, offer the way
+   back to where the booking was. */
+const resumeChip = () => bkOptions([{ label: t("bkResume", "Continue booking"), action: { type: "resume" }, tone: "primary" }]);
+
 /* ---- sending ---- */
 let busy = false;
 function setBusy(state){
@@ -3787,20 +4233,35 @@ function setBusy(state){
 function send(text){
   const q = (text || "").trim();
   if (!q || busy) return;
+  spendWidgets();
   showPage("pgChat");
   addGuest(q);
   setBusy(true);
   refreshClear();
 
   const think = addThinking();
-  const answer = respond(q);
+  const mine = session;
+  const started = performance.now();
 
-  later(520, () => {
-    think.remove();
-    addBot(answer, () => {
-      setBusy(false);
-      refreshClear();
-      touched();          // the idle window starts once the answer is complete
+  askBackend({ message: q }).then(r => {
+    if (mine !== session) return;                 // cleared while waiting: drop it
+    let answer = fromBackend(r, q);
+    if (!answer){
+      answer = respond(q);
+      // A side question mid-booking: answer it, then offer the way back.
+      if (chatState && r.body && r.body.bookingActive){
+        answer = Object.assign({}, answer, { panel: (answer.panel || "") + resumeChip() });
+      }
+    }
+    // Keep the short pause the panel always had, without adding to a slow lookup.
+    later(Math.max(0, 520 - (performance.now() - started)), () => {
+      think.remove();
+      addBot(answer, () => {
+        setBusy(false);
+        refreshClear();
+        touched();          // the idle window starts once the answer is complete
+        afterRender();
+      });
     });
   });
 }
@@ -3824,6 +4285,8 @@ function refreshClear(){
 function resetChat(takeFocus){
   session += 1;
   stopAll();
+  chatState = null;
+  hintFor(null);
   log.innerHTML = "";
   seeded = false;
   seed();
@@ -4120,4 +4583,17 @@ document.addEventListener("keydown", e => {
 });
 
 refreshClear();
+
+/* For hotel_admin.js / hotel_guest.js: open the panel (optionally asking a
+   question), reopen it on the same conversation after signing in, and wipe
+   it on sign-out so the next person never sees the last one's booking. */
+window.MMChat = {
+  open: question => openDock(question),
+  resume(){ closedAt = 0; openDock(); },
+  reset(){ resetChat(false); showPage("pgHome"); if (!dock.hidden) closeDock(); }
+};
 </script>
+<!-- Supabase Auth for staff sign-in. Pinned; the anon key it uses comes from /api/config. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+<script src="hotel_guest.js"></script>
+<script src="hotel_admin.js"></script>

@@ -18,6 +18,52 @@
 # No `command` key. Netlify treats an absent command as "publish as-is",
 # which is what a plain HTML and JavaScript project wants.
 #
-# No redirects either. This is one static page with in-page anchors, not a
-# single-page app, so a catch-all rewrite to index.html would only hide real
-# 404s. `/` resolves to index.html on its own, including on refresh.
+# No catch-all rewrite. This is one static page with in-page anchors, not a
+# single-page app, so rewriting everything to index.html would only hide real
+# 404s. `/` resolves to index.html on its own, including on refresh. The only
+# redirects below are hard 404s for private folders.
+
+# ---- the ChatBot backend ------------------------------------------------------
+# POST /api/chat is netlify/functions/chat.mjs, GET /api/config is
+# netlify/functions/config.mjs (paths are set in the files). /api/config serves
+# only the Supabase URL and anon key, for staff sign-in on the dashboard.
+# Netlify bundles functions on its own; there is still no build command.
+# Secrets (SUPABASE_*, JEV_*) are set in Site configuration → Environment
+# variables, never in this file or the page.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  included_files = ["server/**"]
+
+# The site publishes the repository root, so keep everything that is not the
+# page itself from being served. These are hard 404s, not a SPA fallback.
+[[redirects]]
+  from = "/.env*"
+  to = "/404"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/server/*"
+  to = "/404"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/supabase/*"
+  to = "/404"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/scripts/*"
+  to = "/404"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/tests/*"
+  to = "/404"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/node_modules/*"
+  to = "/404"
+  status = 404
+  force = true

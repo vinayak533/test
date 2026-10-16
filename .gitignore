@@ -13,3 +13,15 @@ node_modules/
 # Not part of this project: a scraped React shell that points at
 # /static/js assets which are not in this repository.
 bookeng.html
+
+# Secrets. Supabase service-role key, DB password and the Jev key live here
+# and must never be committed or served.
+.env
+.env.*
+!.env.example
+
+# Netlify CLI local state
+.netlify/
+
+# Playwright MCP screenshots and logs
+.playwright-mcp/
