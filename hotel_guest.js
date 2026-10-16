@@ -197,6 +197,7 @@
       <span class="mm-room__status"><i aria-hidden="true"></i>${esc(st.label)}</span>
       <span class="mm-room__price"><b>${inr(r.price_per_night)}</b> / night</span>
       <span class="mm-room__meta">Sleeps ${r.max_guests}${n > 1 && r.status === "available" ? ` · ${inr(total)} for ${plural(n, "night")}` : ""}</span>
+      ${r.next_booked ? `<span class="mm-room__later${r.next_mine ? " mm-room__later--mine" : ""}">${r.next_mine ? "Your booking" : "Booked"} from ${esc(fmtDay(r.next_booked))}</span>` : ""}
       ${action}
     </article>`;
   }

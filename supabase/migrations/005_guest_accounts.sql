@@ -11,6 +11,9 @@
 --                     every room with its type, rate and status for those
 --                     nights: available | booked | held | inactive. No guest
 --                     names or contact details — any signed-in user may call it.
+--                     next_booked / next_mine: the room's next booked stay
+--                     starting on or after check-out, so a later booking is
+--                     visible even when the room is free for these nights.
 --   my_bookings()     the caller's own bookings (reservations.user_id)
 --   cancel_my_booking(ref)
 --                     the caller cancels one of their own confirmed bookings
@@ -26,10 +29,13 @@
 -- ============================================================================
 
 -- ---------------------------------------------------------- room board ----
-create or replace function public.room_board(p_hotel_id text, p_check_in date, p_check_out date)
+-- The return shape grew (next_booked, next_mine), which "create or replace"
+-- cannot do, so the old one is dropped first; the grants are re-applied below.
+drop function if exists public.room_board(text, date, date);
+create function public.room_board(p_hotel_id text, p_check_in date, p_check_out date)
 returns table (room_id uuid, room_number integer, room_type text, name text,
                price_per_night numeric, max_guests smallint, is_active boolean,
-               status text, mine boolean)
+               status text, mine boolean, next_booked date, next_mine boolean)
 language plpgsql stable security definer
 set search_path = ''
 as $$
@@ -55,8 +61,15 @@ begin
              else 'available'
            end,
            exists (select 1 from live l where l.room_id = r.id and l.user_id = auth.uid()
-                     and l.status in ('confirmed', 'checked_in'))
+                     and l.status in ('confirmed', 'checked_in')),
+           nb.check_in,
+           coalesce(nb.user_id = auth.uid(), false)
       from public.rooms r
+      left join lateral (
+        select x.check_in, x.user_id from public.reservations x
+         where x.room_id = r.id and x.status in ('confirmed', 'checked_in') and x.check_in >= p_check_out
+         order by x.check_in limit 1
+      ) nb on true
       join public.hotels h on h.id = r.hotel_id and h.is_active
      where r.hotel_id = p_hotel_id
      order by r.room_number;

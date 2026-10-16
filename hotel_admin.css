@@ -288,6 +288,13 @@ body{ background: var(--mm-ivory); color: var(--mm-ink); }
 }
 .mm-room__book:hover{ background: var(--mm-navy-850); }
 .mm-room__mine{ margin-top: .45rem; font-size: .78rem; font-weight: 700; color: var(--st-arriving); }
+/* Free for the chosen nights, but already booked from a later date. */
+.mm-room__later{ display: inline-flex; align-items: center; gap: .35rem; justify-self: start; font-size: .74rem; font-weight: 700; color: var(--st-booked); }
+.mm-room__later::before{ content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--st-booked-dot); }
+.mm-room__later--mine{ color: var(--st-arriving); }
+.mm-room__later--mine::before{ background: var(--st-arriving-dot); }
+.mm-room--Luxury .mm-room__later{ color: #FECDD3; }
+.mm-room--Luxury .mm-room__later--mine{ color: #BFDBFE; }
 
 .mm-room--available .mm-room__status{ background: var(--st-available-bg); color: var(--st-available); }
 .mm-room--available .mm-room__status i{ background: var(--st-available-dot); }
@@ -492,7 +499,11 @@ body{ background: var(--mm-ivory); color: var(--mm-ink); }
 .mm-tile--held .mm-tile__state{ color: var(--st-held); }
 .mm-tile--inactive{ border-top-color: var(--st-muted-dot); background: repeating-linear-gradient(135deg, #FAFAF9 0 8px, #F3F4F6 8px 16px); }
 .mm-tile--inactive .mm-tile__state{ color: var(--st-muted); }
-.mm-tile--occupied, .mm-tile--arriving{ position: relative; overflow: hidden; }
+.mm-tile--reserved{ border-top-color: var(--st-booked-dot); }
+.mm-tile--reserved .mm-tile__state{ color: var(--st-booked); }
+.mm-tile--occupied, .mm-tile--arriving, .mm-tile--reserved{ position: relative; overflow: hidden; }
+.mm-tile--reserved::after{ content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(135deg, transparent 0 9px, rgba(225,29,72,.05) 9px 11px); }
 .mm-tile--occupied::after{ content: ""; position: absolute; inset: 0; pointer-events: none;
   background: repeating-linear-gradient(135deg, transparent 0 9px, rgba(25,44,94,.05) 9px 11px); }
 
@@ -503,6 +514,13 @@ body{ background: var(--mm-ivory); color: var(--mm-ink); }
   border-color: var(--lux-line); color: var(--lux-ink);
 }
 .mm-tile--Luxury:hover{ border-color: var(--lux-foil); box-shadow: 0 6px 22px rgba(20,15,36,.35); }
+/* The status bar on top keeps its colour on the dark card too. */
+.mm-tile--Luxury.mm-tile--available{ border-top-color: var(--st-available-dot); }
+.mm-tile--Luxury.mm-tile--arriving{ border-top-color: var(--st-arriving-dot); }
+.mm-tile--Luxury.mm-tile--occupied{ border-top-color: #818CF8; }
+.mm-tile--Luxury.mm-tile--reserved{ border-top-color: var(--st-booked-dot); }
+.mm-tile--Luxury.mm-tile--held{ border-top-color: var(--st-held-dot); }
+.mm-tile--Luxury.mm-tile--inactive{ border-top-color: var(--st-muted-dot); }
 .mm-tile--Luxury .mm-tile__no{ color: var(--lux-foil); }
 .mm-tile--Luxury .mm-tile__type{ color: var(--lux-foil); letter-spacing: .02em; }
 .mm-tile--Luxury .mm-tile__who{ color: var(--lux-ink-2); }
@@ -510,6 +528,8 @@ body{ background: var(--mm-ivory); color: var(--mm-ink); }
 .mm-tile--Luxury.mm-tile--arriving .mm-tile__state{ color: #93C5FD; }
 .mm-tile--Luxury.mm-tile--occupied .mm-tile__state{ color: #FBCFE8; }
 .mm-tile--Luxury.mm-tile--held .mm-tile__state{ color: #FCD34D; }
+.mm-tile--Luxury.mm-tile--reserved .mm-tile__state{ color: #FECDD3; }
+.mm-tile--Luxury.mm-tile--reserved::after{ background: repeating-linear-gradient(135deg, transparent 0 9px, rgba(254,205,211,.08) 9px 11px); }
 .mm-tile--Luxury.mm-tile--inactive{ background: repeating-linear-gradient(135deg, #2A2540 0 8px, #221D34 8px 16px); }
 .mm-tile--Luxury.mm-tile--inactive .mm-tile__state{ color: var(--lux-ink-2); }
 .mm-tile--Luxury.mm-tile--occupied::after{ background: repeating-linear-gradient(135deg, transparent 0 9px, rgba(233,207,134,.07) 9px 11px); }
