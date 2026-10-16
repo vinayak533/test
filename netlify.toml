@@ -17,6 +17,15 @@
 
 # No `command` key. Netlify treats an absent command as "publish as-is",
 # which is what a plain HTML and JavaScript project wants.
+
+# Secrets scanning fails the build when an environment variable's value
+# appears in the repository. These four are settings, not secrets, and their
+# values are written into the code on purpose ("Asia/Kolkata", the default
+# Jev model and base URL, a timeout in ms). Only they are skipped: the real
+# secrets (SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY, JEV_API_KEY,
+# CHAT_STATE_SECRET) are still scanned for.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "HOTEL_TIMEZONE,JEV_MODEL,JEV_BASE_URL,JEV_TIMEOUT_MS"
 #
 # No catch-all rewrite. This is one static page with in-page anchors, not a
 # single-page app, so rewriting everything to index.html would only hide real
