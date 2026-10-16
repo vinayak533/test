@@ -81,12 +81,51 @@ test("a borderline Jev intent asks before starting", async () => {
 /* ---- what the page answers --------------------------------------------- */
 
 for (const q of ["What time is breakfast?", "Can we book a campfire or barbecue?", "Is there a tea factory tour?",
-                 "What are the check-in and check-out times?", "Tell me about the rooms"]){
+                 "What are the check-in and check-out times?", "hello", "Is it good for couples?"]){
   test(`"${q}" goes to the page's knowledge base`, async () => {
     const out = await conversation().say(q);
     assert.equal(out.handled, false);
   });
 }
+
+/* ---- the rooms themselves: always from the rooms table --------------------- */
+
+for (const q of ["Tell me about the rooms", "How many rooms are there?", "How many rooms do you have?",
+                 "What types of rooms do you have?", "How much is a luxury room?"]){
+  test(`"${q}" is answered from the rooms table`, async () => {
+    const c = conversation();
+    const out = await c.say(q);
+    assert.equal(out.handled, true);
+    assert.equal(out.intent, "room_info");
+    assert.equal(out.reply, "Misty Mountain has 10 rooms: 6 Normal rooms at ₹2,500 a night and 4 Luxury rooms at ₹4,500 a night. "
+      + "The Luxury rooms are our premium rooms. Each room sleeps up to 3 guests. Check-in is from 2:00 PM and check-out by 12:00 PM. "
+      + "Would you like me to check which rooms are free for your dates?");
+    assert.deepEqual(out.ui.options.map(o => o.action), [{ type: "start" }]);
+    assert.ok(!/seven|\b7\b/i.test(out.reply));
+    assert.ok(c.repo.calls.some(([k]) => k === "rooms"), "read live");
+  });
+}
+
+test("room count follows the database: a room taken out of service is not counted", async () => {
+  const { ROOMS } = require("./helpers");
+  const rooms = ROOMS.map(r => r.room_number === 10 ? { ...r, is_active: false } : r);
+  const out = await conversation({ repo: fakeRepo({ rooms }) }).say("how many rooms are there");
+  assert.match(out.reply, /^Misty Mountain has 9 rooms: 6 Normal rooms at ₹2,500 a night and 3 Luxury rooms/);
+});
+
+test("\"how many rooms are available\" still checks dates, not the inventory", async () => {
+  const out = await conversation().say("How many rooms are available?");
+  assert.match(out.reply, /What date would you like to check in\?/);
+});
+
+test("mid-booking, a rooms question is answered and the booking can be picked up again", async () => {
+  const c = conversation();
+  await c.say("How many rooms are available?");
+  const out = await c.say("what types of rooms do you have?");
+  assert.equal(out.intent, "room_info");
+  assert.deepEqual(out.ui.options[0], { label: "Continue booking", action: { type: "resume" }, tone: "primary" });
+  assert.equal(c.decoded().flow, "booking", "the booking is kept");
+});
 
 test("hotels table down: a booking question gets an error, a general one goes to the page", async () => {
   const repo = fakeRepo({ fail: "hotels" });

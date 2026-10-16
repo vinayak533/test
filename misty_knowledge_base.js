@@ -221,7 +221,7 @@
       q: "Misty Mountain Plantation Resort, Kuttikkanam, Peermade, Kerala",
       url: "https://maps.app.goo.gl/KhaJhmVDHHeFbAjbA",
       dist: "The estate itself",
-      what: "600 acres of tea and cardamom above Peermade, with seven rooms in the middle of it.",
+      what: "600 acres of tea and cardamom above Peermade, with Normal and Luxury rooms in the middle of it.",
       detail: "Kuttikkanam PO, Peermade, Idukki District, Kerala 685531.",
       tags: "resort estate misty mountain address here property"
     },
