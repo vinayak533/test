@@ -559,6 +559,20 @@ a{ color: inherit; }
   line-height: 1.2; letter-spacing: -.012em; color: var(--d-ink);
 }
 .home__hi p{ font-size: 13.5px; line-height: 1.6; color: var(--d-ink-2); }
+.home__book{
+  display: flex; align-items: center; gap: .75rem; width: 100%; text-align: left;
+  padding: .8rem .95rem; border: 0; border-radius: 12px; cursor: pointer; font: inherit;
+  background: linear-gradient(135deg, #E9CC74, #D4AF37 55%, #B89224); color: #0A1128;
+  box-shadow: 0 6px 18px rgba(184,146,36,.28); transition: filter .16s ease, transform .16s ease;
+}
+.home__book:hover{ filter: brightness(1.05); transform: translateY(-1px); }
+.home__book:focus-visible{ outline: 2px solid var(--d-accent); outline-offset: 2px; }
+.home__book-ico{ display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 10px; background: rgba(10,17,40,.12); }
+.home__book-txt{ display: grid; gap: .1rem; min-width: 0; }
+.home__book-txt b{ font-size: 15px; font-weight: 700; }
+.home__book-txt small{ font-size: 12.5px; color: rgba(10,17,40,.78); }
+.home__book-go{ margin-left: auto; flex: none; }
+@media (prefers-reduced-motion: reduce){ .home__book{ transition: none; } .home__book:hover{ transform: none; } }
 .home__start{
   display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
   background: var(--d-accent); color: #fff; border: 0; border-radius: 9px;
@@ -1800,8 +1814,22 @@ a{ color: inherit; }
     <section class="page page--home" id="pgHome" role="tabpanel" aria-labelledby="tabHome" tabindex="0">
       <div class="home__hi">
         <h3 data-i18n="homeGreetTitle">Good day. How can I help?</h3>
-        <p data-i18n="homeGreetBody">I keep the desk at Misty Mountain — six hundred acres of tea above Peermade, and seven rooms in the middle of it. Ask me anything about the estate.</p>
+        <p data-i18n="homeGreetBody">I keep the desk at Misty Mountain — six hundred acres of tea above Peermade, with Normal and Luxury rooms in the middle of it. Ask me anything about the estate.</p>
       </div>
+
+      <!-- Booking comes first: one tap starts the live booking conversation
+           (the same "start" action the backend's own buttons send, so it
+           works the same in every language). -->
+      <button class="home__book" type="button" id="homeBook">
+        <span class="home__book-ico" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" focusable="false"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18M8.5 14.5l2.2 2.2 4.8-4.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="home__book-txt">
+          <b data-i18n="homeBook">Book a room</b>
+          <small data-i18n="homeBookSub">Live availability for your dates, in a few taps</small>
+        </span>
+        <svg class="home__book-go" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" aria-hidden="true" focusable="false"><path d="M2 7h9M7.5 3.5 11 7l-3.5 3.5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
 
       <!-- The estate, in pictures. The big frame is the accommodation and
            the three tiles under it are the rest of the place; each one is
@@ -1813,7 +1841,7 @@ a{ color: inherit; }
             <span class="home__hero-scrim"></span>
             <span class="home__hero-cap">
               <span class="home__hero-eyebrow" data-i18n="heroEyebrow">Where you stay</span>
-              <b class="home__hero-title" data-i18n="heroTitle">Seven rooms in the tea</b>
+              <b class="home__hero-title" data-i18n="heroTitle">Rooms among the tea</b>
             </span>
           </span>
           <span class="home__hero-foot">
@@ -1992,7 +2020,9 @@ a{ color: inherit; }
   "tabContact": "Contact",
   "tabsLabel": "ChatBot sections",
   "homeGreetTitle": "Good day. How can I help?",
-  "homeGreetBody": "I keep the desk at Misty Mountain — six hundred acres of tea above Peermade, and seven rooms in the middle of it. Ask me anything about the estate.",
+  "homeGreetBody": "I keep the desk at Misty Mountain — six hundred acres of tea above Peermade, with Normal and Luxury rooms in the middle of it. Ask me anything about the estate.",
+  "homeBook": "Book a room",
+  "homeBookSub": "Live availability for your dates, in a few taps",
   "homeStart": "Start a conversation",
   "homeEnq": "Most asked questions",
   "homeGlance": "The estate at a glance",
@@ -2000,7 +2030,7 @@ a{ color: inherit; }
   "factRooms": "rooms in total",
   "factThings": "things to do",
   "heroEyebrow": "Where you stay",
-  "heroTitle": "Seven rooms in the tea",
+  "heroTitle": "Rooms among the tea",
   "heroBody": "Wooden Chalets on stilts and stone Reverie Cottages, set in the plantation.",
   "heroCta": "See the rooms",
   "heroAria": "See the rooms and cottages at Misty Mountain",
@@ -2048,7 +2078,7 @@ a{ color: inherit; }
   "placeNoGeo": "Your browser will not share a location, so directions will start from wherever Google places you.",
   "placeDenied": "No location shared, so directions will start from wherever Google places you.",
   "placeOk": "Directions now start from your current position.",
-  "panelRooms": "All seven rooms",
+  "panelRooms": "Our rooms",
   "panelOf": "{n} of {total}",
   "panelDining": "Both kitchens, and what else is served",
   "panelBeyond": "Beyond the two rooms",
@@ -2101,7 +2131,9 @@ a{ color: inherit; }
   "tabContact": "ബന്ധപ്പെടുക",
   "tabsLabel": "ചാറ്റ്ബോട്ട് വിഭാഗങ്ങൾ",
   "homeGreetTitle": "നമസ്കാരം. എന്ത് സഹായം വേണം?",
-  "homeGreetBody": "മിസ്റ്റി മൗണ്ടനിലെ ഡെസ്ക് ഞാനാണ് നോക്കുന്നത് — പീരുമേടിന് മുകളിൽ അറുനൂറ് ഏക്കർ തേയിലത്തോട്ടം, അതിന്റെ നടുവിൽ ഏഴു മുറികൾ. എസ്റ്റേറ്റിനെക്കുറിച്ച് എന്തും ചോദിക്കൂ.",
+  "homeGreetBody": "മിസ്റ്റി മൗണ്ടനിലെ ഡെസ്ക് ഞാനാണ് നോക്കുന്നത് — പീരുമേടിന് മുകളിൽ അറുനൂറ് ഏക്കർ തേയിലത്തോട്ടം, അതിന്റെ നടുവിൽ നോർമൽ, ലക്ഷ്വറി മുറികൾ. എസ്റ്റേറ്റിനെക്കുറിച്ച് എന്തും ചോദിക്കൂ.",
+  "homeBook": "മുറി ബുക്ക് ചെയ്യൂ",
+  "homeBookSub": "നിങ്ങളുടെ തീയതികളിലെ തത്സമയ ലഭ്യത, കുറച്ച് ടാപ്പുകളിൽ",
   "homeStart": "സംഭാഷണം തുടങ്ങുക",
   "homeEnq": "കൂടുതൽ ചോദിക്കുന്ന ചോദ്യങ്ങൾ",
   "homeGlance": "ഒറ്റനോട്ടത്തിൽ എസ്റ്റേറ്റ്",
@@ -2109,7 +2141,7 @@ a{ color: inherit; }
   "factRooms": "ആകെ മുറികൾ",
   "factThings": "ചെയ്യാനുള്ളവ",
   "heroEyebrow": "നിങ്ങൾ താമസിക്കുന്നിടം",
-  "heroTitle": "തേയിലത്തോട്ടത്തിനുള്ളിൽ ഏഴ് മുറികൾ",
+  "heroTitle": "തേയിലത്തോട്ടത്തിനുള്ളിലെ മുറികൾ",
   "heroBody": "തൂണുകളിൽ ഉയർന്ന മര ഷാലെകളും, കല്ലിൽ പണിത റെവറി കോട്ടേജുകളും — എല്ലാം തോട്ടത്തിനുള്ളിൽ.",
   "heroCta": "മുറികൾ കാണുക",
   "heroAria": "മിസ്റ്റി മൗണ്ടനിലെ മുറികളും കോട്ടേജുകളും കാണുക",
@@ -2157,7 +2189,7 @@ a{ color: inherit; }
   "placeNoGeo": "നിങ്ങളുടെ ബ്രൗസർ സ്ഥലം പങ്കുവയ്ക്കില്ല, അതിനാൽ ഗൂഗിൾ നിങ്ങളെ എവിടെ കരുതുന്നുവോ അവിടെ നിന്നായിരിക്കും വഴി.",
   "placeDenied": "സ്ഥലം പങ്കുവെച്ചിട്ടില്ല, അതിനാൽ ഗൂഗിൾ നിങ്ങളെ എവിടെ കരുതുന്നുവോ അവിടെ നിന്നായിരിക്കും വഴി.",
   "placeOk": "ഇനി നിങ്ങളുടെ നിലവിലെ സ്ഥലത്തു നിന്നാണ് വഴി തുടങ്ങുക.",
-  "panelRooms": "എല്ലാ ഏഴ് മുറികളും",
+  "panelRooms": "ഞങ്ങളുടെ മുറികൾ",
   "panelOf": "{total}-ൽ {n}",
   "panelDining": "രണ്ട് അടുക്കളകളും, പിന്നെ വിളമ്പുന്ന മറ്റുള്ളവയും",
   "panelBeyond": "രണ്ട് മുറികൾക്കപ്പുറം",
@@ -2210,7 +2242,9 @@ a{ color: inherit; }
   "tabContact": "संपर्क",
   "tabsLabel": "चैटबॉट अनुभाग",
   "homeGreetTitle": "नमस्ते। मैं आपकी क्या मदद करूँ?",
-  "homeGreetBody": "मैं मिस्टी माउंटेन का डेस्क सँभालता हूँ — पीरमेड़ के ऊपर छह सौ एकड़ चाय के बागान, और उनके बीच सात कमरे। एस्टेट के बारे में कुछ भी पूछिए।",
+  "homeGreetBody": "मैं मिस्टी माउंटेन का डेस्क सँभालता हूँ — पीरमेड़ के ऊपर छह सौ एकड़ चाय के बागान, और उनके बीच नॉर्मल और लग्ज़री कमरे। एस्टेट के बारे में कुछ भी पूछिए।",
+  "homeBook": "कमरा बुक करें",
+  "homeBookSub": "आपकी तारीख़ों की ताज़ा उपलब्धता, कुछ ही टैप में",
   "homeStart": "बातचीत शुरू करें",
   "homeEnq": "सबसे ज़्यादा पूछे जाने वाले सवाल",
   "homeGlance": "एक नज़र में एस्टेट",
@@ -2218,7 +2252,7 @@ a{ color: inherit; }
   "factRooms": "कुल कमरे",
   "factThings": "करने के काम",
   "heroEyebrow": "आप कहाँ ठहरेंगे",
-  "heroTitle": "चाय के बीच सात कमरे",
+  "heroTitle": "चाय के बीच कमरे",
   "heroBody": "लकड़ी के खंभों पर बने शाले और पत्थर की रेवरी कॉटेज, बागान के भीतर।",
   "heroCta": "कमरे देखें",
   "heroAria": "मिस्टी माउंटेन के कमरे और कॉटेज देखें",
@@ -2266,7 +2300,7 @@ a{ color: inherit; }
   "placeNoGeo": "आपका ब्राउज़र स्थान साझा नहीं करेगा, इसलिए रास्ता वहीं से शुरू होगा जहाँ गूगल आपको रखता है।",
   "placeDenied": "स्थान साझा नहीं किया गया, इसलिए रास्ता वहीं से शुरू होगा जहाँ गूगल आपको रखता है।",
   "placeOk": "अब रास्ता आपकी मौजूदा स्थिति से शुरू होता है।",
-  "panelRooms": "सातों कमरे",
+  "panelRooms": "हमारे कमरे",
   "panelOf": "{total} में से {n}",
   "panelDining": "दोनों रसोई, और जो कुछ और परोसा जाता है",
   "panelBeyond": "दोनों रेस्तरां के अलावा",
@@ -2319,7 +2353,9 @@ a{ color: inherit; }
   "tabContact": "தொடர்பு",
   "tabsLabel": "சாட்பாட் பிரிவுகள்",
   "homeGreetTitle": "வணக்கம். நான் எப்படி உதவ முடியும்?",
-  "homeGreetBody": "நான் மிஸ்டி மவுண்டனின் வரவேற்பைக் கவனிக்கிறேன் — பீர்மேட்டுக்கு மேலே அறுநூறு ஏக்கர் தேயிலைத் தோட்டம், அதன் நடுவே ஏழு அறைகள். தோட்டம் குறித்து எதுவும் கேட்கலாம்.",
+  "homeGreetBody": "நான் மிஸ்டி மவுண்டனின் வரவேற்பைக் கவனிக்கிறேன் — பீர்மேட்டுக்கு மேலே அறுநூறு ஏக்கர் தேயிலைத் தோட்டம், அதன் நடுவே நார்மல், லக்ஷுரி அறைகள். தோட்டம் குறித்து எதுவும் கேட்கலாம்.",
+  "homeBook": "அறையை முன்பதிவு செய்யுங்கள்",
+  "homeBookSub": "உங்கள் தேதிகளுக்கான நேரடிக் கிடைப்பு, சில தட்டல்களில்",
   "homeStart": "உரையாடலைத் தொடங்கு",
   "homeEnq": "அதிகம் கேட்கப்படும் கேள்விகள்",
   "homeGlance": "ஒரு பார்வையில் தோட்டம்",
@@ -2327,7 +2363,7 @@ a{ color: inherit; }
   "factRooms": "மொத்த அறைகள்",
   "factThings": "செய்யக்கூடியவை",
   "heroEyebrow": "நீங்கள் தங்கும் இடம்",
-  "heroTitle": "தேயிலைக்கு நடுவே ஏழு அறைகள்",
+  "heroTitle": "தேயிலைக்கு நடுவே அறைகள்",
   "heroBody": "மரக்கால்களில் எழும் மரச் சாலேகளும், கல்லில் கட்டப்பட்ட ரெவரி குடில்களும் — அனைத்தும் தோட்டத்தினுள்.",
   "heroCta": "அறைகளைப் பார்க்க",
   "heroAria": "மிஸ்டி மவுண்டனின் அறைகளையும் குடில்களையும் பார்க்க",
@@ -2375,7 +2411,7 @@ a{ color: inherit; }
   "placeNoGeo": "உங்கள் உலாவி இடத்தைப் பகிராது, எனவே Google உங்களை எங்கே வைக்கிறதோ அங்கிருந்தே வழி தொடங்கும்.",
   "placeDenied": "இடம் பகிரப்படவில்லை, எனவே Google உங்களை எங்கே வைக்கிறதோ அங்கிருந்தே வழி தொடங்கும்.",
   "placeOk": "இப்போது உங்கள் தற்போதைய இடத்திலிருந்து வழி தொடங்குகிறது.",
-  "panelRooms": "ஏழு அறைகளும்",
+  "panelRooms": "எங்கள் அறைகள்",
   "panelOf": "{total}இல் {n}",
   "panelDining": "இரண்டு சமையலறைகளும், வேறு என்ன பரிமாறப்படுகிறது",
   "panelBeyond": "இரண்டு உணவகங்களைத் தாண்டி",
@@ -2623,7 +2659,7 @@ const PANELS = {
       const base = ESTATE.rooms.types[i] || {};
       return `
       <div class="panel__item">
-        <div class="panel__head"><b>${r.name}</b><span>${fmt(t("panelOf"), { n: base.count, total: ESTATE.rooms.total })}</span></div>
+        <div class="panel__head"><b>${r.name}</b></div>
         <p class="panel__meta">${r.notes}</p>
         ${list(r.has)}
         <div class="swatch ${base.material === "wood" ? "field--wood" : "field--stone"}"></div>
@@ -2726,24 +2762,24 @@ const KB = [
              "suite", "suites", "deluxe"],
     keys: ["rooms", "room", "stay", "sleep", "lodging"],
     avoid: ["breakfast", "food", "eat", "service", "restaurant"],
-    reply: `Seven, and no more than that. <strong>Three Wooden Chalets</strong> — timber, set low in the plantation, each with a private sit-out. And <strong>four rooms at Reverie Cottages</strong> — stone over two floors, two to a floor, every one with a balcony. Three guests to a room at most.` },
+    reply: `Two kinds of room to book: <strong>Normal</strong> and <strong>Luxury</strong> — the Luxury rooms are our premium ones. The rooms are in the estate's <strong>Wooden Chalets</strong> — timber, set low in the plantation, each with a private sit-out — and the stone <strong>Reverie Cottages</strong>, where every room has a balcony. Three guests to a room at most. ${BOOK} shows how many of each are free for your dates, at live rates.` },
 
   { id: "extra-bed", panel: null, desk: true,
     strong: ["extra bed", "additional bed", "crib", "cot", "baby cot", "rollaway", "extra mattress"],
     keys: ["extra person", "one more person", "fourth person"],
-    reply: `Rooms take <strong>three guests at most</strong>, and children under five stay free with the adults they're with. Whether an extra bed or a cot can be added on top of that isn't something the estate publishes — with only seven rooms it'll depend on the night. Ask on ${CALL} and they'll tell you straight away.` },
+    reply: `Rooms take <strong>three guests at most</strong>, and children under five stay free with the adults they're with. Whether an extra bed or a cot can be added on top of that isn't something the estate publishes — it'll depend on the night. Ask on ${CALL} and they'll tell you straight away.` },
 
   { id: "occupancy", panel: "policies",
     strong: ["how many people", "how many guests", "occupancy", "guests per room", "max guests",
              "how many can stay", "capacity"],
     keys: ["people", "guests", "persons", "adults"],
-    reply: `<strong>Three guests to a room</strong>, and that's a firm limit. <strong>Children under five stay free</strong> with the adults they're with. Seven rooms across the estate, so a full buy-out is 21 guests at the outside — worth a phone call rather than an online booking if that's what you're planning.` },
+    reply: `<strong>Three guests to a room</strong>, and that's a firm limit. <strong>Children under five stay free</strong> with the adults they're with. If you're thinking of taking several rooms or the whole estate, that's worth a phone call rather than an online booking.` },
 
   /* ---------------- guest types ---------------- */
   { id: "honeymoon", panel: null,
     strong: ["honeymoon", "romantic", "anniversary", "couple", "couples", "proposal", "just the two of us"],
     keys: ["wife", "husband", "partner", "girlfriend", "boyfriend"],
-    reply: `It suits couples very well — seven rooms means it never feels like a crowd, and the chalets in particular are private. There's a <strong>Couple's Retreat voucher</strong> that includes a candlelight dinner, and Elam down among the tea is the room to book for the evening. Tell them it's an anniversary or a honeymoon when you book on ${CALL}; small estates are good at that sort of thing.` },
+    reply: `It suits couples very well — it's a small estate, so it never feels like a crowd, and the chalets in particular are private. There's a <strong>Couple's Retreat voucher</strong> that includes a candlelight dinner, and Elam down among the tea is the room to book for the evening. Tell them it's an anniversary or a honeymoon when you book on ${CALL}; small estates are good at that sort of thing.` },
 
   { id: "family", panel: "activities",
     strong: ["family", "families", "kids", "children activities", "with children", "child friendly",
@@ -2947,7 +2983,7 @@ const KB = [
     strong: ["visitors", "day visitors", "guest visit", "outside guests", "day pass",
              "can we just visit", "walk in", "outsiders", "non guests", "non residents"],
     keys: ["visitor", "friends visit"],
-    reply: `Nothing published about day visitors or non-resident access to the restaurants, and with seven rooms it'll be a judgement call on the day. Ring ${CALL} and ask.` },
+    reply: `Nothing published about day visitors or non-resident access to the restaurants, and on a small estate it'll be a judgement call on the day. Ring ${CALL} and ask.` },
 
   /* ---------------- money ---------------- */
   { id: "offers", panel: null,
@@ -3011,14 +3047,14 @@ const KB = [
     strong: ["group booking", "wedding", "conference", "event", "corporate", "team outing",
              "buy out", "buyout", "whole property", "large group", "party", "retreat for"],
     keys: ["groups", "offsite"],
-    reply: `Nothing published about weddings, conferences or full buy-outs — but there are only <strong>seven rooms</strong>, so the whole estate is 21 guests at the outside, and that's a conversation rather than an online booking. There is a <strong>Group &amp; Family voucher</strong> for parties of four and over. Start with ${CALL} or ${MAIL}.` },
+    reply: `Nothing published about weddings, conferences or full buy-outs — but it's a <strong>small estate</strong>, so taking the whole place is a conversation rather than an online booking. There is a <strong>Group &amp; Family voucher</strong> for parties of four and over. Start with ${CALL} or ${MAIL}.` },
 
   { id: "booking", panel: null,
     strong: ["book", "booking", "reserve", "reservation", "availability", "make a booking",
              "how do i book", "check dates", "vacancy", "is it available"],
     keys: ["dates", "available"],
     avoid: ["cancel", "activity", "activities"],
-    reply: `Two ways. ${BOOK} shows live availability and will price your dates, or call ${CALL} and someone will handle it with you directly. With only seven rooms, dates in season go early — worth asking sooner than you think you need to.` },
+    reply: `Two ways. ${BOOK} shows live availability and will price your dates, or call ${CALL} and someone will handle it with you directly. It's a small estate, so dates in season go early — worth asking sooner than you think you need to.` },
 
   { id: "awards", panel: null,
     strong: ["award", "awards", "recognition", "have you won", "awards won", "rating", "ratings",
@@ -3031,7 +3067,7 @@ const KB = [
              "tell me about the estate", "about the resort", "who owns"],
     keys: ["story", "estate", "years", "plantation", "background", "tell me about", "about"],
     avoid: ["rooms", "food", "activities", "price"],
-    reply: `A working plantation of <strong>600 acres</strong> that has been producing orthodox tea for <strong>forty years</strong>, in one family's hands. It isn't a resort with a view of a plantation — it's a plantation that keeps seven rooms. Guests go through the factory rather than past it, and the naturalist who walks you through the cardamom is the one who farms it.` },
+    reply: `A working plantation of <strong>600 acres</strong> that has been producing orthodox tea for <strong>forty years</strong>, in one family's hands. It isn't a resort with a view of a plantation — it's a plantation that keeps a small number of rooms. Guests go through the factory rather than past it, and the naturalist who walks you through the cardamom is the one who farms it.` },
 
   { id: "accessibility", panel: null, desk: true,
     strong: ["wheelchair", "accessible", "accessibility", "disabled", "mobility", "step free",
@@ -3073,7 +3109,7 @@ const KB = [
     strong: ["hi", "hii", "hiii", "hey", "hello", "helo", "hlo", "namaste", "yo", "greetings",
              "good morning", "good afternoon", "good evening", "good day", "hai"],
     keys: [],
-    reply: `Good day. I keep the desk here at Misty Mountain — six hundred acres of tea and cardamom above Peermade, and seven rooms in the middle of it. Ask me about the rooms, the kitchens, what there is to do, or the drive up.` },
+    reply: `Good day. I keep the desk here at Misty Mountain — six hundred acres of tea and cardamom above Peermade, with Normal and Luxury rooms in the middle of it. Ask me about the rooms, the kitchens, what there is to do, or the drive up.` },
 
   { id: "thanks", panel: null,
     strong: ["thank you", "thanks", "thank u", "thx", "cheers", "appreciate it", "grateful"],
@@ -3159,7 +3195,7 @@ const TRAINING = {
   distance: ["how far is munnar","distance from cochin airport","how do i reach the resort","how long is the drive from kochi","nearest airport please","which is the closest railway station","directions to the property","travel time from alleppey"],
   location: ["where exactly are you located","what is the address","which district is this in","where is kuttikkanam","can you share the google maps link","what is the pin code","which part of kerala","how do i find you on a map"],
   weather: ["what is the weather like","when is the best time to visit","how cold does it get","is monsoon a good time","should i bring warm clothes","does it rain a lot","best season to come","temperature in december"],
-  group: ["can we book the whole property","do you host weddings","is it suitable for a corporate offsite","group booking for twelve","can we hold an event there","team outing enquiry","booking all seven rooms","conference facilities"],
+  group: ["can we book the whole property","do you host weddings","is it suitable for a corporate offsite","group booking for twelve","can we hold an event there","team outing enquiry","booking all the rooms","conference facilities"],
   booking: ["how do i book a room","can i check availability","are you free next weekend","i want to make a reservation","is there availability in december","how to reserve a room","book a stay for two","do you have rooms free"],
   awards: ["have you won any awards","what is your rating","are there good reviews","is the resort well rated","what do guests say","any recognition received","how good is this place","is it worth visiting"],
   about: ["tell me about the estate","what is the history of this place","how old is the plantation","how many acres is the property","who runs the resort","what makes this place special","background of misty mountain","is this a working plantation"],
@@ -4541,6 +4577,7 @@ langSel.addEventListener("change", () => {
 applyLang();
 
 document.getElementById("homeStart").addEventListener("click", () => showPage("pgChat"));
+document.getElementById("homeBook").addEventListener("click", () => sendAction({ type: "start" }, t("homeBook", "Book a room")));
 clearBtn.addEventListener("click", clearChat);
 document.getElementById("dockClose").addEventListener("click", closeDock);
 scrim.addEventListener("click", closeDock);

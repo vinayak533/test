@@ -59,6 +59,24 @@ const INTENTS = [
     ].join("|"))
   },
   {
+    // The rooms themselves — how many, which types, what they cost. Answered
+    // from the rooms table, so the count and rates are always the live ones.
+    name: "room_info",
+    jev: "asks about the rooms themselves: how many rooms the hotel has in total, which room types there are, what the rooms are like, or how much a room costs, without asking about free dates",
+    rule: new RegExp([
+      "\\bhow many (?:rooms|bedrooms)\\b(?! (?:are |is )?(?:there )?(?:free|left|open|available|vacant))",
+      "\\b(?:tell me |talk |info\\w* |details )?about (?:the |your )?rooms\\b",
+      "\\bwhat (?:kinds?|types?|sorts?) of rooms?\\b",
+      "\\b(?:room types?|types? of rooms?|room categor\\w+)\\b",
+      "\\b(?:what|which) rooms (?:do you have|are there|does (?:the hotel|it) have)\\b",
+      "\\b(?:luxury|normal) (?:vs\\.?|versus|or) (?:luxury|normal)\\b",
+      "\\bdifference between (?:the )?(?:rooms|luxury|normal)\\b",
+      "\\broom (?:rates?|prices?|tariffs?|charges?)\\b",
+      "\\b(?:price|cost|rate|tariff) (?:of|for) (?:a |the )?(?:normal |luxury )?rooms?\\b",
+      "\\bhow much (?:is|does|for) (?:a |the )?(?:normal |luxury )?room\\b"
+    ].join("|"))
+  },
+  {
     name: "room_service",
     jev: "is a current guest asking for something in their room: food delivered, towels, housekeeping, repairs",
     rule: /\b(?:room service|housekeeping|(?:extra|more|fresh) (?:towels?|pillows?|blankets?)|send (?:up|to my room))\b/

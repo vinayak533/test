@@ -155,6 +155,19 @@ async function handleChat(input, deps){
   const h = hotelAnswer(nlu, tag);
   if (h) return h;
 
+  // About the rooms themselves: count, types and rates from the rooms table.
+  // Mid-booking the conversation is kept and can be picked up again.
+  if (intent === "room_info" && confident){
+    const midBooking = !!(st && st.flow === "booking");
+    return guarded(async () => ({
+      kind: "answer",
+      reply: R.roomInfo(hotel, await repo.getRooms(hotel.id)),
+      ui: { options: [midBooking
+        ? { label: "Continue booking", action: { type: "resume" }, tone: "primary" }
+        : { label: "Check availability", action: { type: "start" }, tone: "primary" }] }
+    }), tag);
+  }
+
   if ((st && st.flow === "lookup") || intent === "guest_details" || readRef(message)){
     return guarded(() => handleLookup(st, message, ctx), { ...tag, intent: "guest_details" });
   }
