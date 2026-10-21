@@ -20,13 +20,13 @@ const DRY = process.argv.includes("--dry-run");
 async function summary(client){
   const hotels = await client.query("select id, name from public.hotels order by id");
   const rooms = await client.query(`
-    select room_type, count(*)::int as rooms, min(room_number) as first, max(room_number) as last,
+    select hotel_id, room_type, count(*)::int as rooms, min(room_number) as first, max(room_number) as last,
            min(price_per_night)::text as min_price, max(price_per_night)::text as max_price
-      from public.rooms group by room_type order by room_type`);
+      from public.rooms group by hotel_id, room_type order by hotel_id, room_type`);
   const res = await client.query("select count(*)::int n from public.reservations");
   console.log("\nhotels:       " + hotels.rows.map(h => `${h.id} (${h.name})`).join(", "));
   for (const r of rooms.rows){
-    console.log(`rooms:        ${r.room_type.padEnd(7)} ${r.rooms} × rooms ${r.first}–${r.last}  ₹${r.min_price}${r.min_price === r.max_price ? "" : "–" + r.max_price}`);
+    console.log(`rooms:        ${r.hotel_id.padEnd(18)} ${r.room_type.padEnd(7)} ${r.rooms} × rooms ${r.first}–${r.last}  ₹${r.min_price}${r.min_price === r.max_price ? "" : "–" + r.max_price}`);
   }
   console.log("reservations: " + res.rows[0].n);
 }

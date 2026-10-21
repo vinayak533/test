@@ -25,13 +25,31 @@ const ROOMS = Array.from({ length: 10 }, (_, i) => ({
   max_guests: 3, is_active: true
 }));
 
+/* The two Kuttikkanam hotels of 006_seed_kuttikkanam_hotels.sql, for the
+   multi-hotel tests. Room ids never repeat across hotels, as in the DB. */
+const ROYAL = { ...HOTEL, id: "royal_kuttikkanam", name: "Royal Hotel", aliases: ["royal hotel", "hotel royal", "royal"] };
+const TAJ   = { ...HOTEL, id: "taj_kuttikkanam", name: "Taj Hotel", aliases: ["taj hotel", "hotel taj", "taj"] };
+const ROYAL_ROOMS = Array.from({ length: 10 }, (_, i) => ({
+  id: uuid(101 + i), room_number: i + 1, room_type: i < 6 ? "Normal" : "Luxury",
+  price_per_night: i < 6 ? 3000 : 5500, max_guests: 3, is_active: true
+}));
+const TAJ_ROOMS = Array.from({ length: 10 }, (_, i) => ({
+  id: uuid(201 + i), room_number: i + 1, room_type: i < 5 ? "Normal" : "Luxury",
+  price_per_night: i < 5 ? 4000 : 7500, max_guests: 3, is_active: true
+}));
+
 const CONFIG = {
   maxMessageChars: 500, nluFallback: "rules", intentThreshold: 0.6, hotelThreshold: 0.6,
   hotelTimezone: "Asia/Kolkata", defaultHotelId: "misty_mountain", maxStayNights: 30, maxDaysAhead: 540
 };
 
-function fakeRepo({ reservations = [], rooms = ROOMS, fail = null, holdResult = null, confirmResult = null } = {}){
+function fakeRepo({ reservations = [], rooms = ROOMS, hotels = [HOTEL], roomsByHotel = null,
+                   fail = null, holdResult = null, confirmResult = null } = {}){
   const calls = [];
+  // Inventory per hotel; one hotel unless the test says otherwise.
+  const inv = roomsByHotel || { [hotels[0].id]: rooms };
+  const roomsOf = h => inv[h] || [];
+  const allRooms = Object.values(inv).flat();
   const res = reservations.map(r => ({ ...r }));
   const blocks = r => r.status === "confirmed" || r.status === "checked_in" || r.status === "held";
   const overlaps = (r, a, b) => r.check_in < b && r.check_out > a;
@@ -40,7 +58,7 @@ function fakeRepo({ reservations = [], rooms = ROOMS, fail = null, holdResult = 
   const booking = ref => {
     const rows = res.filter(r => r.ref === ref);
     return {
-      booking_ref: ref, status: rows[0].status, check_in: rows[0].check_in, check_out: rows[0].check_out,
+      booking_ref: ref, hotel_id: rows[0].hotel_id, status: rows[0].status, check_in: rows[0].check_in, check_out: rows[0].check_out,
       nights: (Date.parse(rows[0].check_out) - Date.parse(rows[0].check_in)) / 86400000,
       num_guests: rows.reduce((s, r) => s + r.num_guests, 0),
       total_price: rows.reduce((s, r) => s + r.total_price, 0),
@@ -48,7 +66,7 @@ function fakeRepo({ reservations = [], rooms = ROOMS, fail = null, holdResult = 
       arrival_time: rows[0].arrival || null, departure_time: rows[0].departure || "12:00",
       hold_expires_at: "2026-10-16T06:15:00.000Z",
       rooms: rows.map(r => {
-        const room = rooms.find(x => x.id === r.room_id);
+        const room = allRooms.find(x => x.id === r.room_id);
         return { room_id: r.room_id, room_number: room.room_number, room_type: room.room_type,
                  price_per_night: r.price, num_guests: r.num_guests, total_price: r.total_price };
       })
@@ -56,11 +74,11 @@ function fakeRepo({ reservations = [], rooms = ROOMS, fail = null, holdResult = 
   };
   return {
     calls, res,
-    async listHotels(){ calls.push(["hotels"]); maybeFail("hotels"); return [HOTEL]; },
-    async getRooms(){ calls.push(["rooms"]); maybeFail("rooms"); return rooms.filter(r => r.is_active); },
+    async listHotels(){ calls.push(["hotels"]); maybeFail("hotels"); return hotels; },
+    async getRooms(h){ calls.push(["rooms", h]); maybeFail("rooms"); return roomsOf(h).filter(r => r.is_active); },
     async getAvailability(h, a, b){
-      calls.push(["availability", a, b]); maybeFail("availability");
-      return rooms.filter(r => r.is_active).map(r => ({
+      calls.push(["availability", a, b, h]); maybeFail("availability");
+      return roomsOf(h).filter(r => r.is_active).map(r => ({
         room_id: r.id, room_number: r.room_number, room_type: r.room_type, name: null,
         price_per_night: r.price_per_night, max_guests: r.max_guests,
         is_available: !res.some(x => x.room_id === r.id && blocks(x) && overlaps(x, a, b))
@@ -69,13 +87,15 @@ function fakeRepo({ reservations = [], rooms = ROOMS, fail = null, holdResult = 
     async holdRooms(args){
       calls.push(["hold", args]); maybeFail("hold");
       if (holdResult) return typeof holdResult === "function" ? holdResult(args) : holdResult;
+      // As hold_rooms: every room must belong to the hotel being booked.
+      if (!args.roomIds.every(id => roomsOf(args.hotelId).some(r => r.id === id))) return { ok: false, reason: "unavailable", rooms: [] };
       const taken = args.roomIds.filter(id => res.some(x => x.room_id === id && blocks(x) && overlaps(x, args.checkIn, args.checkOut)));
-      if (taken.length) return { ok: false, reason: "unavailable", rooms: taken.map(id => rooms.find(r => r.id === id).room_number) };
+      if (taken.length) return { ok: false, reason: "unavailable", rooms: taken.map(id => allRooms.find(r => r.id === id).room_number) };
       const ref = "MM-TEST" + String.fromCharCode(65 + refN++);
       const nights = (Date.parse(args.checkOut) - Date.parse(args.checkIn)) / 86400000;
       args.roomIds.forEach((id, i) => {
-        const room = rooms.find(r => r.id === id);
-        res.push({ ref, room_id: id, check_in: args.checkIn, check_out: args.checkOut, status: "held", token: args.tokenHash,
+        const room = allRooms.find(r => r.id === id);
+        res.push({ ref, hotel_id: args.hotelId, room_id: id, check_in: args.checkIn, check_out: args.checkOut, status: "held", token: args.tokenHash,
                    num_guests: args.guests[i], price: room.price_per_night, total_price: room.price_per_night * nights,
                    arrival: args.arrival, departure: args.departure });
       });
@@ -108,14 +128,17 @@ function fakeRepo({ reservations = [], rooms = ROOMS, fail = null, holdResult = 
 }
 
 /* A conversation driver over handleChat: keeps the state token like the page does. */
-function conversation({ repo = fakeRepo(), jev = null, config = CONFIG, now = NOW, user = null, authError = false } = {}){
+function conversation({ repo = fakeRepo(), jev = null, config = CONFIG, now = NOW, user = null, authError = false, hotelId } = {}){
   const { handleChat } = require("../server/chat");
   const codec = createStateCodec("test-secret-test-secret", { now: () => now().getTime() });
   const log = memoryLogger();
   let state = null;
   const deps = { config, repo, jev, log, codec, now, user, authError };
+  // The hotel the page has selected; it follows the replies, as the page does.
+  let selected = hotelId;
   async function send(input){
-    const out = await handleChat({ ...input, state }, deps);
+    const out = await handleChat({ ...input, state, ...(selected ? { hotelId: selected } : {}) }, deps);
+    if (out.hotel && selected) selected = out.hotel.id;
     if (out.state !== undefined) state = out.state;
     return out;
   }
@@ -124,6 +147,8 @@ function conversation({ repo = fakeRepo(), jev = null, config = CONFIG, now = NO
     say: message => send({ message }),
     tap: action => send({ action }),
     get state(){ return state; },
+    get hotelId(){ return selected; },
+    set hotelId(v){ selected = v; },
     set state(v){ state = v; },
     signIn(u){ deps.user = u; deps.authError = false; },
     decoded: () => codec.decode(state)
@@ -133,4 +158,4 @@ function conversation({ repo = fakeRepo(), jev = null, config = CONFIG, now = NO
 const optionLabels = out => ((out.ui && out.ui.options) || []).map(o => o.label);
 const option = (out, re) => ((out.ui && out.ui.options) || []).find(o => re.test(o.label));
 
-module.exports = { NOW, HOTEL, ROOMS, CONFIG, uuid, fakeRepo, conversation, optionLabels, option };
+module.exports = { NOW, HOTEL, ROOMS, ROYAL, ROYAL_ROOMS, TAJ, TAJ_ROOMS, CONFIG, uuid, fakeRepo, conversation, optionLabels, option };

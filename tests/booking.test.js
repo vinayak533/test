@@ -153,7 +153,7 @@ test("overlapping bookings are excluded; same-day turnover is allowed", async ()
   const out = await c.say("2 luxury rooms from 20 oct to 22 oct for 2 guests arriving 2pm");
   assert.deepEqual(out.ui.panel.available.map(r => r.number), [7, 9, 10]);
   assert.match(out.reply, /3 Luxury rooms are available/);
-  assert.deepEqual(repo.calls.find(c => c[0] === "availability"), ["availability", "2026-10-20", "2026-10-22"]);
+  assert.deepEqual(repo.calls.find(c => c[0] === "availability"), ["availability", "2026-10-20", "2026-10-22", "misty_mountain"]);
 });
 
 test("not enough of the requested type: says what there is and offers alternatives", async () => {

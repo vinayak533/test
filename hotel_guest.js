@@ -15,6 +15,10 @@
    in the ChatBot — here or anywhere — shows up without a refresh. The page
    also re-reads at once on "mm:booking-changed" from the ChatBot, and every
    minute as a fallback if Realtime is not connected.
+
+   The board shows one hotel: the one chosen in the ChatBot (the picker
+   here and the ChatBot's are the same choice — "mm:hotel-changed" keeps
+   them together). My bookings lists every hotel's, each with its name.
    ============================================================================ */
 
 (function(){
@@ -34,7 +38,7 @@
   const BOOKING_LABEL = { confirmed: "Confirmed", checked_in: "Checked in", checked_out: "Completed",
                           cancelled: "Cancelled", no_show: "No-show", mixed: "Mixed" };
 
-  const G = { client: null, user: null, hotelId: "misty_mountain", channel: null, poll: 0, timer: 0,
+  const G = { client: null, user: null, hotelId: "misty_mountain", hotels: null, channel: null, poll: 0, timer: 0,
               from: null, to: null, board: [], bookings: [], loading: false, again: false, bound: false };
 
   /* ---- dates & money ---------------------------------------------------- */
@@ -63,10 +67,46 @@
     $(".mm-live__text", el).textContent = state === "on" ? "Live" : state === "off" ? "Refreshing every minute" : "Connecting…";
   }
 
+  /* ---- which hotel ------------------------------------------------------ */
+
+  const chatHotel = () => (window.MMChat && window.MMChat.hotel ? window.MMChat.hotel() : null);
+  const hotelNameOf = id => ((G.hotels && G.hotels.list.find(h => h.id === id)) || {}).name || "";
+  const atSite = () => !G.hotels || G.hotelId === G.hotels.site;
+
+  function renderHotelPick(){
+    const h = chatHotel();
+    if (h) G.hotels = h;
+    const list = (G.hotels && G.hotels.list) || [];
+    const sel = $("#gDates").elements.hotel;
+    sel.innerHTML = list.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("");
+    sel.value = G.hotelId;
+    $("#gHotelField").hidden = list.length < 2;
+    const name = hotelNameOf(G.hotelId) || "Misty Mountain";
+    $("#gHotelName").textContent = name;
+    $("#gHotelLede").textContent = name;
+    if (G.user) document.title = "Your stay — " + name;
+  }
+
+  /* The ChatBot's hotel changed (picked there, here, or named in a message). */
+  window.addEventListener("mm:hotel-changed", e => {
+    const id = e.detail && e.detail.id;
+    const moved = id && id !== G.hotelId;
+    if (moved) G.hotelId = id;
+    renderHotelPick();
+    if (moved && G.user){
+      G.board = [];
+      $("#gBoard").innerHTML = ""; $("#gSummary").innerHTML = "";
+      $("#gRoomsSub").textContent = "Loading…";
+      subscribe();
+      load();
+    }
+  });
+
   /* ---- enter / leave ---------------------------------------------------- */
 
   function enter({ client, user, hotelId }){
-    G.client = client; G.user = user; G.hotelId = hotelId || G.hotelId;
+    G.client = client; G.user = user;
+    G.hotelId = (chatHotel() && chatHotel().id) || hotelId || G.hotelId;
     bind();
     const meta = user.user_metadata || {};
     const name = (meta.full_name || "").trim();
@@ -75,7 +115,7 @@
     $("#gName").textContent = name || user.email || "Guest";
     $("#gEmail").textContent = name ? (user.email || "") : "Guest account";
     $("#gAvatar").textContent = (name || user.email || "·")[0];
-    document.title = "Your stay — Misty Mountain";
+    renderHotelPick();
     if (!G.from){ setDates(todayISO(), addDays(todayISO(), 1)); }
     $("#mmGuest").hidden = false;
     load();
@@ -107,11 +147,14 @@
     if (!G.client || !G.user) return;
     if (G.loading){ G.again = true; return; }
     G.loading = true;
+    const hid = G.hotelId;
     try {
       const [b, m] = await Promise.all([
-        G.client.rpc("room_board", { p_hotel_id: G.hotelId, p_check_in: G.from, p_check_out: G.to }),
+        G.client.rpc("room_board", { p_hotel_id: hid, p_check_in: G.from, p_check_out: G.to }),
         G.client.rpc("my_bookings")
       ]);
+      // Another hotel was chosen while this was in flight: read that one instead.
+      if (hid !== G.hotelId){ G.again = true; return; }
       const err = b.error || m.error;
       if (err){
         if (/jwt|expired|401/i.test((err.message || "") + (err.code || ""))){
@@ -141,7 +184,7 @@
   function subscribe(){
     if (G.channel) G.client.removeChannel(G.channel);
     setLive("connecting");
-    G.channel = G.client.channel("mm-guest-" + G.user.id)
+    G.channel = G.client.channel("mm-guest-" + G.user.id + "-" + G.hotelId)
       .on("postgres_changes", { event: "*", schema: "public", table: "inventory_pulse", filter: "hotel_id=eq." + G.hotelId }, soon)
       .subscribe(status => setLive(status === "SUBSCRIBED" ? "on" : (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") ? "off" : "connecting"));
   }
@@ -177,7 +220,9 @@
       if (!rooms.length) return "";
       return `<div class="mm-gtype mm-gtype--${t}">
         <h3 class="mm-gtype__title">${t === "Luxury" ? '<span class="mm-lux-mark" aria-hidden="true">★</span>' : ""}${t} rooms
-          <small>${t === "Luxury" ? "Our finest rooms, with the best of the valley views" : "Comfortable, well-appointed estate rooms"}</small></h3>
+          <small>${atSite()
+            ? (t === "Luxury" ? "Our finest rooms, with the best of the valley views" : "Comfortable, well-appointed estate rooms")
+            : (t === "Luxury" ? "The hotel's premium rooms" : "Comfortable, well-appointed rooms")}</small></h3>
         <div class="mm-gboard">${rooms.map(r => tile(r, n)).join("")}</div></div>`;
     }).join("");
   }
@@ -216,7 +261,7 @@
       return `<li class="mm-gbooking${b.status === "cancelled" ? " is-cancelled" : ""}${past ? " is-past" : ""}" data-ref="${esc(b.booking_ref)}">
         <div class="mm-gbooking__main">
           <p class="mm-gbooking__ref">${esc(b.booking_ref)} <span class="mm-badge mm-badge--${esc(b.status)}">${esc(BOOKING_LABEL[b.status] || b.status)}</span></p>
-          <p class="mm-gbooking__dates">${fmtLong(b.check_in)} → ${fmtLong(b.check_out)} · ${plural(Number(b.nights), "night")} · ${plural(Number(b.num_guests), "guest")}</p>
+          <p class="mm-gbooking__dates">${hotelNameOf(b.hotel_id) ? `<b>${esc(hotelNameOf(b.hotel_id))}</b> · ` : ""}${fmtLong(b.check_in)} → ${fmtLong(b.check_out)} · ${plural(Number(b.nights), "night")} · ${plural(Number(b.num_guests), "guest")}</p>
           <div class="mm-gbooking__rooms">${rooms}</div>
         </div>
         <div class="mm-gbooking__side">
@@ -273,6 +318,10 @@
       }
       setDates(f.in.value, f.out.value);
       load();
+    });
+    $("#gDates").elements.hotel.addEventListener("change", e => {
+      // Same choice as the ChatBot's picker: it decides, and tells us back.
+      if (window.MMChat && window.MMChat.chooseHotel) window.MMChat.chooseHotel(e.target.value);
     });
     $("#gDates").elements.in.addEventListener("change", e => {
       const f = $("#gDates").elements;

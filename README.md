@@ -12,10 +12,11 @@ and guests, and to read revenue and occupancy reports.
 | `index.html` | The welcome screen with sign-in / sign-up, the guest area, the dashboard markup and the ChatBot. |
 | `hotel_admin.js` / `hotel_admin.css` | Supabase Auth sign-in and sign-up for everyone, then the staff dashboard: live data, edits, reports. The stylesheet covers the guest area too. |
 | `hotel_guest.js` | The signed-in guest's area: live room board for any dates, their own bookings, cancelling. |
-| `server/` | The backend for `POST /api/chat` and `GET /api/config` (see below). |
+| `server/` | The backend for `POST /api/chat`, `GET /api/config` and `GET /api/hotels` (see below). |
 | `netlify/functions/` | Thin adapters from Netlify Functions to `server/app.js`. |
 | `supabase/migrations/` | Schema, seed, booking functions, security. Idempotent; run in order. |
-| `scripts/` | `migrate.js`, `create_admin.js`, `inspect_schema.js`, `dev_server.js`. |
+| `scripts/` | `migrate.js`, `create_admin.js`, `inspect_schema.js`, `dev_server.js`, `setup_whisper.js`. |
+| `server/stt/` | English speech to text for the ChatBot's microphone (see "Voice input"). |
 | `tests/` | Unit tests (`npm test`) and live-database tests (`tests/db/`, `npm run test:db`). |
 | `misty_i18n.js` | The language pack: English, Malayalam, Hindi and Tamil. |
 | `sync_i18n_inline.js` | Copies `LANGS` and `UI` from the pack into the HTML. Run it after editing either. |
@@ -30,7 +31,8 @@ and guests, and to read revenue and occupancy reports.
 npm install
 npm run db:migrate          # schema, seed, functions, RLS — safe to re-run
 npm run admin:create -- you@example.com   # once: a dashboard login (prints a temporary password)
-npm run serve               # http://localhost:8792 — page, /api/chat, /api/config
+npm run whisper:setup       # once: the English voice model, inside this folder (see "Voice input")
+npm run serve               # http://localhost:8792 — page, /api/chat, /api/config, /api/hotels, /api/transcribe
 ```
 
 `npx netlify dev` runs the real functions locally as well. The page alone can
@@ -139,14 +141,25 @@ answer says so and points at the reception number.
 | File | What it does |
 |---|---|
 | `001_schema.sql` | `hotels`, `rooms`, `guests`, `reservations`, constraints, indexes. Upgrades the earlier prototype tables in place (removing only their demo rows, by exact key) and stops rather than delete anything else. |
-| `002_seed_misty_mountain.sql` | The one hotel and rooms 1–10. Upserts on natural keys, so re-running never duplicates; rates, types and capacity are written only when a room is first created, so dashboard edits survive a re-run. |
+| `002_seed_misty_mountain.sql` | Misty Mountain and its rooms 1–10. Upserts on natural keys, so re-running never duplicates; rates, types and capacity are written only when a room is first created, so dashboard edits survive a re-run. |
 | `003_booking_functions.sql` | `get_availability`, `hold_rooms`, `confirm_booking`, `release_hold`, `find_booking`, and the admin functions `admin_availability`, `admin_update_booking_status`, `admin_report`. |
 | `004_security.sql` | RLS, grants, the `guest_summaries` view, Realtime publication. |
 | `005_guest_accounts.sql` | Guest accounts: `room_board`, `my_bookings`, `cancel_my_booking`, and `inventory_pulse` (the change signal the guest area listens to). `reservations.user_id` (in `001`) links a booking to the account that made it. |
+| `006_seed_kuttikkanam_hotels.sql` | Royal Hotel (`royal_kuttikkanam`) and Taj Hotel (`taj_kuttikkanam`), rooms 1–10 each. Same re-run rules as `002`. Contact details are left empty for the admin to fill in. |
 
-Seeded inventory: rooms 1–6 **Normal at ₹2,500**, rooms 7–10 **Luxury at ₹4,500**,
-each sleeping up to 3 (the estate's published maximum). Policy: check-in from
-14:00, check-out by 12:00. Money is `numeric`, always INR.
+Seeded inventory, ten rooms per hotel, each sleeping up to 3:
+
+| Hotel | Normal | Luxury |
+|---|---|---|
+| Misty Mountain | rooms 1–6, ₹2,500 | rooms 7–10, ₹4,500 |
+| Royal Hotel | rooms 1–6, ₹3,000 | rooms 7–10, ₹5,500 |
+| Taj Hotel | rooms 1–5, ₹4,000 | rooms 6–10, ₹7,500 |
+
+Policy at all three: check-in from 14:00, check-out by 12:00. Money is `numeric`,
+always INR. Every room, guest profile and reservation carries its `hotel_id`; the
+double-booking constraint is per room, so a booking at one hotel can never affect
+another's availability. Booking references (`MM-XXXXXX`) are unique across all
+hotels.
 
 A reservation row is one room for one stay; a booking of two rooms is two rows
 sharing a `booking_ref` (`MM-` + six characters from an alphabet without
@@ -204,9 +217,22 @@ look-up, and failed look-ups are rate-limited per address. Contact details are
 shown masked.
 
 **Hotels:** "which hotels are available / where can I stay / which hotel do you
-support" is answered from the `hotels` table: *Misty Mountain is currently the
-only hotel available on this platform.* Another hotel by name gets the same answer;
-none is ever invented.
+support" is answered from the `hotels` table, with a "Book at …" button for each.
+A hotel that is not in the table is never invented. Which hotel a turn is about:
+
+1. a booking in progress stays at its own hotel;
+2. a hotel named in the message ("rooms at Royal Hotel?") — mid-booking this is
+   offered as a switch, never done silently;
+3. the hotel chosen in the panel's picker (sent as `hotelId`);
+4. the site's own hotel, `DEFAULT_HOTEL_ID` (Misty Mountain).
+
+Every reply carries `hotel: { id, name }` and the page's pickers follow it.
+Changing hotel on the page mid-conversation sends a `switch` action, which stops
+the booking there and releases its hold at once. The page's knowledge base
+describes Misty Mountain only, so for Royal Hotel and Taj Hotel anything outside
+rooms, rates, availability, bookings and look-ups gets a plain "I don't have other
+details about … yet" rather than Misty Mountain's answer. `GET /api/hotels` lists
+the active hotels (ids, names, towns — nothing private) for the pickers.
 
 **State:** Netlify Functions keep nothing between requests, so the conversation's
 state travels with it as an HMAC-signed token (`server/booking/state.js`), held in
@@ -261,6 +287,7 @@ guest detail is wiped from the page on sign-out.
 
 | Page | What it does |
 |---|---|
+| Property | The sidebar's picker chooses which hotel every page below is about (all active hotels). Switching re-reads everything for that hotel and re-subscribes Realtime to it; the choice is kept for the tab. |
 | Dashboard | Tonight: total / available / occupied rooms and occupancy rate, arrivals and departures, month-to-date room revenue; a status board for all ten rooms for tonight or any night you pick (a ChatBot booking turns its room to *Booked* as soon as it is confirmed); next-7-day arrivals and departures; 14-night occupancy chart; latest bookings. Updates live through Supabase Realtime (and refreshes every minute regardless). |
 | Rooms | Availability check for any dates (the ChatBot's own calculation); one rate for all rooms of a type; per-room type, rate, capacity and bookable switch. Existing bookings keep their booked rate. |
 | Reservations | Search (reference, guest, email, phone, room), filter by status, type and dates; a detail panel with check-in, check-out, no-show and cancel (with a reason). Status only moves forward. |
@@ -322,7 +349,7 @@ like a service or secret key. The chat endpoint rejects non-POST, non-JSON and
 bodies over 8 KB, rate-limits 30 requests a minute per address, validates every
 action's shape, strips control and bidi characters, and never logs what the guest
 typed. `netlify.toml` 404s `/.env*`, `/server/`, `/supabase/`, `/scripts/`,
-`/tests/`, `/node_modules/`.
+`/tests/`, `/node_modules/`, `/models/`, `/vendor/`.
 
 ### Tests
 
@@ -330,6 +357,7 @@ typed. `netlify.toml` 404s `/.env*`, `/server/`, `/supabase/`, `/scripts/`,
 npm test          # unit: extraction, state signing, the booking flow, routing, HTTP guards, Jev client
 npm run test:db   # live Supabase: schema, seed, RLS, availability, holds, concurrency, admin, look-ups, end-to-end
 npm run smoke     # pre-deploy checks on the page itself
+npm run test:stt  # the real Whisper model: loads once, non-speech comes back empty, bursts are refused
 ```
 
 `test:db` uses June 2027 dates and `@test.invalid` emails only, and deletes every
@@ -337,6 +365,80 @@ row it created when it finishes.
 
 To add an intent, describe it in `server/intents/catalog.js` (Jev option text and
 a keyword rule) and route it in `server/chat.js`.
+
+## Voice input
+
+The microphone in the ChatBot's composer turns speech into text in the
+question field. The guest reads it, corrects it if needed and presses send
+themselves; it then goes through `POST /api/chat` exactly like typing, so voice
+cannot skip the hotel choice, availability look-ups, date checks, guest
+details or booking confirmation.
+
+**English** is transcribed on this server by [whisper.cpp](https://github.com/ggml-org/whisper.cpp)
+with **`models/ggml-small.en-q5_0.bin`**, Whisper *small*, English-only, 5-bit
+quantised. **Malayalam, Hindi and Tamil** use the browser's own speech
+recognition, as before, because that model only knows English. English falls
+back to the browser too wherever `/api/transcribe` is not served.
+
+### Setting it up
+
+```bash
+npm run whisper:setup     # once per machine; safe to re-run, downloads nothing if present
+npm run serve             # loads the model at start-up and serves /api/transcribe
+```
+
+Everything is stored inside this folder, and all of it is git-ignored:
+
+| Path | What it is |
+|---|---|
+| `models/ggml-small.en-q5_0.bin` | The Whisper model, 175 MB. |
+| `models/ggml-silero-v6.2.0.bin` | Silero voice-activity detection, 1 MB. Without it Whisper invents words for silence or background noise ("you", "I'll be waiting for you", or even its own prompt). |
+| `vendor/whisper.cpp/bin/` | `whisper-server` and `whisper-quantize`, release `b5454`. |
+
+whisper.cpp publishes `small.en` as f16, `q5_1` and `q8_0`, but not as `q5_0`.
+So the setup script downloads the official f16 file from the whisper.cpp model
+repository, checks its SHA-256, quantises it with whisper.cpp's own
+`whisper-quantize`, checks the result's SHA-256 (quantising is deterministic)
+and deletes the f16 file. On Windows x64 it downloads the pinned CPU release
+build, also checked by SHA-256. On Linux and macOS it builds the same release
+from source, which needs CMake and a C++ compiler; that path has not been run
+yet. Partial downloads go to `models/_download/` and `vendor/whisper.cpp/_download/`
+and are removed once used. Nothing is written to the home folder, a global
+cache or a system model directory: the app loads the model by a path relative
+to `server/stt/whisper.js`, and whisper.cpp keeps no cache of its own. Delete
+the project folder and the model goes with it.
+
+### How it runs
+
+* The page records with `MediaRecorder`, decodes and resamples to 16 kHz mono
+  in the browser (`OfflineAudioContext`), and posts a WAV of at most 30 s. A
+  recording with nothing above -40 dBFS is not sent at all.
+* `server/stt/whisper.js` starts one `whisper-server` beside Node, on
+  `127.0.0.1` and a free port. It loads the model once (about 1 s) and keeps it
+  in memory (about 360 MB resident). Requests go to it one at a time. Up to
+  four may wait; any more get `503 stt_busy`. If the process dies, it is
+  restarted on the next request.
+* Whisper always encodes a 30 s window. Each request asks it to encode only
+  the length of the clip plus a second (`audio_ctx`), which gives the same
+  words several times faster. Measured on a 12-thread laptop CPU with 8
+  threads: a 4 s question took 1.1 s (6.4 s without it), a 6 s booking request
+  1.4 s, and a 20 s enquiry 4.3 s.
+* `/api/transcribe` accepts only 16 kHz mono 16-bit WAV of 0.3–30 s, at most
+  12 a minute per address. It stores neither the audio nor the text, and logs
+  only lengths and timings.
+* `WHISPER=off` turns it off. `WHISPER_THREADS` and `WHISPER_PROMPT` override
+  the thread count and the spelling hint, which names the three hotels and
+  Kuttikkanam.
+
+### On Netlify
+
+Netlify Functions cannot hold a 175 MB model or a long-lived process, so there
+is no `/api/transcribe` there. The deployed page asks for it, gets a 404 and
+keeps using the browser's recognition. To use Whisper in production, run
+`scripts/dev_server.js` (or the same `server/app.js` handlers) on a host with
+a long-lived Node process, at least about 1 GB of free memory and a few CPU
+cores. `netlify.toml` returns a hard 404 for `/models/*` and `/vendor/*` in
+case a local `netlify deploy` ever uploads them.
 
 ## Adding to the knowledge base
 

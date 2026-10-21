@@ -8,13 +8,24 @@ const fs = require("fs");
 const path = require("path");
 const { HOTEL, withPg, asUser } = require("./_db");
 
-test("exactly one hotel: Misty Mountain, INR, published check-in/out times", () => withPg(async c => {
-  const r = await c.query("select id, name, currency, to_char(check_in_time,'HH24:MI') cin, to_char(check_out_time,'HH24:MI') cout from public.hotels");
-  assert.deepEqual(r.rows, [{ id: HOTEL, name: "Misty Mountain", currency: "INR", cin: "14:00", cout: "12:00" }]);
+test("three hotels: Misty Mountain, Royal Hotel and Taj Hotel, INR, check-in 2 PM / check-out noon", () => withPg(async c => {
+  const r = await c.query("select id, name, currency, to_char(check_in_time,'HH24:MI') cin, to_char(check_out_time,'HH24:MI') cout from public.hotels order by id");
+  assert.deepEqual(r.rows, [
+    { id: HOTEL, name: "Misty Mountain", currency: "INR", cin: "14:00", cout: "12:00" },
+    { id: "royal_kuttikkanam", name: "Royal Hotel", currency: "INR", cin: "14:00", cout: "12:00" },
+    { id: "taj_kuttikkanam", name: "Taj Hotel", currency: "INR", cin: "14:00", cout: "12:00" }
+  ]);
 }));
 
-test("exactly 10 rooms, numbered 1–10: six Normal at ₹2,500 and four Luxury at ₹4,500", () => withPg(async c => {
-  const r = await c.query("select room_number, room_type, price_per_night::text price, is_active from public.rooms order by room_number");
+test("ten rooms per hotel, 30 in all", () => withPg(async c => {
+  const r = await c.query("select hotel_id, count(*)::int n, count(distinct room_number)::int d, min(room_number) lo, max(room_number) hi from public.rooms group by 1 order by 1");
+  assert.deepEqual(r.rows.map(x => [x.hotel_id, x.n, x.d, x.lo, x.hi]), [
+    [HOTEL, 10, 10, 1, 10], ["royal_kuttikkanam", 10, 10, 1, 10], ["taj_kuttikkanam", 10, 10, 1, 10]
+  ]);
+}));
+
+test("Misty Mountain: rooms 1–10, six Normal at ₹2,500 and four Luxury at ₹4,500", () => withPg(async c => {
+  const r = await c.query("select room_number, room_type, price_per_night::text price, is_active from public.rooms where hotel_id = $1 order by room_number", [HOTEL]);
   assert.equal(r.rows.length, 10);
   assert.deepEqual(r.rows.map(x => x.room_number), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   r.rows.forEach(x => {
@@ -31,15 +42,16 @@ test("prices and totals are stored as numeric", () => withPg(async c => {
   r.rows.forEach(x => assert.equal(x.data_type, "numeric", x.table_name + "." + x.column_name));
 }));
 
-test("the seed is safe to re-run: no duplicate hotels or rooms", () => withPg(async c => {
-  const sql = fs.readFileSync(path.join(__dirname, "..", "..", "supabase", "migrations", "002_seed_misty_mountain.sql"), "utf8");
+test("the seeds are safe to re-run: no duplicate hotels or rooms", () => withPg(async c => {
+  const read = f => fs.readFileSync(path.join(__dirname, "..", "..", "supabase", "migrations", f), "utf8");
+  const seeds = [read("002_seed_misty_mountain.sql"), read("006_seed_kuttikkanam_hotels.sql")];
   await c.query("begin");
   try {
-    await c.query(sql); await c.query(sql); await c.query(sql);
+    for (let i = 0; i < 3; i++) for (const sql of seeds) await c.query(sql);
     const h = await c.query("select count(*)::int n from public.hotels");
-    const r = await c.query("select count(*)::int n, count(distinct room_number)::int d from public.rooms");
-    assert.equal(h.rows[0].n, 1);
-    assert.deepEqual(r.rows[0], { n: 10, d: 10 });
+    const r = await c.query("select count(*)::int n, count(distinct (hotel_id, room_number))::int d from public.rooms");
+    assert.equal(h.rows[0].n, 3);
+    assert.deepEqual(r.rows[0], { n: 30, d: 30 });
   } finally { await c.query("rollback"); }
 }));
 
@@ -97,8 +109,9 @@ test("a signed-in user without the admin role sees no rows and cannot run admin 
 
 test("an admin reads everything but writes only what the grants allow", () =>
   asUser({ hotel_role: "admin" }, async c => {
-    assert.equal((await c.query("select count(*)::int n from public.rooms")).rows[0].n, 10);
-    assert.equal((await c.query("update public.rooms set price_per_night = 2600 where room_number = 1")).rowCount, 1);
+    assert.equal((await c.query("select count(*)::int n from public.rooms")).rows[0].n, 30);
+    assert.equal((await c.query("select count(*)::int n from public.hotels")).rows[0].n, 3);
+    assert.equal((await c.query("update public.rooms set price_per_night = 2600 where hotel_id = 'misty_mountain' and room_number = 1")).rowCount, 1);
     await c.query("savepoint s");
     await assert.rejects(c.query("update public.rooms set price_per_night = -1 where room_number = 1"), /check constraint/);
     await c.query("rollback to savepoint s");

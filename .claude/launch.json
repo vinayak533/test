@@ -19,6 +19,18 @@
         "scripts/dev_server.js"
       ],
       "port": 8792
+    },
+    {
+      "name": "misty-voice",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--env-file=.env",
+        "scripts/dev_server.js"
+      ],
+      "env": {
+        "PORT": "8793"
+      },
+      "port": 8793
     }
   ]
 }

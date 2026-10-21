@@ -25,3 +25,8 @@ bookeng.html
 
 # Playwright MCP screenshots and logs
 .playwright-mcp/
+
+# Speech-to-text: the Whisper model (~175 MB) and the whisper.cpp runtime.
+# Both live inside the project and are recreated by `npm run whisper:setup`.
+models/
+vendor/
