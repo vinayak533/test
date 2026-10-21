@@ -38,6 +38,9 @@
 # (paths are set in the files). /api/config serves only the Supabase URL and
 # anon key, for staff sign-in on the dashboard; /api/hotels only the active
 # hotels' ids and names, for the hotel picker.
+# There is no /api/transcribe function: Whisper needs a long-lived process and a
+# 175 MB model, which Functions cannot hold, so the deployed page uses the
+# browser's own speech recognition (see README, "Voice input").
 # Netlify bundles functions on its own; there is still no build command.
 # Secrets (SUPABASE_*, JEV_*) are set in Site configuration → Environment
 # variables, never in this file or the page.
@@ -75,6 +78,18 @@
   force = true
 [[redirects]]
   from = "/node_modules/*"
+  to = "/404"
+  status = 404
+  force = true
+# The Whisper model and the whisper.cpp runtime (npm run whisper:setup) are
+# git-ignored, but a `netlify deploy` from a local folder would upload them.
+[[redirects]]
+  from = "/models/*"
+  to = "/404"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/vendor/*"
   to = "/404"
   status = 404
   force = true

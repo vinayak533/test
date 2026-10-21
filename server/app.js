@@ -203,4 +203,80 @@ async function handleHotels({ method }){
   }
 }
 
-module.exports = { handleRequest, handleConfig, handleHotels, isPublicKey };
+/* ---- speech to text ---------------------------------------------
+   The page records the guest, encodes 16 kHz mono WAV and posts it here;
+   the answer is text for the chat field, which the guest reviews and sends
+   through POST /api/chat like anything typed. Nothing here books, looks up
+   or answers anything, so no check in the chat path is skipped.
+
+   whisper.cpp runs beside this process (server/stt/whisper.js), so this
+   works where Node is long-lived — scripts/dev_server.js — and not on
+   Netlify Functions, which cannot hold a 175 MB model. There the route does
+   not exist and the page keeps the browser's own recognition. Neither the
+   audio nor the words are stored or logged: only lengths and timings. */
+let whisper = null;
+function transcriber(){
+  if (!whisper){
+    const { createWhisper } = require("./stt/whisper");
+    whisper = createWhisper({ log: createLogger({ svc: "stt" }) });
+  }
+  return whisper;
+}
+/* For tests: replace the transcriber with a stand-in. */
+function setTranscriber(t){ whisper = t; }
+
+const TRANSCRIBE_RATE = { windowMs: 60_000, max: 12 };
+const transcribes = windowCounter(TRANSCRIBE_RATE);
+
+/**
+ * handleTranscribe({ method, headers, body: Buffer, clientIp }) → { status, body, headers? }
+ *   GET  → { available, state, model, language, maxSeconds }
+ *   POST → { text } (audio/wav, 16 kHz mono 16-bit, at most 30 s)
+ */
+async function handleTranscribe({ method, headers = {}, body = Buffer.alloc(0), clientIp = "unknown" }){
+  const { parseWav, MAX_SECONDS, MAX_WAV_BYTES } = require("./stt/wav");
+  const stt = transcriber();
+
+  if (method === "GET"){
+    return { status: 200, body: { ...stt.status(), maxSeconds: MAX_SECONDS }, headers: { "Cache-Control": "no-store" } };
+  }
+  if (method !== "POST") return { status: 405, body: { error: "method_not_allowed" }, headers: { Allow: "GET, POST" } };
+  const type = String(headers["content-type"] || "").toLowerCase();
+  if (!/^audio\/(?:x-)?wav\b/.test(type)) return { status: 415, body: { error: "wav_required" } };
+  if (body.length > MAX_WAV_BYTES) return { status: 413, body: { error: "too_large" } };
+  if (transcribes.add(clientIp) > TRANSCRIBE_RATE.max){
+    return { status: 429, body: { error: "rate_limited" }, headers: { "Retry-After": "60" } };
+  }
+
+  let info;
+  try { info = parseWav(body); }
+  catch (e){
+    if (e instanceof InputError) return { status: 400, body: { error: e.code } };
+    throw e;
+  }
+  if (!stt.available()) return { status: 503, body: { error: "stt_unavailable" } };
+
+  const log = createLogger({ svc: "stt", requestId: crypto.randomUUID() });
+  const started = Date.now();
+  try {
+    const text = await stt.transcribe(body, info.seconds);
+    log.info("stt.done", { ms: Date.now() - started, seconds: Number(info.seconds.toFixed(2)), chars: text.length });
+    return { status: 200, body: { text } };
+  } catch (e){
+    const code = e.code === "stt_busy" || e.code === "stt_unavailable" ? e.code : "stt_failed";
+    log.warn("stt.failed", { code, error: e.message, ms: Date.now() - started });
+    if (code === "stt_busy") return { status: 503, body: { error: code }, headers: { "Retry-After": "5" } };
+    return { status: code === "stt_unavailable" ? 503 : 502, body: { error: code } };
+  }
+}
+
+/* Loads the model ahead of the first request, so the first guest to speak
+   does not wait for it. Errors are logged by the transcriber itself. */
+function warmTranscriber(){
+  const stt = transcriber();
+  if (!stt.available()) return false;
+  stt.start().catch(() => {});
+  return true;
+}
+
+module.exports = { handleRequest, handleConfig, handleHotels, handleTranscribe, warmTranscriber, setTranscriber, isPublicKey };

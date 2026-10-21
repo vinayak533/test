@@ -11,11 +11,13 @@
     "dev": "netlify dev --port 8888",
     "test": "node --test \"tests/*.test.js\"",
     "test:db": "node --env-file=.env --test --test-concurrency=1 \"tests/db/*.test.js\"",
+    "test:stt": "node --test \"tests/stt/*.test.js\"",
     "smoke": "node smoke_test.js",
     "db:inspect": "node --env-file=.env scripts/inspect_schema.js",
     "db:migrate": "node --env-file=.env scripts/migrate.js",
     "admin:create": "node --env-file=.env scripts/create_admin.js",
-    "serve": "node --env-file=.env scripts/dev_server.js"
+    "serve": "node --env-file=.env scripts/dev_server.js",
+    "whisper:setup": "node scripts/setup_whisper.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0"

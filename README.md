@@ -15,7 +15,8 @@ and guests, and to read revenue and occupancy reports.
 | `server/` | The backend for `POST /api/chat`, `GET /api/config` and `GET /api/hotels` (see below). |
 | `netlify/functions/` | Thin adapters from Netlify Functions to `server/app.js`. |
 | `supabase/migrations/` | Schema, seed, booking functions, security. Idempotent; run in order. |
-| `scripts/` | `migrate.js`, `create_admin.js`, `inspect_schema.js`, `dev_server.js`. |
+| `scripts/` | `migrate.js`, `create_admin.js`, `inspect_schema.js`, `dev_server.js`, `setup_whisper.js`. |
+| `server/stt/` | English speech to text for the ChatBot's microphone (see "Voice input"). |
 | `tests/` | Unit tests (`npm test`) and live-database tests (`tests/db/`, `npm run test:db`). |
 | `misty_i18n.js` | The language pack: English, Malayalam, Hindi and Tamil. |
 | `sync_i18n_inline.js` | Copies `LANGS` and `UI` from the pack into the HTML. Run it after editing either. |
@@ -30,7 +31,8 @@ and guests, and to read revenue and occupancy reports.
 npm install
 npm run db:migrate          # schema, seed, functions, RLS — safe to re-run
 npm run admin:create -- you@example.com   # once: a dashboard login (prints a temporary password)
-npm run serve               # http://localhost:8792 — page, /api/chat, /api/config, /api/hotels
+npm run whisper:setup       # once: the English voice model, inside this folder (see "Voice input")
+npm run serve               # http://localhost:8792 — page, /api/chat, /api/config, /api/hotels, /api/transcribe
 ```
 
 `npx netlify dev` runs the real functions locally as well. The page alone can
@@ -347,7 +349,7 @@ like a service or secret key. The chat endpoint rejects non-POST, non-JSON and
 bodies over 8 KB, rate-limits 30 requests a minute per address, validates every
 action's shape, strips control and bidi characters, and never logs what the guest
 typed. `netlify.toml` 404s `/.env*`, `/server/`, `/supabase/`, `/scripts/`,
-`/tests/`, `/node_modules/`.
+`/tests/`, `/node_modules/`, `/models/`, `/vendor/`.
 
 ### Tests
 
@@ -355,6 +357,7 @@ typed. `netlify.toml` 404s `/.env*`, `/server/`, `/supabase/`, `/scripts/`,
 npm test          # unit: extraction, state signing, the booking flow, routing, HTTP guards, Jev client
 npm run test:db   # live Supabase: schema, seed, RLS, availability, holds, concurrency, admin, look-ups, end-to-end
 npm run smoke     # pre-deploy checks on the page itself
+npm run test:stt  # the real Whisper model: loads once, non-speech comes back empty, bursts are refused
 ```
 
 `test:db` uses June 2027 dates and `@test.invalid` emails only, and deletes every
@@ -362,6 +365,80 @@ row it created when it finishes.
 
 To add an intent, describe it in `server/intents/catalog.js` (Jev option text and
 a keyword rule) and route it in `server/chat.js`.
+
+## Voice input
+
+The microphone in the ChatBot's composer turns speech into text in the
+question field. The guest reads it, corrects it if needed and presses send
+themselves; it then goes through `POST /api/chat` exactly like typing, so voice
+cannot skip the hotel choice, availability look-ups, date checks, guest
+details or booking confirmation.
+
+**English** is transcribed on this server by [whisper.cpp](https://github.com/ggml-org/whisper.cpp)
+with **`models/ggml-small.en-q5_0.bin`**, Whisper *small*, English-only, 5-bit
+quantised. **Malayalam, Hindi and Tamil** use the browser's own speech
+recognition, as before, because that model only knows English. English falls
+back to the browser too wherever `/api/transcribe` is not served.
+
+### Setting it up
+
+```bash
+npm run whisper:setup     # once per machine; safe to re-run, downloads nothing if present
+npm run serve             # loads the model at start-up and serves /api/transcribe
+```
+
+Everything is stored inside this folder, and all of it is git-ignored:
+
+| Path | What it is |
+|---|---|
+| `models/ggml-small.en-q5_0.bin` | The Whisper model, 175 MB. |
+| `models/ggml-silero-v6.2.0.bin` | Silero voice-activity detection, 1 MB. Without it Whisper invents words for silence or background noise ("you", "I'll be waiting for you", or even its own prompt). |
+| `vendor/whisper.cpp/bin/` | `whisper-server` and `whisper-quantize`, release `b5454`. |
+
+whisper.cpp publishes `small.en` as f16, `q5_1` and `q8_0`, but not as `q5_0`.
+So the setup script downloads the official f16 file from the whisper.cpp model
+repository, checks its SHA-256, quantises it with whisper.cpp's own
+`whisper-quantize`, checks the result's SHA-256 (quantising is deterministic)
+and deletes the f16 file. On Windows x64 it downloads the pinned CPU release
+build, also checked by SHA-256. On Linux and macOS it builds the same release
+from source, which needs CMake and a C++ compiler; that path has not been run
+yet. Partial downloads go to `models/_download/` and `vendor/whisper.cpp/_download/`
+and are removed once used. Nothing is written to the home folder, a global
+cache or a system model directory: the app loads the model by a path relative
+to `server/stt/whisper.js`, and whisper.cpp keeps no cache of its own. Delete
+the project folder and the model goes with it.
+
+### How it runs
+
+* The page records with `MediaRecorder`, decodes and resamples to 16 kHz mono
+  in the browser (`OfflineAudioContext`), and posts a WAV of at most 30 s. A
+  recording with nothing above -40 dBFS is not sent at all.
+* `server/stt/whisper.js` starts one `whisper-server` beside Node, on
+  `127.0.0.1` and a free port. It loads the model once (about 1 s) and keeps it
+  in memory (about 360 MB resident). Requests go to it one at a time. Up to
+  four may wait; any more get `503 stt_busy`. If the process dies, it is
+  restarted on the next request.
+* Whisper always encodes a 30 s window. Each request asks it to encode only
+  the length of the clip plus a second (`audio_ctx`), which gives the same
+  words several times faster. Measured on a 12-thread laptop CPU with 8
+  threads: a 4 s question took 1.1 s (6.4 s without it), a 6 s booking request
+  1.4 s, and a 20 s enquiry 4.3 s.
+* `/api/transcribe` accepts only 16 kHz mono 16-bit WAV of 0.3–30 s, at most
+  12 a minute per address. It stores neither the audio nor the text, and logs
+  only lengths and timings.
+* `WHISPER=off` turns it off. `WHISPER_THREADS` and `WHISPER_PROMPT` override
+  the thread count and the spelling hint, which names the three hotels and
+  Kuttikkanam.
+
+### On Netlify
+
+Netlify Functions cannot hold a 175 MB model or a long-lived process, so there
+is no `/api/transcribe` there. The deployed page asks for it, gets a 404 and
+keeps using the browser's recognition. To use Whisper in production, run
+`scripts/dev_server.js` (or the same `server/app.js` handlers) on a host with
+a long-lived Node process, at least about 1 GB of free memory and a few CPU
+cores. `netlify.toml` returns a hard 404 for `/models/*` and `/vendor/*` in
+case a local `netlify deploy` ever uploads them.
 
 ## Adding to the knowledge base
 

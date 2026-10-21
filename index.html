@@ -778,6 +778,11 @@ a{ color: inherit; }
 .chat__mic:hover{ background: var(--d-ground); color: var(--d-ink); }
 .chat__mic[hidden]{ display: none; }
 .chat__mic[aria-pressed="true"]{ background: #FDECF1; color: #C70039; animation: micPulse 1.4s ease-in-out infinite; }
+.chat__mic[aria-busy="true"]{ color: var(--d-accent); cursor: progress; animation: micWork 1s ease-in-out infinite; }
+@keyframes micWork{ 0%,100%{ opacity: .45 } 50%{ opacity: 1 } }
+.chat__voice{ margin: 0; padding: 0 .25rem; font-size: 12.5px; line-height: 1.4; color: var(--d-ink-2); }
+.chat__voice[hidden]{ display: none; }
+.chat__voice[data-tone="error"]{ color: #C70039; }
 @keyframes micPulse{ 0%,100%{ box-shadow: 0 0 0 0 rgba(199,0,57,.25) } 50%{ box-shadow: 0 0 0 6px rgba(199,0,57,0) } }
 .chat__send{ background: var(--d-accent); color: #fff; }
 .chat__send:hover:not(:disabled){ background: var(--d-accent-2); }
@@ -1850,6 +1855,7 @@ a{ color: inherit; }
 
   <form class="chat__form" id="form">
     <label for="ask" class="skip" data-i18n="askLabel">Ask the ChatBot a question</label>
+    <p class="chat__voice" id="voiceNote" role="status" aria-live="polite" hidden></p>
     <div class="chat__field">
       <input id="ask" type="text" autocomplete="off" data-i18n-ph="askPlaceholder" placeholder="Ask about rooms, food, the drive up…">
       <button class="chat__mic" id="mic" type="button" data-i18n-aria="micStart" aria-label="Speak your question" aria-pressed="false" hidden>
@@ -4366,7 +4372,7 @@ function refreshClear(){
 function resetChat(takeFocus){
   session += 1;
   stopAll();
-  stopHearing();
+  stopVoice();
   chatState = null;
   hintFor(null);
   log.innerHTML = "";
@@ -4443,6 +4449,7 @@ function openDock(question){
 }
 
 function closeDock(){
+  stopVoice();               // never leave the microphone on behind a closed panel
   dock.hidden = true;
   scrim.hidden = true;
   launch.hidden = false;
@@ -4566,55 +4573,270 @@ homeEnq.addEventListener("click", e => {
 });
 
 /* ---- speaking a question ----------------------------------------
-   Where the browser offers speech recognition, a microphone appears in
-   the composer. What is heard fills the field as it is spoken and is sent
-   when the guest stops — the same path typing takes. Nothing is kept: the
-   browser hands back text once, and the button stays hidden where there
-   is no support.
+   One microphone, two engines.
+
+   In English the page records the guest, resamples to 16 kHz mono in the
+   browser and posts a WAV to POST /api/transcribe, where whisper.cpp runs
+   models/ggml-small.en-q5_0.bin. That model knows English only, so
+   Malayalam, Hindi and Tamil keep the browser's own recognition — as does
+   English wherever /api/transcribe is not served (Netlify, file://).
+
+   Either way the words land in the field for the guest to read, correct
+   and send themselves; nothing is sent on their behalf, and what they send
+   goes through /api/chat exactly as typing does. Nothing is kept: the
+   recording lives in memory until it is posted, and the server stores
+   neither the audio nor the words. The button stays hidden where neither
+   engine is available.
    --------------------------------------------------------------- */
 const micBtn = document.getElementById("mic");
+const voiceNote = document.getElementById("voiceNote");
 const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
 const SPEECH_LANG = { en: "en-IN", ml: "ml-IN", hi: "hi-IN", ta: "ta-IN" };
-let hearing = null;
+const CAN_RECORD = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder
+  && (window.AudioContext || window.webkitAudioContext) && window.OfflineAudioContext);
+const STT_URL = "/api/transcribe";
+const STT_RATE = 16000;
+const STT_MAX_MS = 30000;            // the server takes at most 30 s; recording stops itself there
+const STT_TIMEOUT_MS = 60000;
+let whisperReady = false;            // /api/transcribe said it is available
+let hearing = null;                  // the browser's recognition, while it runs
+let recording = null;                // { rec, stream, chunks, timer, cancelled } while recording
+let transcribing = null;             // the AbortController of a transcription in flight
 
+/* English only: the Whisper path, the only one that shows these, runs only
+   in English. */
+const VOICE_MSG = {
+  listening: "Listening… tap the microphone again when you’re done.",
+  working:   "Transcribing…",
+  review:    "Check the text, edit it if you need to, then press send.",
+  silent:    "I didn’t hear anything. Check your microphone and try again.",
+  short:     "That was too short to make out. Please try again.",
+  unclear:   "Sorry, I couldn’t make that out. Please try again, or type your question.",
+  denied:    "Microphone access is blocked. Allow it in your browser’s site settings, or type your question.",
+  noMic:     "No microphone was found. You can type your question instead.",
+  busy:      "Voice input is busy right now. Please try again in a moment.",
+  failed:    "Couldn’t transcribe that. Please try again, or type your question."
+};
+
+function voiceSay(msg, tone){
+  voiceNote.textContent = msg || "";
+  voiceNote.dataset.tone = tone || "info";
+  voiceNote.hidden = !msg;
+}
 function micState(on){
   micBtn.setAttribute("aria-pressed", on ? "true" : "false");
   micBtn.setAttribute("aria-label", t(on ? "micStop" : "micStart"));
 }
-function stopHearing(){
-  if (!hearing) return;
-  const rec = hearing;
-  hearing = null;
-  rec.onresult = rec.onend = null;
-  try { rec.abort(); } catch {}
+function micWorking(on){
+  micBtn.disabled = on;
+  micBtn.setAttribute("aria-busy", on ? "true" : "false");
+}
+const useWhisper = () => whisperReady && CAN_RECORD && LANG === "en";
+function showMic(){ micBtn.hidden = !(useWhisper() || Speech); }
+
+/* Stops whatever is listening or transcribing and drops its result. */
+function stopVoice(){
+  if (hearing){
+    const rec = hearing;
+    hearing = null;
+    rec.onresult = rec.onend = null;
+    try { rec.abort(); } catch {}
+  }
+  if (recording){
+    const r = recording;
+    recording = null;
+    r.cancelled = true;
+    clearTimeout(r.timer);
+    if (r.rec && r.rec.state !== "inactive") r.rec.stop();
+    else if (r.stream) r.stream.getTracks().forEach(tr => tr.stop());
+  }
+  if (transcribing){
+    const c = transcribing;
+    transcribing = null;
+    c.abort();
+    micWorking(false);
+  }
   micState(false);
+  voiceSay("");
 }
 
-if (Speech){
-  micBtn.hidden = false;
-  micBtn.addEventListener("click", () => {
-    if (hearing){ hearing.stop(); return; }
-    if (busy) return;
-    const rec = new Speech();
-    rec.lang = SPEECH_LANG[LANG] || "en-IN";
-    rec.interimResults = true;
-    rec.maxAlternatives = 1;
-    let said = "";
-    rec.onresult = e => {
-      said = [...e.results].map(r => r[0].transcript).join(" ").trim();
-      ask.value = said;
-      sendBtn.disabled = busy || !said;
-    };
-    rec.onend = () => {
-      hearing = null;
-      micState(false);
-      if (said && !busy){ ask.value = ""; send(said); }
-    };
-    hearing = rec;
-    micState(true);
-    try { rec.start(); } catch { hearing = null; micState(false); }
-  });
+async function checkWhisper(){
+  if (!CAN_RECORD) return;
+  try {
+    const res = await fetch(STT_URL, { headers: { Accept: "application/json" }, credentials: "same-origin" });
+    const body = res.ok && res.headers.get("content-type")?.includes("application/json") ? await res.json() : null;
+    whisperReady = !!(body && body.available);
+  } catch { whisperReady = false; }
+  showMic();
 }
+
+/* The browser's recognition: fills the field as the guest speaks. */
+function startHearing(){
+  const rec = new Speech();
+  rec.lang = SPEECH_LANG[LANG] || "en-IN";
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+  let said = "";
+  rec.onresult = e => {
+    said = [...e.results].map(r => r[0].transcript).join(" ").trim();
+    ask.value = said;
+    sendBtn.disabled = busy || !said;
+  };
+  rec.onend = () => {
+    hearing = null;
+    micState(false);
+    if (said) ask.focus();               // left in the field to check and send
+  };
+  hearing = rec;
+  micState(true);
+  try { rec.start(); } catch { hearing = null; micState(false); }
+}
+
+/* Whisper: record until the guest taps again (or 30 s), then transcribe. */
+async function startRecording(){
+  voiceSay("");
+  const mine = recording = { chunks: [], cancelled: false };
+  micState(true);
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+  } catch (e){
+    if (recording === mine) recording = null;
+    micState(false);
+    const name = e && e.name;
+    voiceSay(name === "NotAllowedError" || name === "SecurityError" ? VOICE_MSG.denied
+           : name === "NotFoundError" || name === "OverconstrainedError" ? VOICE_MSG.noMic
+           : VOICE_MSG.failed, "error");
+    return;
+  }
+  if (recording !== mine || mine.cancelled){ stream.getTracks().forEach(tr => tr.stop()); return; }
+  let rec;
+  try { rec = new MediaRecorder(stream); }
+  catch {
+    stream.getTracks().forEach(tr => tr.stop());
+    recording = null;
+    micState(false);
+    voiceSay(VOICE_MSG.failed, "error");
+    return;
+  }
+  mine.rec = rec;
+  mine.stream = stream;
+  rec.ondataavailable = e => { if (e.data && e.data.size) mine.chunks.push(e.data); };
+  rec.onstop = () => {
+    stream.getTracks().forEach(tr => tr.stop());
+    clearTimeout(mine.timer);
+    if (recording === mine) recording = null;
+    micState(false);
+    if (!mine.cancelled) transcribe(new Blob(mine.chunks, { type: rec.mimeType || "audio/webm" }));
+  };
+  mine.timer = setTimeout(finishRecording, STT_MAX_MS);
+  rec.start();
+  voiceSay(VOICE_MSG.listening);
+}
+function finishRecording(){
+  const r = recording;
+  if (!r) return;
+  if (r.rec){ if (r.rec.state !== "inactive") r.rec.stop(); return; }
+  // Tapped again while the browser was still asking for the microphone.
+  r.cancelled = true;
+  recording = null;
+  micState(false);
+  voiceSay("");
+}
+
+/* Whatever the browser recorded (WebM/Opus, MP4/AAC, Ogg), decoded and
+   resampled to 16 kHz mono — the one format the server accepts. */
+async function toPcm16k(blob){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AC();
+  try {
+    let decoded;
+    try { decoded = await ctx.decodeAudioData(await blob.arrayBuffer()); }
+    catch (e){
+      // A microphone that delivered no frames leaves a bare container header
+      // (~100 bytes) that cannot be decoded: nothing was heard, not a failure.
+      if (blob.size < 1024) return new Float32Array(0);
+      throw e;
+    }
+    const frames = Math.min(Math.ceil(decoded.duration * STT_RATE), STT_RATE * STT_MAX_MS / 1000);
+    if (!frames) return new Float32Array(0);
+    const off = new OfflineAudioContext(1, frames, STT_RATE);
+    const src = off.createBufferSource();
+    src.buffer = decoded;
+    src.connect(off.destination);
+    src.start();
+    return (await off.startRendering()).getChannelData(0);
+  } finally {
+    ctx.close().catch(() => {});
+  }
+}
+function wavOf(pcm){
+  const v = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+  const tag = (at, s) => { for (let i = 0; i < s.length; i++) v.setUint8(at + i, s.charCodeAt(i)); };
+  tag(0, "RIFF"); v.setUint32(4, 36 + pcm.length * 2, true); tag(8, "WAVE");
+  tag(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, STT_RATE, true); v.setUint32(28, STT_RATE * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  tag(36, "data"); v.setUint32(40, pcm.length * 2, true);
+  for (let i = 0; i < pcm.length; i++){
+    const s = Math.max(-1, Math.min(1, pcm[i]));
+    v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return new Blob([v.buffer], { type: "audio/wav" });
+}
+
+async function transcribe(blob){
+  const mine = transcribing = new AbortController();
+  micWorking(true);
+  voiceSay(VOICE_MSG.working);
+  const timer = setTimeout(() => mine.abort(), STT_TIMEOUT_MS);
+  let msg = VOICE_MSG.failed, tone = "error";
+  try {
+    const pcm = await toPcm16k(blob);
+    let peak = 0;
+    for (let i = 0; i < pcm.length; i++){ const a = Math.abs(pcm[i]); if (a > peak) peak = a; }
+    if (!pcm.length || peak < 0.01) msg = VOICE_MSG.silent;  // nothing above -40 dBFS: no point asking the model
+    else if (pcm.length < STT_RATE * 0.3) msg = VOICE_MSG.short;
+    else {
+      const res = await fetch(STT_URL, {
+        method: "POST", headers: { "Content-Type": "audio/wav" }, body: wavOf(pcm),
+        signal: mine.signal, credentials: "same-origin"
+      });
+      const body = res.headers.get("content-type")?.includes("application/json") ? await res.json() : null;
+      const said = res.ok && body && typeof body.text === "string" ? body.text.trim() : null;
+      if (said){
+        if (transcribing === mine){
+          ask.value = ask.value.trim() ? ask.value.trim() + " " + said : said;
+          sendBtn.disabled = busy || !ask.value.trim();
+          ask.focus();
+          ask.setSelectionRange(ask.value.length, ask.value.length);
+        }
+        msg = VOICE_MSG.review; tone = "info";
+      } else if (said === "") msg = VOICE_MSG.unclear;
+      else if (body && body.error === "audio_too_short") msg = VOICE_MSG.short;
+      else if (res.status === 429 || (body && body.error === "stt_busy")) msg = VOICE_MSG.busy;
+      else if (body && body.error === "stt_unavailable"){ whisperReady = false; showMic(); }   // the browser's recognition from now on
+    }
+  } catch { /* decode failure, timeout or network: msg stays "failed" */ }
+  finally {
+    clearTimeout(timer);
+    if (transcribing === mine){       // not cancelled meanwhile
+      transcribing = null;
+      micWorking(false);
+      voiceSay(msg, tone);
+    }
+  }
+}
+
+micBtn.addEventListener("click", () => {
+  if (recording){ finishRecording(); return; }
+  if (transcribing) return;
+  if (hearing){ hearing.stop(); return; }
+  if (useWhisper()) startRecording();
+  else if (Speech) startHearing();
+});
+form.addEventListener("submit", () => { if (!recording && !transcribing) voiceSay(""); });
+showMic();
+checkWhisper();
 
 /* ---- the language picker -------------------------------------
    One switch re-renders the whole panel: the fixed chrome from the
@@ -4658,6 +4880,7 @@ langSel.addEventListener("change", () => {
   if (next === LANG) return;
   LANG = next;
   applyLang();
+  showMic();                 // Whisper is English only; other languages use the browser's recognition
   showHotel();
   resetChat(false);          // a half-translated transcript helps nobody
 });
