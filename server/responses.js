@@ -26,6 +26,22 @@ const R = {
     ? `I can only help with bookings at ${hotels[0].name} — it's currently the only hotel available on this platform. Would you like me to check availability there?`
     : `I can only help with bookings at ${list(hotels.map(h => h.name))}. Which one would you like me to check?`,
 
+  switchOffer: (current, other) =>
+    `You're in the middle of a booking at ${current.name}. Would you like to book at ${other.name} instead? ` +
+    `Any room you're holding at ${current.name} would be released — nothing has been booked there yet.`,
+
+  switched: (hotel, from, released) =>
+    `You're now looking at ${hotel.name}.` +
+    (from ? ` I've stopped the booking at ${from.name}${released ? " and released the room you were holding" : ""} — nothing was booked there.` : "") +
+    " Would you like me to check room availability?",
+
+  /* Outside the booking itself the page's knowledge base covers only the
+     site's own hotel, so for the others say plainly what can be answered. */
+  limitedInfo: (hotel) =>
+    `For ${hotel.name} I can tell you about the rooms and rates, check live availability, make a booking and look one up. ` +
+    `I don't have other details about ${hotel.name} yet` +
+    (hotel.phone ? ` — for anything else, please call the hotel on ${hotel.phone}.` : " — for anything else, please contact the hotel directly."),
+
   lookupFailed: () =>
     "I'm sorry — I couldn't reach our reservations system just now, so I can't check availability or bookings. " +
     "Nothing has been booked. Please try again in a moment, or contact the front desk.",

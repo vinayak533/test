@@ -87,11 +87,14 @@ async function handleLookup(st, message, ctx){
   }
 
   ctx.log.info("lookup.found", { status: b.status });
+  // A reference is unique across every hotel, so the booking says which
+  // hotel it is at — not whichever one the page happens to have selected.
+  const hotel = (ctx.hotels || []).find(h => h.id === b.hotel_id) || ctx.hotel;
   return {
     kind: "answer", state: null,
-    reply: `I found booking ${b.booking_ref}: ${F.plural(b.rooms.length, "room")} at ${ctx.hotel.name} from ${F.formatDay(b.check_in)} to ${F.formatDay(b.check_out)}, ${STATUS_WORDS[b.status] || b.status}.`,
+    reply: `I found booking ${b.booking_ref}: ${F.plural(b.rooms.length, "room")} at ${hotel.name} from ${F.formatDay(b.check_in)} to ${F.formatDay(b.check_out)}, ${STATUS_WORDS[b.status] || b.status}.`,
     data: { type: "booking", bookingRef: b.booking_ref, status: b.status },
-    ui: { panel: panelFor(b, ctx.hotel), options: [{ label: "Book another stay", action: { type: "start" } }] }
+    ui: { panel: panelFor(b, hotel), options: [{ label: "Book another stay", action: { type: "start" } }] }
   };
 }
 

@@ -272,9 +272,9 @@ check("the inline bootstrap is in step with the pack", () => {
 
 check("the page still has the elements the script wires up", () => {
   const ids = ["dock", "scrim", "launch", "log", "ask", "send", "dockLang", "dockClear",
-               "dockClose", "dockTitle", "pgHome", "pgChat", "pgContact", "tabHome",
-               "tabChat", "tabContact", "homeEnq", "homeStart", "homeHero", "homeHeroBtn",
-               "homeHeroImg", "homeTiles", "enqList", "deskLink"];
+               "dockClose", "dockTitle", "dockContact", "pgHome", "pgChat", "pgContact",
+               "contactBack", "homeSugg", "homeBook", "homeEnq", "mic", "form",
+               "enqList", "deskLink"];
   return ids.filter(id => !HTML.includes('id="' + id + '"')).map(id => "#" + id + " is gone");
 });
 

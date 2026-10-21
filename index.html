@@ -3,7 +3,7 @@
 <title>Misty Mountain — Hotel Dashboard &amp; Booking</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..600;1,6..72,200..600&family=Instrument+Sans:ital,wght@0,400..600;1,400..600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&display=swap">
 <link rel="stylesheet" href="hotel_admin.css">
 
 <style>
@@ -24,7 +24,7 @@
   --mist-ink:    #4B5563;   /* secondary text on light (7.6:1)          */
   --mist-lift:   #B6C0CF;   /* secondary text on dark                   */
   --cloud:       #F7F4EE;   /* ivory ink on dark grounds                */
-  --paper:       #F7F4EE;   /* ivory page ground                        */
+  --paper:       #F5F7F9;   /* cool grey page ground                    */
   --wash:        #FFFFFF;   /* raised surface */
   --flush:       #D4AF37;   /* warm gold — on dark grounds only         */
   --teak:        #8E6E14;   /* deep gold, illustration only             */
@@ -35,8 +35,8 @@
   --ring:        var(--leaf);
 
   /* --- type --- */
-  --display: "Newsreader", "Iowan Old Style", Georgia, serif;
-  --sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --display: "Manrope", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  --sans: "Manrope", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
 
   --step--1: clamp(.78rem, .76rem + .1vw, .84rem);
   --step-0:  clamp(.98rem, .94rem + .2vw, 1.06rem);
@@ -397,371 +397,261 @@ a{ color: inherit; }
 .enq__btn:hover::after{ background: var(--flush); }
 
 /* ============================ LAUNCHER ============================ */
+/* The Copilot mark on a purple pill: the same avatar the panel opens with,
+   so the button and the panel read as one thing. On a phone the label goes
+   and the mark is scaled up so it is still easy to hit. */
 
 .launch{
   position: fixed; right: clamp(1rem,3vw,1.75rem); bottom: clamp(1rem,3vw,1.75rem);
-  z-index: 60; display: inline-flex; align-items: center; gap: .55rem;
-  background: var(--bark); color: var(--cloud);
-  border: 1px solid rgba(212,175,55,.5); border-radius: 999px;
-  padding: .5rem 1rem .5rem .55rem;
-  font: inherit; font-size: 13.5px; font-weight: 500;
-  cursor: pointer; box-shadow: 0 10px 26px rgba(6,11,24,.22);
-  transition: transform .18s ease, border-color .18s ease;
+  z-index: 60; display: inline-flex; align-items: center; gap: .6rem;
+  background: #7C2FDA; color: #fff;
+  border: 0; border-radius: 999px;
+  padding: .35rem 1.15rem .35rem .35rem;
+  font: inherit; font-family: var(--sans); font-size: 14px; font-weight: 600;
+  cursor: pointer; box-shadow: 0 12px 28px rgba(124,47,218,.32);
+  transition: transform .18s ease, background .18s ease;
 }
-.launch:hover{ transform: translateY(-2px); border-color: var(--flush); }
+.launch:hover{ transform: translateY(-2px); background: #6A22C4; }
 .launch__bot{
-  display: grid; place-items: center; width: 32px; height: 32px; flex: none;
-  border-radius: 50%; background: rgba(212,175,55,.16); color: var(--flush);
+  width: 38px; height: 38px; flex: none;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.85);
 }
-/* On a phone the label is dropped and the launcher becomes a plain circle,
-   which left a 19px glyph inside a 51px button — small to find over a
-   photograph and small to hit. The circle, the ring and the glyph are all
-   scaled together so the proportions stay as drawn; the SVG needs its own
-   rule because its size is set by width/height attributes on the element. */
 @media (max-width: 620px){
-  .launch{ padding: .6rem; border-radius: 50%; }
+  .launch{ padding: .35rem; }
   .launch__txt{ display: none; }
-  .launch__bot{ width: 44px; height: 44px; }
-  .launch__bot svg{ width: 26px; height: 26px; }
+  .launch__bot{ width: 48px; height: 48px; }
+  .launch__bot svg{ width: 30px; height: 30px; }
 }
 
-.scrim{ position: fixed; inset: 0; z-index: 55; background: rgba(6,11,24,.4); }
+/* The Copilot avatar: a lilac-to-purple disc with the ghost mark in white.
+   Drawn in CSS so every size (launcher, header, welcome, each reply) shares
+   one gradient rather than repeating an SVG <defs> id in the document. */
+.cp-ava{
+  display: grid; place-items: center; flex: none; border-radius: 50%;
+  background: linear-gradient(150deg, #B58CF8 0%, #9965F3 45%, #7C2FDA 100%);
+  color: #fff;
+}
+.cp-ava svg{ display: block; }
+
+.scrim{ position: fixed; inset: 0; z-index: 55; background: rgba(20,20,20,.32); }
 @media (min-width: 621px){ .scrim{ display: none; } }
 
 /* ============================ DOCK ============================ */
-/* The assistant panel is a light surface: photographs of rooms and food
-   read far better on paper than on near-black, and a light card is much
-   easier to scroll for any length of time. Everything below is driven by
-   the dock-scoped tokens, so the whole panel can be re-toned in one place. */
+/* The assistant is a side sheet docked to the right edge, as in the
+   Copilot design: a white title bar, a cool grey body, white cards, and the
+   composer pinned to the foot. One surface with three states — welcome,
+   conversation and contact — instead of a three-tab bar. Every colour comes
+   from the dock-scoped tokens below, so the panel re-tones in one place. */
 
 .dock{
   position: fixed; z-index: 60;
-  right: clamp(1rem,3vw,1.75rem); bottom: clamp(1rem,3vw,1.75rem);
-  width: min(416px, calc(100vw - 2rem));
-  height: min(646px, calc(100vh - 3.5rem));
+  top: 1rem; right: 1rem; bottom: 1rem;
+  width: min(520px, calc(100vw - 2rem));
 
-  --d-bg:        #FFFFFF;
-  --d-raised:    #F7F4EE;
-  --d-head:      #0A1128;
-  --d-head-ink:  #F7F4EE;
-  --d-ink:       #111827;
-  --d-ink-2:     #4B5563;
-  --d-line:      rgba(10,17,40,.12);
-  --d-line-firm: rgba(10,17,40,.22);
-  --d-accent:    #192C5E;
-  --d-accent-2:  #0E1838;
-  --d-soft:      rgba(25,44,94,.08);
-  --d-gold:      #B89224;
+  --d-ground:    #F5F7F9;   /* the panel body                          */
+  --d-bg:        #FFFFFF;   /* cards, fields, answers' panels          */
+  --d-raised:    #F7F8FA;   /* quiet fills inside a card               */
+  --d-head:      #FFFFFF;
+  --d-head-ink:  #141414;
+  --d-ink:       #141414;
+  --d-ink-2:     #5C5C5C;
+  --d-ink-3:     #767676;
+  --d-line:      #EBEBED;
+  --d-line-firm: #DEDEE2;
+  --d-accent:    #7C2FDA;
+  --d-accent-2:  #6A22C4;
+  --d-soft:      #F1E9FD;
+  --d-soft-2:    #F7F3FD;
+  --d-gold:      #E07A0B;
 
-  background: var(--d-bg); color: var(--d-ink);
-  border: 1px solid var(--d-line-firm); border-radius: 14px;
-  box-shadow: 0 22px 60px rgba(6,11,24,.24);
+  background: var(--d-ground); color: var(--d-ink);
+  font-family: var(--sans);
+  border: 1px solid var(--d-line); border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(20,20,20,.16), 0 2px 6px rgba(20,20,20,.04);
   display: grid; grid-template-rows: auto minmax(0,1fr) auto;
   overflow: hidden; --ring: var(--d-accent);
-  animation: dockIn .2s ease-out;
+  animation: dockIn .22s ease-out;
 }
-@keyframes dockIn{ from{ opacity: 0; transform: translateY(12px) } to{ opacity: 1; transform: none } }
+@keyframes dockIn{ from{ opacity: 0; transform: translateX(16px) } to{ opacity: 1; transform: none } }
 @media (max-width: 620px){
-  .dock{ inset: 0; width: auto; height: auto; border: 0; border-radius: 0; }
+  .dock{ inset: 0; width: auto; border: 0; border-radius: 0; }
 }
 
-/* The title bar keeps the brand's dark green, so the panel still reads
-   as part of the estate rather than as a generic white widget. */
 .dock__head{
-  display: flex; align-items: center; gap: .6rem;
-  padding: .8rem .7rem .8rem .9rem;
+  display: flex; align-items: center; gap: .75rem;
+  padding: .85rem .85rem .85rem 1.1rem;
   background: var(--d-head); color: var(--d-head-ink);
+  border-bottom: 1px solid var(--d-line);
 }
-.dock__bot{
-  display: grid; place-items: center; width: 34px; height: 34px; flex: none;
-  border-radius: 50%; background: rgba(212,175,55,.16); color: var(--flush);
-}
+.dock__bot{ width: 40px; height: 40px; }
 .dock__title{ display: grid; gap: .05rem; flex: 1; min-width: 0; }
-.dock__title b, .dock__title > span{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dock__title b{ font-size: 14.5px; font-weight: 600; letter-spacing: -.005em; }
-.dock__title span{
-  font-size: 11.5px; color: rgba(239,242,234,.72);
-  display: inline-flex; align-items: center; gap: .35rem;
+.dock__name{ display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.dock__name b{
+  font-size: 17px; font-weight: 600; letter-spacing: -.005em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.dock__live{
-  width: 6px; height: 6px; border-radius: 50%; background: var(--flush); flex: none;
+.dock__beta{
+  flex: none; font-size: 12px; font-weight: 600; line-height: 1.5;
+  padding: .1rem .5rem; border-radius: 6px;
+  background: var(--d-soft); color: var(--d-accent);
 }
-.dock__tools{ display: flex; align-items: center; gap: .3rem; flex: none; }
+.dock__sub{
+  display: flex; align-items: center; gap: .35rem; min-width: 0;
+  font-size: 13px; color: var(--d-ink-2);
+}
+.dock__sub span{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dock__live{ width: 6px; height: 6px; border-radius: 50%; background: #56C785; flex: none; }
+.dock__tools{ display: flex; align-items: center; gap: .15rem; flex: none; }
 .dock__icon{
-  background: none; border: 1px solid transparent; border-radius: 8px;
-  color: rgba(239,242,234,.78); width: 30px; height: 30px; flex: none; cursor: pointer;
+  background: none; border: 0; border-radius: 10px;
+  color: var(--d-ink-2); width: 38px; height: 38px; flex: none; cursor: pointer;
   display: grid; place-items: center;
   transition: color .16s ease, background .16s ease, opacity .16s ease;
 }
-.dock__icon:hover:not(:disabled){ color: #fff; background: rgba(255,255,255,.14); }
+.dock__icon:hover:not(:disabled){ color: var(--d-ink); background: var(--d-ground); }
+.dock__icon[aria-pressed="true"]{ color: var(--d-accent); background: var(--d-soft); }
 .dock__icon:disabled{ opacity: .35; cursor: default; }
 
 /* Language picker. A real <select>, so it inherits the platform's own
-   dropdown — which is the only control that reliably renders Malayalam,
-   Hindi and Tamil at the right size on every device. The chevron is drawn
-   in CSS because the native arrow cannot be tinted for a dark bar. */
+   dropdown — the only control that reliably renders Malayalam, Hindi and
+   Tamil at the right size on every device. The chevron is drawn in CSS. */
 .dock__lang{
   appearance: none; -webkit-appearance: none;
-  font: inherit; font-size: 12px; line-height: 1.2;
-  color: var(--d-head-ink);
-  background: rgba(255,255,255,.09);
-  border: 1px solid rgba(239,242,234,.22);
-  border-radius: 8px;
-  padding: .34rem 1.35rem .34rem .48rem;
-  max-width: 7.2rem; flex: none; cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7' fill='none' stroke='%23EFF2EA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 5 5.5 9 1.5'/%3E%3C/svg%3E");
+  font: inherit; font-size: 12.5px; font-weight: 500; line-height: 1.2;
+  color: var(--d-ink); background-color: var(--d-bg);
+  border: 1px solid var(--d-line-firm); border-radius: 10px;
+  padding: .45rem 1.5rem .45rem .6rem; margin-right: .2rem;
+  max-width: 7.4rem; flex: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7' fill='none' stroke='%235C5C5C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 5 5.5 9 1.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right .42rem center;
-  transition: background-color .16s ease, border-color .16s ease;
+  background-position: right .5rem center;
+  transition: border-color .16s ease;
 }
-.dock__lang:hover{ background-color: rgba(255,255,255,.16); border-color: rgba(239,242,234,.38); }
-/* The open list is painted by the OS: give it explicit light colours so it
-   never inherits the dark bar and renders as dark-on-dark. */
-.dock__lang option{ background: #FFFFFF; color: #22302A; }
-@media (max-width: 400px){
-  .dock__lang{ max-width: 6.2rem; font-size: 11.5px; padding-right: 1.35rem; }
+.dock__lang:hover{ border-color: #C9C9CF; }
+.dock__lang option{ background: #FFFFFF; color: #141414; }
+@media (max-width: 420px){
+  .dock__head{ gap: .55rem; padding-left: .8rem; }
+  .dock__bot{ width: 34px; height: 34px; }
+  .dock__bot svg{ width: 20px; height: 20px; }
+  .dock__beta{ display: none; }
+  .dock__lang{ max-width: 5.6rem; font-size: 12px; }
+  .dock__icon{ width: 34px; height: 34px; }
 }
 
-/* ---- the three pages ---- */
+/* Hotel picker in the title bar. With more than one hotel the subtitle
+   becomes a native <select> that reads as the subtitle until it is opened. */
+.dock__hotel{
+  appearance: none; -webkit-appearance: none;
+  font: inherit; font-size: 13px; line-height: 1.35; color: var(--d-ink-2);
+  background-color: transparent; border: 0; border-radius: 6px;
+  padding: .05rem 1.15rem .05rem .2rem; margin-left: -.2rem;
+  min-width: 0; max-width: 100%; cursor: pointer; text-overflow: ellipsis;
+  field-sizing: content;                 /* as wide as the chosen name, where supported */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7' fill='none' stroke='%235C5C5C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 5 5.5 9 1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right .3rem center;
+  transition: background-color .16s ease, color .16s ease;
+}
+.dock__hotel[hidden], .dock__icon[hidden]{ display: none; }
+.dock__hotel:hover{ color: var(--d-ink); background-color: var(--d-ground); }
+.dock__hotel:focus-visible{ outline: 2px solid var(--d-accent); outline-offset: 1px; }
+.dock__hotel option{ background: #FFFFFF; color: #141414; }
+
+/* ---- the three states ---- */
 .dock__body{ display: grid; min-height: 0; }
 .page{ grid-area: 1 / 1; min-height: 0; display: grid; }
 .page[hidden]{ display: none !important; }
 .page--home, .page--contact{
   grid-auto-rows: min-content; overflow-y: auto; overscroll-behavior: contain;
-  align-content: start; padding: 1.15rem 1.05rem 1.4rem; gap: 1.15rem;
+  padding: 1.25rem 1.25rem 1.5rem; gap: .75rem; scrollbar-width: thin;
 }
-.page--chat{ grid-template-rows: minmax(0,1fr) auto; }
+/* The welcome sits in the middle of the sheet when it fits, and scrolls
+   from the top when it does not. */
+.page--home{ align-content: safe center; }
+.page--contact{ align-content: start; }
+.page--chat{ grid-template-rows: minmax(0,1fr); }
 
-/* ---- tab bar ---- */
-.tabs{
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--d-line); background: var(--d-raised);
-}
-.tab{
-  position: relative; display: grid; justify-items: center; gap: .2rem;
-  padding: .58rem .3rem .62rem; background: none; border: 0;
-  color: var(--d-ink-2); font: inherit; font-size: 11px; letter-spacing: .02em;
-  cursor: pointer; transition: color .16s ease;
-}
-.tab:hover{ color: var(--d-ink); }
-.tab[aria-selected="true"]{ color: var(--d-accent); font-weight: 600; }
-.tab[aria-selected="true"]::before{
-  content: ""; position: absolute; inset: 0 22% auto; height: 2px;
-  background: var(--d-accent); border-radius: 0 0 2px 2px;
-}
-.tab svg{ display: block; }
+/* ============================ WELCOME ============================ */
 
-/* ============================ HOME PAGE ============================ */
-
-.home__hi{ display: grid; gap: .45rem; }
+.home__hi{
+  display: grid; justify-items: center; text-align: center; gap: .5rem;
+  padding: .5rem .5rem 1rem;
+}
+.home__ava{ width: 80px; height: 80px; margin-bottom: .75rem; box-shadow: 0 10px 24px rgba(124,47,218,.25); }
 .home__hi h3{
-  font-family: var(--display); font-size: 22px; font-weight: 400;
-  line-height: 1.2; letter-spacing: -.012em; color: var(--d-ink);
+  font-family: var(--sans); font-size: 20px; font-weight: 600;
+  line-height: 1.3; letter-spacing: -.01em; color: var(--d-ink);
 }
-.home__hi p{ font-size: 13.5px; line-height: 1.6; color: var(--d-ink-2); }
-.home__book{
-  display: flex; align-items: center; gap: .75rem; width: 100%; text-align: left;
-  padding: .8rem .95rem; border: 0; border-radius: 12px; cursor: pointer; font: inherit;
-  background: linear-gradient(135deg, #E9CC74, #D4AF37 55%, #B89224); color: #0A1128;
-  box-shadow: 0 6px 18px rgba(184,146,36,.28); transition: filter .16s ease, transform .16s ease;
-}
-.home__book:hover{ filter: brightness(1.05); transform: translateY(-1px); }
-.home__book:focus-visible{ outline: 2px solid var(--d-accent); outline-offset: 2px; }
-.home__book-ico{ display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 10px; background: rgba(10,17,40,.12); }
-.home__book-txt{ display: grid; gap: .1rem; min-width: 0; }
-.home__book-txt b{ font-size: 15px; font-weight: 700; }
-.home__book-txt small{ font-size: 12.5px; color: rgba(10,17,40,.78); }
-.home__book-go{ margin-left: auto; flex: none; }
-@media (prefers-reduced-motion: reduce){ .home__book{ transition: none; } .home__book:hover{ transform: none; } }
-.home__start{
-  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-  background: var(--d-accent); color: #fff; border: 0; border-radius: 9px;
-  font: inherit; font-size: 14px; font-weight: 600; padding: .72rem 1rem;
-  cursor: pointer; width: 100%; transition: background .16s ease;
-}
-.home__start:hover{ background: var(--d-accent-2); }
-.home__label{ font-size: 11.5px; color: var(--d-ink-2); letter-spacing: .03em; }
-.home__facts{
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem;
-}
-.home__fact{
-  border: 1px solid var(--d-line); border-radius: 9px; padding: .6rem .55rem;
-  display: grid; gap: .1rem; background: var(--d-raised);
-}
-.home__fact b{
-  font-family: var(--display); font-size: 19px; font-weight: 400; line-height: 1;
-  color: var(--d-ink);
-}
-.home__fact span{ font-size: 11px; color: var(--d-ink-2); line-height: 1.35; }
+.home__hi p{ font-size: 14.5px; line-height: 1.55; color: var(--d-ink-2); max-width: 44ch; }
 
-/* ---- the hotel picture -------------------------------------------
-   One photograph of the accommodation itself, sitting between the
-   greeting and the first action. It is a <button>, not a decorative
-   image: pressing it asks the rooms question, so the picture leads
-   somewhere rather than merely filling space. The caption sits over
-   the foot of the image on a scrim, so the type stays legible on
-   whichever photograph the media library hands back.
-   ------------------------------------------------------------------ */
-.home__hero{
-  border: 1px solid var(--d-line); border-radius: 12px; overflow: hidden;
-  background: var(--d-raised); position: relative; isolation: isolate;
-  transition: border-color .18s ease, box-shadow .18s ease;
+/* Which hotel the panel is about: one button per hotel, the chosen one
+   filled. Three across, stacked on the narrowest phones. */
+.home__hotels{ display: grid; gap: .5rem; margin: 0 0 .25rem; }
+.home__hotels[hidden]{ display: none; }
+.home__hotelset{ display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: .5rem; }
+.home__hotel{
+  font: inherit; font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--d-ink);
+  min-height: 48px; padding: .6rem .5rem; text-align: center; cursor: pointer;
+  background: var(--d-bg); border: 1px solid var(--d-line-firm); border-radius: 12px;
+  transition: border-color .16s ease, background .16s ease, color .16s ease;
 }
-.home__hero:hover{ border-color: var(--d-accent); box-shadow: 0 8px 22px rgba(6,11,24,.16); }
-/* The big frame. A button, not a decorative image: pressing it asks the
-   rooms question, so the photograph leads somewhere rather than merely
-   filling space. The caption sits over the foot of the picture on a scrim,
-   so the type stays legible on whichever photograph the library hands back. */
-.home__hero-main{
-  display: block; width: 100%; padding: 0; border: 0; background: none;
-  font: inherit; color: inherit; text-align: left; cursor: pointer;
+.home__hotel:hover{ border-color: #DBC6F6; }
+.home__hotel[aria-pressed="true"]{
+  color: var(--d-accent); background: var(--d-soft); border-color: var(--d-accent);
+  box-shadow: inset 0 0 0 1px var(--d-accent);
 }
-.home__hero-main:active{ transform: none; }
-.home__hero-fig{
-  display: block; position: relative;
-  aspect-ratio: 16 / 9; background: var(--d-raised); overflow: hidden;
-}
-.home__hero-fig img{
-  display: block; width: 100%; height: 100%; object-fit: cover;
-  opacity: 0; transition: opacity .3s ease, transform .5s ease;
-}
-.home__hero-fig img.is-ready{ opacity: 1; }
-.home__hero-main:hover .home__hero-fig img.is-ready{ transform: scale(1.03); }
-/* A failed photograph collapses the frame rather than leaving a broken
-   icon: the card still works as a button, it simply loses its picture. */
-.home__hero.is-nopic .home__hero-fig{ display: none; }
-.home__hero-scrim{
-  position: absolute; inset: auto 0 0 0; height: 62%;
-  background: linear-gradient(to top, rgba(20,30,24,.86), rgba(20,30,24,.30) 55%, rgba(20,30,24,0));
-  pointer-events: none;
-}
-.home__hero-cap{
-  position: absolute; left: .85rem; right: .85rem; bottom: .7rem;
-  display: grid; gap: .12rem; color: #F4F7F1;
-}
-.home__hero-eyebrow{
-  font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
-  color: rgba(244,247,241,.82);
-}
-.home__hero-title{
-  font-family: var(--display); font-size: 18px; font-weight: 400;
-  line-height: 1.2; letter-spacing: -.01em;
-}
-.home__hero-foot{
-  display: flex; align-items: center; flex-wrap: wrap; gap: .25rem .6rem;
-  padding: .62rem .85rem .66rem; background: var(--d-raised);
-  border-top: 1px solid var(--d-line);
-}
-/* The blurb is two lines at most and the call to action keeps its own
-   line when a longer script leaves it no room beside them — which is
-   what keeps this row the same height in all four languages. */
-.home__hero-sub{
-  flex: 1 1 58%; min-width: 0; font-size: 12px; line-height: 1.45;
-  color: var(--d-ink-2);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.home__hero-cta{
-  flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: .3rem;
-  font-size: 12.5px; font-weight: 600; color: var(--d-accent); white-space: nowrap;
-}
-.home__hero-cta svg{ display: block; transition: transform .18s ease; }
-.home__hero-main:hover .home__hero-cta svg{ transform: translateX(2px); }
-/* Without a picture the caption has nothing to sit on, so it moves
-   into the foot and the card reads as a plain action row. */
-.home__hero.is-nopic .home__hero-foot{ border-top: 0; }
+.home__hotel:focus-visible{ outline: 2px solid var(--d-accent); outline-offset: 2px; }
+@media (max-width: 360px){ .home__hotelset{ grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce){ .home__hotel{ transition: none; } }
 
-/* ---- the three tiles under the big frame --------------------------
-   Dining, what there is to do, and what is near — one photograph each,
-   captioned over a scrim like the frame above. Three across at the
-   panel's width; the row hides itself rather than degrade if the
-   picture library never arrives, because a caption on an empty box
-   reads as a bug.
-   ------------------------------------------------------------------ */
-.home__tiles{
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
-  background: var(--d-line); border-top: 1px solid var(--d-line);
+/* Suggestion cards: a tinted icon, what it does, an example in quotes, and
+   a chevron. Each is one button; the first starts the live booking. */
+.sugg{ list-style: none; margin: 0; padding: 0; display: grid; gap: .75rem; }
+.sugg__btn{
+  width: 100%; display: flex; align-items: center; gap: .9rem;
+  padding: .85rem 1rem; text-align: left; cursor: pointer;
+  font: inherit; color: inherit;
+  background: var(--d-bg); border: 1px solid var(--d-line); border-radius: 14px;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
-.home__tiles:empty{ display: none; }
-.home__tile{
-  position: relative; display: block; padding: 0; border: 0;
-  background: var(--d-soft); font: inherit; color: inherit;
-  cursor: pointer; overflow: hidden; aspect-ratio: 4 / 3; isolation: isolate;
+.sugg__btn:hover{ border-color: #DBC6F6; box-shadow: 0 6px 18px rgba(124,47,218,.08); }
+.sugg__btn:focus-visible{ outline: 2px solid var(--d-accent); outline-offset: 2px; }
+.sugg__ico{
+  display: grid; place-items: center; width: 44px; height: 44px; flex: none;
+  border-radius: 10px; background: var(--tone-bg, var(--d-soft)); color: var(--tone, var(--d-accent));
 }
-.home__tile img{
-  position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover;
-  opacity: 0; transition: opacity .3s ease, transform .5s ease;
-}
-.home__tile img.is-ready{ opacity: 1; }
-.home__tile:hover img.is-ready{ transform: scale(1.06); }
-.home__tile::before{
-  content: ""; position: absolute; inset: auto 0 0 0; z-index: 1; height: 80%;
-  background: linear-gradient(to top, rgba(16,26,20,.94), rgba(16,26,20,.55) 45%, rgba(16,26,20,0));
-  pointer-events: none;
-}
-.home__tile b{
-  position: absolute; left: .45rem; right: .45rem; bottom: .42rem; z-index: 2;
-  font-size: 11px; font-weight: 600; line-height: 1.3; color: #F4F7F1;
-  text-align: left; letter-spacing: .01em;
-  text-shadow: 0 1px 3px rgba(16,26,20,.6);
-}
-.home__tile:focus-visible{ outline: 2px solid var(--d-accent); outline-offset: -2px; }
+.sugg__ico--purple{ --tone-bg: #F1E9FD; --tone: #7C2FDA; }
+.sugg__ico--blue{   --tone-bg: #EAF0F7; --tone: #2A5E9A; }
+.sugg__ico--orange{ --tone-bg: #FFF1E3; --tone: #D46A00; }
+.sugg__ico--green{  --tone-bg: #E6F6EE; --tone: #1E8A50; }
+.sugg__txt{ display: grid; gap: .15rem; min-width: 0; flex: 1; }
+.sugg__txt b{ font-size: 15.5px; font-weight: 600; color: var(--d-ink); line-height: 1.35; }
+.sugg__txt small{ font-size: 13.5px; color: var(--d-ink-2); line-height: 1.45; }
+.sugg__go{ flex: none; color: var(--d-ink-3); transition: transform .16s ease, color .16s ease; }
+.sugg__btn:hover .sugg__go{ color: var(--d-accent); transform: translateX(2px); }
+@media (prefers-reduced-motion: reduce){ .sugg__btn, .sugg__go{ transition: none; } }
 
-/* ---- common enquiries, inside the panel ---------------------------
-   The page's own ledger is white-on-dark-green (see .enq__btn above).
-   The panel is a light surface, so those rules have to be re-stated
-   here or the questions are near-invisible until they are hovered.
-   Everything below is stated at rest — colour, weight, the chevron —
-   and hover only strengthens what is already legible.
-   ------------------------------------------------------------------ */
-.dock .enq__list{
-  border-top: 0; display: grid; gap: .4rem;
+.home__label{
+  margin: .5rem 0 0; font-size: 12px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--d-ink-3);
 }
+
+/* The remaining most-asked questions, as the same outline chips the
+   answers use for their options. Overrides the page's ledger rules. */
+.dock .enq__list{ border-top: 0; display: flex; flex-wrap: wrap; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.dock .enq__list:empty{ display: none; }
 .dock .enq__list li{ border-bottom: 0; }
 .dock .enq__btn{
-  width: 100%; display: flex; align-items: center; gap: .6rem;
-  padding: .66rem .8rem; border: 1px solid var(--d-line);
-  border-radius: 9px; background: var(--d-raised);
-  color: var(--d-ink);                 /* 13.9:1 on the panel ground */
-  font: inherit; font-size: 13px; font-weight: 500; line-height: 1.4;
+  width: auto; display: inline-flex; align-items: center;
+  padding: .5rem .95rem; border: 1px solid var(--d-line-firm);
+  border-radius: 999px; background: var(--d-bg);
+  color: var(--d-ink); font: inherit; font-size: 13.5px; font-weight: 500; line-height: 1.35;
   text-align: left; cursor: pointer;
   transition: background .16s ease, border-color .16s ease, color .16s ease;
 }
-/* The page rule pins a dot to the right edge with ::after; replace it
-   with a chevron that is visible at rest instead of only on hover. */
-.dock .enq__btn::after{
-  content: ""; position: static; margin-top: 0; margin-left: auto; flex: none;
-  width: 6px; height: 6px; border: 0;
-  border-right: 1.6px solid currentColor; border-top: 1.6px solid currentColor;
-  border-radius: 1px; transform: rotate(45deg);
-  background: none; opacity: .55;
-  transition: opacity .16s ease, transform .16s ease;
-}
-.dock .enq__btn:hover{
-  color: var(--d-accent-2); background: var(--d-soft);
-  border-color: var(--d-accent); padding-left: .8rem;
-}
-.dock .enq__btn:hover::after{
-  background: none; opacity: 1; transform: rotate(45deg) translate(1px,-1px);
-}
+.dock .enq__btn::after{ content: none; }
+.dock .enq__btn:hover{ color: var(--d-accent); background: var(--d-soft-2); border-color: #DBC6F6; padding-left: .95rem; }
 .dock .enq__btn:focus-visible{ border-color: var(--d-accent); }
 
-/* Most asked questions. The ranking is the whole point of the list, so it is
-   drawn rather than implied: a numeral in front of each question, which also
-   gives the eye a left edge to run down. Numerals are Latin in all four
-   languages here, which is what Malayalam, Hindi and Tamil use in practice. */
-.dock .enq__list--ranked .enq__btn::before{
-  content: attr(data-rank);
-  flex: none; width: 18px; height: 18px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: var(--d-soft); color: var(--d-accent-2);
-  font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
-  transition: background .16s ease, color .16s ease;
-}
-.dock .enq__list--ranked .enq__btn:hover::before{ background: var(--d-accent); color: #fff; }
-
-/* The 1,000-pair corpus is written in English. When the panel is in another
-   language a corpus answer says so, quietly, rather than pretending. */
 /* Malayalam, Hindi and Tamil stack marks above and below the baseline, so
    the leading the Latin faces were set at crowds them. Loosened only for
    those three, and only inside the panel. */
@@ -772,15 +662,12 @@ a{ color: inherit; }
 .dock[lang="ml"] .home__hi p, .dock[lang="hi"] .home__hi p, .dock[lang="ta"] .home__hi p,
 .dock[lang="ml"] .prose, .dock[lang="hi"] .prose, .dock[lang="ta"] .prose,
 .dock[lang="ml"] .panel__meta, .dock[lang="hi"] .panel__meta, .dock[lang="ta"] .panel__meta,
+.dock[lang="ml"] .sugg__txt small, .dock[lang="hi"] .sugg__txt small, .dock[lang="ta"] .sugg__txt small,
 .dock[lang="ml"] .enq__btn, .dock[lang="hi"] .enq__btn, .dock[lang="ta"] .enq__btn{
   line-height: 1.75;
 }
 .dock[lang="ml"] .home__hi h3, .dock[lang="hi"] .home__hi h3, .dock[lang="ta"] .home__hi h3,
-.dock[lang="ml"] .home__hero-title, .dock[lang="hi"] .home__hero-title, .dock[lang="ta"] .home__hero-title{
-  line-height: 1.4;
-}
-.dock[lang="ml"] .home__fact span, .dock[lang="hi"] .home__fact span, .dock[lang="ta"] .home__fact span,
-.dock[lang="ml"] .tab, .dock[lang="hi"] .tab, .dock[lang="ta"] .tab{
+.dock[lang="ml"] .sugg__txt b, .dock[lang="hi"] .sugg__txt b, .dock[lang="ta"] .sugg__txt b{
   line-height: 1.5;
 }
 
@@ -790,47 +677,51 @@ a{ color: inherit; }
   padding-top: .4rem; border-top: 1px solid var(--d-line);
 }
 
-/* ============================ CHAT PAGE ============================ */
+/* ============================ CONVERSATION ============================ */
 
 .chat__log{
-  padding: 1.1rem 1.05rem 1.2rem;
-  display: flex; flex-direction: column; gap: .95rem;
+  padding: 1.25rem 1.1rem 1.25rem;
+  display: flex; flex-direction: column; gap: 1.1rem;
   overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
-  scroll-behavior: auto; background: var(--d-bg);
+  scroll-behavior: auto; background: var(--d-ground);
 }
 .chat__log::-webkit-scrollbar{ width: 8px; }
-.chat__log::-webkit-scrollbar-thumb{ background: rgba(38,54,44,.2); border-radius: 8px; }
+.chat__log::-webkit-scrollbar-thumb{ background: rgba(20,20,20,.14); border-radius: 8px; }
+
+/* "Today · 9:41 AM" over the first message. Its top margin takes up the
+   free space, so a short conversation sits at the foot of the sheet next
+   to the composer, as a chat does, rather than hanging from the top. */
+.chat__stamp{
+  align-self: center; margin-top: auto;
+  font-size: 12.5px; color: var(--d-ink-3); font-variant-numeric: tabular-nums;
+}
 
 .turn{ display: flex; gap: .6rem; max-width: 100%; animation: msgIn .24s ease-out both; }
 @keyframes msgIn{ from{ opacity: 0; transform: translateY(5px) } to{ opacity: 1; transform: none } }
 
 .turn--guest{ justify-content: flex-end; }
 .turn--guest .bubble{
-  background: var(--d-soft);
-  border: 1px solid rgba(62,107,76,.22);
-  border-radius: 13px 13px 4px 13px;
-  color: var(--d-ink); max-width: 84%;
+  background: var(--d-accent); color: #fff;
+  border-radius: 14px 14px 4px 14px;
+  max-width: 84%; padding: .6rem .95rem;
 }
+.turn--guest .bubble > p{ color: #fff; }
+/* The assistant answers in plain text beside its avatar; anything it lays
+   out (rooms, a summary, options) arrives as white cards under the text. */
 .turn--bot .bubble{
-  background: var(--d-raised);
-  border: 1px solid var(--d-line);
-  border-radius: 13px 13px 13px 4px;
+  background: none; border: 0; padding: .2rem 0 0;
   min-width: 0; flex: 1;
 }
-.bubble{ padding: .68rem .85rem; font-size: 14px; line-height: 1.62; }
-.bubble > p{ font-size: 14px; line-height: 1.62; }
-.bubble strong{ font-weight: 600; color: #16211B; }
+.bubble{ font-size: 14.5px; line-height: 1.6; }
+.bubble > p{ font-size: 14.5px; line-height: 1.6; }
+.bubble strong{ font-weight: 600; color: var(--d-ink); }
 .bubble a:not(.connect__btn):not(.place__link){
   color: var(--d-accent); text-decoration: none;
-  border-bottom: 1px solid rgba(62,107,76,.4);
+  border-bottom: 1px solid rgba(124,47,218,.35);
 }
 .bubble a:not(.connect__btn):not(.place__link):hover{ border-bottom-color: var(--d-accent); }
 
-.avatar{
-  width: 28px; height: 28px; flex: none; border-radius: 50%;
-  display: grid; place-items: center; margin-top: 1px;
-  background: var(--d-soft); color: var(--d-accent);
-}
+.avatar{ width: 28px; height: 28px; margin-top: 1px; }
 
 /* streaming caret — sits after the last revealed character */
 .is-typing::after{
@@ -841,9 +732,9 @@ a{ color: inherit; }
 @keyframes caret{ 0%,49%{ opacity: 1 } 50%,100%{ opacity: 0 } }
 
 /* three-dot "thinking" state, shown before the stream starts */
-.dots{ display: flex; gap: .28rem; align-items: center; padding: .2rem 0; }
+.dots{ display: flex; gap: .28rem; align-items: center; padding: .45rem 0; }
 .dots i{
-  width: 6px; height: 6px; border-radius: 50%; background: var(--d-ink-2);
+  width: 6px; height: 6px; border-radius: 50%; background: var(--d-accent);
   animation: bob 1.25s ease-in-out infinite;
 }
 .dots i:nth-child(2){ animation-delay: .16s }
@@ -855,85 +746,112 @@ a{ color: inherit; }
 
 .reveal{ animation: msgIn .26s ease-out both; }
 
+/* ============================ COMPOSER ============================ */
+/* Pinned under every state, so a question can be typed from the welcome
+   screen too. Microphone and send live inside the field, as drawn. */
+
 .chat__form{
-  display: flex; gap: .5rem; align-items: flex-end;
-  border-top: 1px solid var(--d-line); padding: .7rem .8rem .8rem;
-  background: var(--d-bg);
+  display: grid; gap: .5rem;
+  padding: .75rem 1rem .7rem;
+  background: var(--d-ground);
+  border-top: 1px solid var(--d-line);
 }
 .chat__field{
-  flex: 1; display: flex; align-items: center;
-  background: var(--d-raised); border: 1px solid var(--d-line-firm);
-  border-radius: 11px; padding: .1rem .3rem .1rem .75rem;
-  transition: border-color .16s ease;
+  display: flex; align-items: center; gap: .3rem;
+  background: var(--d-bg); border: 1px solid var(--d-line-firm);
+  border-radius: 16px; padding: .3rem .35rem .3rem 1rem;
+  transition: border-color .16s ease, box-shadow .16s ease;
 }
-.chat__field:focus-within{ border-color: var(--d-accent); }
+.chat__field:focus-within{ border-color: var(--d-accent); box-shadow: 0 0 0 3px rgba(124,47,218,.12); }
 .chat__field input{
   flex: 1; background: none; border: 0; color: var(--d-ink);
-  font: inherit; font-size: 14px; padding: .6rem 0; min-width: 0;
+  font: inherit; font-size: 14.5px; padding: .65rem 0; min-width: 0;
 }
-.chat__field input::placeholder{ color: var(--d-ink-2); opacity: .85; }
+.chat__field input::placeholder{ color: var(--d-ink-3); opacity: 1; }
 .chat__field input:focus{ outline: none; }
-.chat__send{
+.chat__mic, .chat__send{
   display: grid; place-items: center; width: 38px; height: 38px; flex: none;
-  background: var(--d-accent); color: #fff; border: 0; border-radius: 10px;
-  cursor: pointer; transition: background .16s ease, opacity .16s ease;
+  border: 0; border-radius: 50%; cursor: pointer;
+  transition: background .16s ease, color .16s ease, opacity .16s ease;
 }
+.chat__mic{ background: none; color: var(--d-ink-2); }
+.chat__mic:hover{ background: var(--d-ground); color: var(--d-ink); }
+.chat__mic[hidden]{ display: none; }
+.chat__mic[aria-pressed="true"]{ background: #FDECF1; color: #C70039; animation: micPulse 1.4s ease-in-out infinite; }
+@keyframes micPulse{ 0%,100%{ box-shadow: 0 0 0 0 rgba(199,0,57,.25) } 50%{ box-shadow: 0 0 0 6px rgba(199,0,57,0) } }
+.chat__send{ background: var(--d-accent); color: #fff; }
 .chat__send:hover:not(:disabled){ background: var(--d-accent-2); }
-.chat__send:disabled{ opacity: .35; cursor: default; }
+.chat__send:disabled{ background: #E4D6F8; color: #fff; cursor: default; }
+.chat__note{ margin: 0; text-align: center; font-size: 12px; line-height: 1.4; color: var(--d-ink-3); }
+@media (max-width: 620px){
+  .chat__form{ padding-bottom: max(.7rem, env(safe-area-inset-bottom)); }
+}
 
-/* ============================ CONTACT PAGE ============================ */
+/* ============================ CONTACT ============================ */
+
+.contact__bar{ display: flex; align-items: center; gap: .5rem; }
+.contact__back{
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .4rem .75rem .4rem .55rem; border-radius: 999px;
+  border: 1px solid var(--d-line-firm); background: var(--d-bg);
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--d-ink); cursor: pointer;
+}
+.contact__back:hover{ border-color: #DBC6F6; color: var(--d-accent); }
+.contact__bar h3{ font-family: var(--sans); font-size: 16px; font-weight: 600; }
 
 .card{
-  border: 1px solid var(--d-line); border-radius: 11px;
-  background: var(--d-raised); padding: .95rem;
+  border: 1px solid var(--d-line); border-radius: 14px;
+  background: var(--d-bg); padding: 1rem 1.1rem;
   display: grid; gap: .55rem;
 }
-.card__label{ font-size: 11.5px; color: var(--d-ink-2); letter-spacing: .03em; }
+.card__label{ font-size: 12px; font-weight: 600; color: var(--d-ink-3); letter-spacing: .06em; text-transform: uppercase; }
 .card__num{
-  font-family: var(--display); font-size: 25px; font-weight: 400; line-height: 1.1;
+  font-family: var(--sans); font-size: 24px; font-weight: 600; line-height: 1.15;
   color: var(--d-ink); font-variant-numeric: tabular-nums; user-select: all;
   letter-spacing: -.01em;
 }
-.card__rows{ display: grid; gap: .1rem; }
+.card__rows{ display: grid; gap: .1rem; margin: 0; }
 .card__row{
   display: grid; grid-template-columns: 1fr auto; gap: 1rem;
-  padding: .5rem 0; border-bottom: 1px solid var(--d-line); font-size: 13px;
+  padding: .55rem 0; border-bottom: 1px solid var(--d-line); font-size: 13.5px;
 }
 .card__row:last-child{ border-bottom: 0; }
 .card__row dt{ color: var(--d-ink-2); }
 .card__row dd{ margin: 0; text-align: right; color: var(--d-ink); font-variant-numeric: tabular-nums; }
 
-.actions{ display: grid; gap: .45rem; }
+.actions{ display: grid; gap: .6rem; }
 .act{
-  display: flex; align-items: center; gap: .6rem;
-  border: 1px solid var(--d-line-firm); border-radius: 10px;
-  padding: .65rem .8rem; font-size: 13.5px; text-decoration: none;
+  display: flex; align-items: center; gap: .85rem;
+  border: 1px solid var(--d-line); border-radius: 14px;
+  padding: .75rem .9rem; font-size: 14px; text-decoration: none;
   color: var(--d-ink); background: var(--d-bg);
-  transition: border-color .16s ease, background .16s ease;
+  transition: border-color .16s ease, box-shadow .16s ease;
 }
-.act:hover{ border-color: var(--d-accent); background: var(--d-soft); }
-.act svg{ flex: none; color: var(--d-accent); }
+.act:hover{ border-color: #DBC6F6; box-shadow: 0 6px 18px rgba(124,47,218,.08); }
+.act svg{
+  flex: none; color: var(--d-accent); box-sizing: content-box;
+  padding: 11px; border-radius: 10px; background: var(--d-soft);
+}
 .act span{ display: grid; gap: .05rem; min-width: 0; }
-.act b{ font-weight: 500; }
-.act small{ color: var(--d-ink-2); font-size: 11.5px; }
+.act b{ font-weight: 600; }
+.act small{ color: var(--d-ink-2); font-size: 12.5px; }
 .act--primary{ background: var(--d-accent); border-color: var(--d-accent); color: #fff; }
 .act--primary:hover{ background: var(--d-accent-2); border-color: var(--d-accent-2); }
-.act--primary svg{ color: #fff; }
-.act--primary small{ color: rgba(255,255,255,.8); }
-.act--primary b{ font-weight: 600; }
+.act--primary svg{ color: #fff; background: rgba(255,255,255,.18); }
+.act--primary small{ color: rgba(255,255,255,.85); }
 
 /* ============================ PANELS ============================ */
 /* A listing laid out under an answer, for broad questions. */
 .panel{
-  margin-top: .7rem; border: 1px solid var(--d-line); border-radius: 8px;
+  margin-top: .75rem; border: 1px solid var(--d-line); border-radius: 14px;
   background: var(--d-bg); overflow: hidden;
 }
 .panel__cap{
-  font-size: 11.5px; color: var(--d-ink-2); letter-spacing: .03em;
-  padding: .55rem .8rem; border-bottom: 1px solid var(--d-line);
+  font-size: 13.5px; font-weight: 600; color: var(--d-ink);
+  padding: .8rem .95rem .7rem; border-bottom: 1px solid var(--d-line);
 }
 .panel__item{
-  padding: .8rem; border-bottom: 1px solid var(--d-line);
+  padding: .8rem .95rem; border-bottom: 1px solid var(--d-line);
   display: grid; gap: .3rem;
 }
 .panel__item:last-child, .panel__group:last-child, .panel__row:last-child{ border-bottom: 0; }
@@ -949,18 +867,18 @@ a{ color: inherit; }
   display: flex; flex-wrap: wrap; gap: .18rem .9rem;
   font-size: 12.5px; color: var(--d-ink-2);
 }
-.panel__list li::before{ content: "—"; color: var(--mist); margin-right: .35rem; }
+.panel__list li::before{ content: "—"; color: var(--d-ink-3); margin-right: .35rem; }
 .panel__list--none li::before{ content: "×"; }
 .swatch{ height: 5px; border-radius: 3px; margin-top: .5rem; }
 
 .panel__row{
   display: grid; grid-template-columns: 1fr auto; gap: 1rem;
-  padding: .5rem .8rem; border-bottom: 1px solid var(--d-line); font-size: 12.5px;
+  padding: .55rem .95rem; border-bottom: 1px solid var(--d-line); font-size: 13px;
 }
 .panel__row dt{ color: var(--d-ink-2); }
 .panel__row dd{ margin: 0; text-align: right; color: var(--d-ink); font-variant-numeric: tabular-nums; }
 
-.panel__group{ padding: .75rem .8rem; border-bottom: 1px solid var(--d-line); }
+.panel__group{ padding: .8rem .95rem; border-bottom: 1px solid var(--d-line); }
 .panel__when{ color: var(--d-accent); font-size: 11.5px; letter-spacing: .03em; margin-bottom: .45rem; }
 .panel__stops{ list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
 .panel__stops li{ display: grid; gap: .1rem; }
@@ -977,26 +895,26 @@ a{ color: inherit; }
 .avail--full .avail__live{ background: var(--d-ink-2); }
 .avail__hero{
   display: flex; align-items: baseline; gap: .55rem;
-  padding: .8rem .8rem .2rem;
+  padding: .85rem .95rem .2rem;
 }
 .avail__num{
-  font-family: var(--display); font-size: 40px; line-height: 1; font-weight: 400;
+  font-family: var(--sans); font-size: 38px; line-height: 1; font-weight: 700;
   color: var(--d-accent); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
 }
 .avail--full .avail__num{ color: var(--d-ink-2); }
 .avail__label{ font-size: 13.5px; color: var(--d-ink); font-weight: 500; }
 .avail__dates{
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem;
-  margin: 0; padding: .55rem .8rem .8rem; border-bottom: 1px solid var(--d-line);
+  margin: 0; padding: .55rem .95rem .85rem; border-bottom: 1px solid var(--d-line);
 }
 .avail__dates div{ display: grid; gap: .1rem; min-width: 0; }
 .avail__dates dt{ font-size: 11px; color: var(--d-ink-2); letter-spacing: .03em; }
 .avail__dates dd{ margin: 0; font-size: 12.5px; color: var(--d-ink); font-variant-numeric: tabular-nums; }
-.avail__type{ padding: .6rem .8rem; border-bottom: 1px solid var(--d-line); display: grid; gap: .35rem; }
+.avail__type{ padding: .65rem .95rem; border-bottom: 1px solid var(--d-line); display: grid; gap: .35rem; }
 .avail__type .panel__head b{ font-size: 13px; }
 .avail__bar{ height: 5px; border-radius: 3px; background: var(--d-soft); overflow: hidden; }
 .avail__bar i{ display: block; height: 100%; border-radius: inherit; background: var(--d-accent); transition: width .5s ease; }
-.avail__actions{ padding: .7rem .8rem; }
+.avail__actions{ padding: .75rem .95rem; }
 .avail-chips{ display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
 .avail-chips--inline{ display: contents; }
 @media (max-width: 380px){
@@ -1008,10 +926,10 @@ a{ color: inherit; }
    Every question the booking flow asks comes with tappable answers; typing
    still works for all of them. A widget is live until it is answered, then
    it greys out so an old button can't be mistaken for the current one. */
-.bk-opts{ display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .65rem; }
-.bk-opts .connect__btn{ min-height: 36px; }
+.bk-opts{ display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+.bk-opts .connect__btn{ min-height: 38px; }
 .connect__btn.bk-quiet{ border-style: dashed; color: var(--d-ink-2); }
-.connect__btn[aria-pressed="true"]{ background: var(--d-soft); border-color: var(--d-accent); color: var(--d-accent); }
+.connect__btn[aria-pressed="true"]{ background: var(--d-soft); border-color: var(--d-accent); color: var(--d-accent); font-weight: 600; }
 .bk-spent{ opacity: .55; }
 .bk-spent .connect__btn, .bk-spent input, .bk-spent button{ pointer-events: none; }
 
@@ -1019,8 +937,8 @@ a{ color: inherit; }
 .bk-date label{ font-size: 12px; color: var(--d-ink-2); width: 100%; }
 .bk-date input, .bk-form input{
   font: inherit; font-size: 14px; color: var(--d-ink);
-  border: 1px solid var(--d-line-firm); border-radius: 8px; background: var(--d-bg);
-  padding: .45rem .6rem; min-height: 38px;
+  border: 1px solid var(--d-line-firm); border-radius: 10px; background: var(--d-bg);
+  padding: .5rem .7rem; min-height: 40px;
 }
 .bk-date input{ flex: 1 1 150px; }
 .bk-date input:focus-visible, .bk-form input:focus-visible{ outline: 2px solid var(--d-accent); outline-offset: 1px; }
@@ -1028,19 +946,19 @@ a{ color: inherit; }
 .bk-rooms__list{ display: grid; }
 .bk-room{
   display: grid; grid-template-columns: auto auto minmax(0,1fr) auto; align-items: center; gap: .6rem;
-  padding: .6rem .8rem; border-bottom: 1px solid var(--d-line); cursor: pointer;
+  padding: .65rem .95rem; border-bottom: 1px solid var(--d-line); cursor: pointer;
 }
-.bk-room:hover{ background: var(--d-raised); }
+.bk-room:hover{ background: var(--d-soft-2); }
 .bk-room input{ width: 18px; height: 18px; accent-color: var(--d-accent); margin: 0; }
 .bk-room__no{
   display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px;
   background: var(--d-soft); color: var(--d-accent); font-weight: 600; font-variant-numeric: tabular-nums;
 }
-/* Luxury rooms carry the same midnight-and-champagne mark as the room
+/* Luxury rooms carry the same solid-purple mark and star as the room
    boards, so the two types can't be confused at a glance. */
-.bk-room--Luxury{ background: linear-gradient(90deg, rgba(227,197,120,.16), rgba(227,197,120,0) 70%); box-shadow: inset 3px 0 0 #C9A44C; }
-.bk-room--Luxury .bk-room__no{ background: linear-gradient(145deg, #241B3D, #120E22); color: #E9CF86; box-shadow: inset 0 0 0 1px rgba(233,207,134,.55); }
-.bk-room--Luxury .bk-room__meta b::after{ content: " ★"; color: #A8842A; }
+.bk-room--Luxury{ background: linear-gradient(90deg, var(--d-soft-2), rgba(247,243,253,0) 70%); box-shadow: inset 3px 0 0 var(--d-accent); }
+.bk-room--Luxury .bk-room__no{ background: var(--d-accent); color: #fff; }
+.bk-room--Luxury .bk-room__meta b::after{ content: " ★"; color: var(--d-gold); }
 .bk-auth p{ margin: 0 0 .4rem; font-size: 13.5px; }
 .bk-room__meta{ display: grid; min-width: 0; }
 .bk-room__meta b{ font-size: 13.5px; font-weight: 600; }
@@ -1049,36 +967,36 @@ a{ color: inherit; }
 .bk-room:has(input:checked){ background: var(--d-soft); }
 .bk-rooms__foot{
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem;
-  padding: .7rem .8rem; background: var(--d-raised);
+  padding: .75rem .95rem; background: var(--d-raised);
 }
 .bk-rooms__sum{ font-size: 12.5px; color: var(--d-ink-2); font-variant-numeric: tabular-nums; }
 .bk-rooms__sum b{ color: var(--d-ink); }
 
 .bk-sum__ref{
-  padding: .8rem .8rem .2rem; font-family: var(--display); font-size: 26px; letter-spacing: .04em;
+  padding: .85rem .95rem .2rem; font-family: var(--sans); font-size: 24px; font-weight: 700; letter-spacing: .04em;
   color: var(--d-accent); font-variant-numeric: tabular-nums;
 }
 .bk-sum__badge{
   display: inline-flex; align-items: center; gap: .3rem; font-size: 11px; font-weight: 600;
   padding: .12rem .5rem; border-radius: 999px; background: var(--d-soft); color: var(--d-accent);
 }
-.bk-sum__badge--confirmed, .bk-sum__badge--checked_in{ background: #ECFDF5; color: #065F46; }
-.bk-sum__badge--hold, .bk-sum__badge--review{ background: #FFFBEB; color: #92400E; }
-.bk-sum__badge--cancelled, .bk-sum__badge--no_show{ background: #FEF2F2; color: #991B1B; }
+.bk-sum__badge--confirmed, .bk-sum__badge--checked_in{ background: #EEF9F3; color: #1E7A4A; }
+.bk-sum__badge--hold, .bk-sum__badge--review{ background: #FFF4E8; color: #A04F00; }
+.bk-sum__badge--cancelled, .bk-sum__badge--no_show{ background: #FDECF1; color: #B0174A; }
 .bk-line{
   display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .2rem 1rem;
-  padding: .55rem .8rem; border-bottom: 1px solid var(--d-line); font-size: 12.5px;
+  padding: .6rem .95rem; border-bottom: 1px solid var(--d-line); font-size: 13px;
 }
 .bk-line b{ font-weight: 600; color: var(--d-ink); }
 .bk-line span{ color: var(--d-ink-2); }
 .bk-line em{ font-style: normal; text-align: right; font-variant-numeric: tabular-nums; color: var(--d-ink); }
 .bk-total{
-  display: flex; justify-content: space-between; align-items: baseline; padding: .7rem .8rem;
+  display: flex; justify-content: space-between; align-items: baseline; padding: .75rem .95rem;
   background: var(--d-raised); font-size: 13px;
 }
 .bk-total b{ font-size: 17px; font-variant-numeric: tabular-nums; color: var(--d-ink); }
 
-.bk-form{ display: grid; gap: .55rem; margin-top: .7rem; padding: .8rem; border: 1px solid var(--d-line); border-radius: 8px; }
+.bk-form{ display: grid; gap: .6rem; margin-top: .75rem; padding: .95rem; border: 1px solid var(--d-line); border-radius: 14px; background: var(--d-bg); }
 .bk-form label{ display: grid; gap: .25rem; font-size: 12px; color: var(--d-ink-2); }
 .bk-form__err{ margin: 0; font-size: 12.5px; color: #991B1B; }
 .bk-form__err:empty{ display: none; }
@@ -1097,12 +1015,12 @@ a{ color: inherit; }
    so a broken CDN degrades to a text answer instead of a wall of icons. */
 
 .gal{
-  margin-top: .7rem; border: 1px solid var(--d-line); border-radius: 8px;
+  margin-top: .75rem; border: 1px solid var(--d-line); border-radius: 14px;
   background: var(--d-bg); overflow: hidden;
 }
 .gal__cap{
-  font-size: 11.5px; color: var(--d-ink-2); letter-spacing: .03em;
-  padding: .55rem .8rem; border-bottom: 1px solid var(--d-line);
+  font-size: 13.5px; font-weight: 600; color: var(--d-ink);
+  padding: .75rem .95rem; border-bottom: 1px solid var(--d-line);
 }
 .gal__grid{
   display: grid; grid-template-columns: repeat(2, 1fr);
@@ -1145,8 +1063,8 @@ a{ color: inherit; }
 
 .places{ margin-top: .7rem; display: grid; gap: .45rem; }
 .place{
-  border: 1px solid var(--d-line); border-radius: 9px; background: var(--d-bg);
-  padding: .7rem .8rem; display: grid; gap: .28rem;
+  border: 1px solid var(--d-line); border-radius: 14px; background: var(--d-bg);
+  padding: .8rem .95rem; display: grid; gap: .3rem;
 }
 .place__top{ display: flex; align-items: baseline; justify-content: space-between; gap: .7rem; }
 .place__name{ font-size: 13.5px; font-weight: 600; color: var(--d-ink); line-height: 1.35; }
@@ -1156,14 +1074,14 @@ a{ color: inherit; }
 .place__links{ display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .25rem; }
 .place__link{
   display: inline-flex; align-items: center; gap: .3rem;
-  border: 1px solid var(--d-line-firm); border-radius: 7px;
-  padding: .32rem .55rem; font-size: 11.5px; text-decoration: none;
+  border: 1px solid var(--d-line-firm); border-radius: 999px;
+  padding: .36rem .7rem; font-size: 12px; text-decoration: none;
   color: var(--d-ink); background: var(--d-raised);
   transition: border-color .16s ease, background .16s ease, color .16s ease;
 }
 .place__link:hover{ border-color: var(--d-accent); color: var(--d-accent); background: var(--d-soft); }
 .place__link svg{ flex: none; }
-.place__link--map{ background: var(--d-soft); border-color: rgba(62,107,76,.28); color: var(--d-accent); }
+.place__link--map{ background: var(--d-soft); border-color: #DBC6F6; color: var(--d-accent); }
 .place__link--map:hover{ background: var(--d-accent); border-color: var(--d-accent); color: #fff; }
 .place__note{
   font-size: 11px; color: var(--d-ink-2); margin-top: .35rem; line-height: 1.45;
@@ -1172,9 +1090,9 @@ a{ color: inherit; }
 /* ============================ HANDOFF ============================ */
 
 .connect{
-  margin-top: .7rem; padding: .75rem;
-  border: 1px solid rgba(62,107,76,.26); border-radius: 9px;
-  background: var(--d-soft); display: grid; gap: .6rem;
+  margin-top: .75rem; padding: .9rem .95rem;
+  border: 1px solid var(--d-line); border-radius: 14px;
+  background: var(--d-bg); display: grid; gap: .65rem;
 }
 .connect__status{
   display: flex; align-items: center; gap: .5rem;
@@ -1186,7 +1104,7 @@ a{ color: inherit; }
 }
 .connect__count{ font-variant-numeric: tabular-nums; font-weight: 600; }
 .connect__num{
-  font-family: var(--display); font-size: 24px; font-weight: 400; line-height: 1.1;
+  font-family: var(--sans); font-size: 22px; font-weight: 700; line-height: 1.1;
   color: var(--d-ink); font-variant-numeric: tabular-nums; user-select: all;
 }
 .connect__num small{
@@ -1196,13 +1114,13 @@ a{ color: inherit; }
 .connect__actions{ display: flex; flex-wrap: wrap; gap: .4rem; }
 .connect__btn{
   display: inline-flex; align-items: center; gap: .35rem;
-  border: 1px solid var(--d-line-firm); border-radius: 8px;
-  padding: .42rem .7rem; font: inherit; font-size: 12.5px;
+  border: 1px solid var(--d-line-firm); border-radius: 999px;
+  padding: .45rem .95rem; font: inherit; font-size: 13px; font-weight: 500;
   text-decoration: none; color: var(--d-ink);
   background: var(--d-bg); cursor: pointer;
   transition: border-color .16s ease, color .16s ease, background .16s ease;
 }
-.connect__btn:hover{ border-color: var(--d-accent); color: var(--d-accent); }
+.connect__btn:hover{ border-color: #DBC6F6; color: var(--d-accent); background: var(--d-soft-2); }
 .connect__btn--primary{
   background: var(--d-accent); color: #fff;
   border-color: var(--d-accent); font-weight: 600;
@@ -1405,46 +1323,57 @@ a{ color: inherit; }
   <aside class="mm-side" id="mmSide" aria-label="Dashboard navigation">
     <div class="mm-side__brand">
       <span class="mm-crest mm-crest--sm" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M2 20l7-11 4 6 3-4 6 9z"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M2 20l7-11 4 6 3-4 6 9z"/></svg>
       </span>
       <span><b id="sideHotel">Misty Mountain</b><small>Hotel management</small></span>
     </div>
 
+    <!-- Which hotel every view is about. Filled from the hotels table;
+         hidden while there is only one. -->
+    <label class="mm-side__hotel" id="hotelPick" hidden>
+      <span>Property</span>
+      <select id="hotelSwitch" aria-label="Property"></select>
+    </label>
+
     <nav class="mm-nav">
+      <p class="mm-nav__label">Front desk</p>
       <a href="#dashboard" class="mm-nav__item" data-view="dashboard">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.5 12 3.8l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"/></svg>
         <span>Dashboard</span>
       </a>
-      <a href="#rooms" class="mm-nav__item" data-view="rooms">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>
-        <span>Rooms</span>
-        <span class="mm-nav__count" id="navRooms"></span>
-      </a>
       <a href="#reservations" class="mm-nav__item" data-view="reservations">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M16 3v4M8 3v4M3.5 10h17"/></svg>
         <span>Reservations</span>
         <span class="mm-nav__count" id="navReservations"></span>
       </a>
+      <a href="#rooms" class="mm-nav__item" data-view="rooms">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18.5v-12M3 14h18v4.5M21 14v-2.5a3 3 0 0 0-3-3h-7V14"/><circle cx="7" cy="10.8" r="1.8"/></svg>
+        <span>Rooms</span>
+        <span class="mm-nav__count mm-nav__count--quiet" id="navRooms"></span>
+      </a>
       <a href="#guests" class="mm-nav__item" data-view="guests">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></svg>
         <span>Guests</span>
       </a>
+
+      <p class="mm-nav__label">Insights</p>
       <a href="#reports" class="mm-nav__item" data-view="reports">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg>
         <span>Reports</span>
       </a>
-    </nav>
 
-    <button type="button" class="mm-side__bot" data-open="true">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      <span><b>Guest ChatBot</b><small>Test the booking assistant</small></span>
-    </button>
+      <p class="mm-nav__label">Tools</p>
+      <button type="button" class="mm-side__bot" data-open="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l1.6 4.4 4.4 1.6-4.4 1.6L12 15.5l-1.6-4.4L6 9.5l4.4-1.6zM18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>
+        <span><b>Guest ChatBot</b><small>Test the booking assistant</small></span>
+      </button>
+    </nav>
 
     <div class="mm-side__user">
       <span class="mm-avatar" id="userAvatar" aria-hidden="true">·</span>
       <span class="mm-side__who"><b id="userEmail">—</b><small>Administrator</small></span>
       <button type="button" class="mm-icon-btn mm-icon-btn--dark" id="signOutBtn" aria-label="Sign out" title="Sign out">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
       </button>
     </div>
   </aside>
@@ -1453,21 +1382,22 @@ a{ color: inherit; }
   <div class="mm-main">
     <header class="mm-top">
       <button type="button" class="mm-icon-btn mm-menu" id="menuBtn" aria-label="Open navigation" aria-controls="mmSide" aria-expanded="false">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></svg>
       </button>
       <div class="mm-top__title">
-        <span class="mm-top__crumb">Misty Mountain</span>
+        <span class="mm-top__crumb">Front desk</span>
+        <svg class="mm-top__sep" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="mm-top__page" id="topPage">Dashboard</span>
       </div>
       <form class="mm-search" id="globalSearch" role="search">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input type="search" id="globalSearchInput" placeholder="Search bookings, guests, phone…" aria-label="Search reservations">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="search" id="globalSearchInput" placeholder="Search by guest, booking code or phone…" aria-label="Search reservations">
       </form>
       <span class="mm-live" id="liveStatus" title="Live updates">
         <span class="mm-live__dot" aria-hidden="true"></span><span class="mm-live__text">Connecting…</span>
       </span>
       <a href="#desk" class="mm-btn mm-btn--outline mm-btn--sm mm-top__bot" id="deskLink">
-        <span class="mm-live__dot mm-live__dot--gold" aria-hidden="true"></span>Ask ChatBot
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l1.6 4.4 4.4 1.6-4.4 1.6L12 15.5l-1.6-4.4L6 9.5l4.4-1.6zM18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>Ask ChatBot
       </a>
     </header>
 
@@ -1479,7 +1409,7 @@ a{ color: inherit; }
         <div class="mm-view__head">
           <div>
             <p class="mm-eyebrow mm-eyebrow--dark" id="todayLabel">Today</p>
-            <h1 class="mm-view__title" id="hDashboard">Operations <em>overview</em></h1>
+            <h1 class="mm-view__title" id="hDashboard">Operations overview</h1>
           </div>
           <div class="mm-view__actions">
             <span class="mm-chip" id="policyChip">Check-in 2:00 PM · Check-out 12:00 PM</span>
@@ -1686,7 +1616,7 @@ a{ color: inherit; }
       <span class="mm-crest mm-crest--sm" aria-hidden="true">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M2 20l7-11 4 6 3-4 6 9z"/></svg>
       </span>
-      <span><b>Misty Mountain</b><small>Kuttikkanam · Kerala</small></span>
+      <span><b id="gHotelName">Misty Mountain</b><small>Kuttikkanam · Kerala</small></span>
     </a>
     <span class="mm-live mm-live--dark" id="gLive" title="Live updates"><span class="mm-live__dot" aria-hidden="true"></span><span class="mm-live__text">Connecting…</span></span>
     <button type="button" class="mm-btn mm-btn--gold mm-btn--sm mm-ghead__bot" data-open="true">
@@ -1706,8 +1636,9 @@ a{ color: inherit; }
     <section class="mm-ghero" aria-labelledby="gHello">
       <p class="mm-eyebrow">Your stay</p>
       <h1 class="mm-gate__title mm-ghero__title" id="gHello">Welcome, <em>guest</em></h1>
-      <p class="mm-gate__lede">Live room availability at Misty Mountain. Choose your dates to see which rooms are free — bookings made through the ChatBot appear here the moment they are confirmed.</p>
+      <p class="mm-gate__lede">Live room availability at <span id="gHotelLede">Misty Mountain</span>. Choose your dates to see which rooms are free — bookings made through the ChatBot appear here the moment they are confirmed.</p>
       <form class="mm-gdates" id="gDates">
+        <label class="mm-field" id="gHotelField" hidden><span>Hotel</span><select name="hotel"></select></label>
         <label class="mm-field"><span>Check-in</span><input type="date" name="in" required></label>
         <label class="mm-field"><span>Check-out</span><input type="date" name="out" required></label>
         <button type="submit" class="mm-btn mm-btn--gold">Show rooms</button>
@@ -1756,18 +1687,13 @@ a{ color: inherit; }
 <div class="mm-toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
 
 
-<!-- ======================= THE CHATBOT WIDGET ======================= -->
+<!-- ======================= THE CHATBOT WIDGET =======================
+     One side sheet with three states — welcome (#pgHome), conversation
+     (#pgChat) and contact (#pgContact) — and a composer pinned under all
+     three, so a question can be typed from anywhere. -->
 <button class="launch" id="launch" type="button" data-i18n-aria="openAria" aria-label="Open the ChatBot assistant" aria-haspopup="dialog">
-  <span class="launch__bot" aria-hidden="true">
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" focusable="false">
-      <circle cx="12" cy="2.2" r="1.3" fill="currentColor" stroke="none"/>
-      <path d="M12 3.5v1.6" stroke-width="1.7" stroke-linecap="round"/>
-      <rect x="3.7" y="5.1" width="16.6" height="13.2" rx="4.3" stroke-width="1.7"/>
-      <circle cx="9" cy="11.3" r="1.45" fill="currentColor" stroke="none"/>
-      <circle cx="15" cy="11.3" r="1.45" fill="currentColor" stroke="none"/>
-      <path d="M9.5 15.1h5" stroke-width="1.7" stroke-linecap="round"/>
-      <path d="M1.5 10.3v3.4M22.5 10.3v3.4" stroke-width="1.7" stroke-linecap="round"/>
-    </svg>
+  <span class="launch__bot cp-ava" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M12 3.2c-3.9 0-6.6 2.9-6.6 6.7v9.3c0 .7.8 1.1 1.3.6l1.3-1.1 1.5 1.2c.4.3.9.3 1.3 0L12 18.7l1.2 1.2c.4.3.9.3 1.3 0l1.5-1.2 1.3 1.1c.5.5 1.3.1 1.3-.6V9.9c0-3.8-2.7-6.7-6.6-6.7Z"/><circle cx="9.6" cy="10.2" r="1.25" fill="#2B1752"/><circle cx="14.4" cy="10.2" r="1.25" fill="#2B1752"/></svg>
   </span>
   <span class="launch__txt" data-i18n="launch">ChatBot</span>
 </button>
@@ -1777,31 +1703,28 @@ a{ color: inherit; }
 <div class="dock" id="dock" role="dialog" aria-modal="true" aria-labelledby="dockTitle" hidden>
 
   <header class="dock__head">
-    <span class="dock__bot" aria-hidden="true">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" focusable="false">
-        <circle cx="12" cy="2.2" r="1.3" fill="currentColor" stroke="none"/>
-        <path d="M12 3.5v1.6" stroke-width="1.7" stroke-linecap="round"/>
-        <rect x="3.7" y="5.1" width="16.6" height="13.2" rx="4.3" stroke-width="1.7"/>
-        <circle cx="9" cy="11.3" r="1.45" fill="currentColor" stroke="none"/>
-        <circle cx="15" cy="11.3" r="1.45" fill="currentColor" stroke="none"/>
-        <path d="M9.5 15.1h5" stroke-width="1.7" stroke-linecap="round"/>
-        <path d="M1.5 10.3v3.4M22.5 10.3v3.4" stroke-width="1.7" stroke-linecap="round"/>
-      </svg>
+    <span class="dock__bot cp-ava" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M12 3.2c-3.9 0-6.6 2.9-6.6 6.7v9.3c0 .7.8 1.1 1.3.6l1.3-1.1 1.5 1.2c.4.3.9.3 1.3 0L12 18.7l1.2 1.2c.4.3.9.3 1.3 0l1.5-1.2 1.3 1.1c.5.5 1.3.1 1.3-.6V9.9c0-3.8-2.7-6.7-6.6-6.7Z"/><circle cx="9.6" cy="10.2" r="1.25" fill="#2B1752"/><circle cx="14.4" cy="10.2" r="1.25" fill="#2B1752"/></svg>
     </span>
     <span class="dock__title">
-      <b id="dockTitle" data-i18n="title">ChatBot</b>
-      <span><i class="dock__live" aria-hidden="true"></i><span data-i18n="subtitle">Misty Mountain, Kuttikkanam</span></span>
+      <span class="dock__name"><b id="dockTitle" data-i18n="title">ChatBot</b><span class="dock__beta" data-i18n="beta">Beta</span></span>
+      <span class="dock__sub"><i class="dock__live" aria-hidden="true"></i><span data-i18n="subtitle" id="dockSub">Misty Mountain, Kuttikkanam</span><select class="dock__hotel" id="dockHotel" data-i18n-aria="hotelAria" aria-label="Hotel" hidden></select></span>
     </span>
     <span class="dock__tools">
       <select class="dock__lang" id="dockLang" data-i18n-aria="langLabel" aria-label="Language"></select>
-      <button class="dock__icon" id="dockClear" type="button" data-i18n-aria="clear" data-i18n-title="clear" aria-label="Clear the conversation" title="Clear conversation">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
-          <path d="M13.2 8a5.2 5.2 0 1 1-1.55-3.7" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M13.5 2.1v3.1h-3.1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <button class="dock__icon" id="dockContact" type="button" data-i18n-aria="tabContact" data-i18n-title="tabContact" aria-label="Contact" title="Contact" aria-pressed="false">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
+          <path d="M7 3.2 8.6 6.6 6.8 8.3a10.3 10.3 0 0 0 5.7 5.7l1.7-1.8 3.4 1.6v2.7c0 .7-.6 1.2-1.3 1.2A15.3 15.3 0 0 1 2.3 4.5c0-.7.5-1.3 1.2-1.3H7Z" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="dock__icon" id="dockClear" type="button" data-i18n-aria="newChat" data-i18n-title="newChat" aria-label="New conversation" title="New conversation">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
+          <path d="M9 3.5H5A1.5 1.5 0 0 0 3.5 5v10A1.5 1.5 0 0 0 5 16.5h10a1.5 1.5 0 0 0 1.5-1.5v-4" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="m14.6 2.9 2.5 2.5-6.8 6.8-3.1.6.6-3.1 6.8-6.8Z" stroke-width="1.6" stroke-linejoin="round"/>
         </svg>
       </button>
       <button class="dock__icon" id="dockClose" type="button" data-i18n-aria="close" aria-label="Close the ChatBot">
-        <svg width="15" height="15" viewBox="0 0 14 14" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
+        <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
           <path d="M1.5 1.5l11 11M12.5 1.5l-11 11" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
       </button>
@@ -1810,96 +1733,66 @@ a{ color: inherit; }
 
   <div class="dock__body">
 
-    <!-- PAGE 1 — Home -->
-    <section class="page page--home" id="pgHome" role="tabpanel" aria-labelledby="tabHome" tabindex="0">
+    <!-- Welcome -->
+    <section class="page page--home" id="pgHome" aria-labelledby="homeTitle" tabindex="-1">
       <div class="home__hi">
-        <h3 data-i18n="homeGreetTitle">Good day. How can I help?</h3>
-        <p data-i18n="homeGreetBody">I keep the desk at Misty Mountain — six hundred acres of tea above Peermade, with Normal and Luxury rooms in the middle of it. Ask me anything about the estate.</p>
+        <span class="home__ava cp-ava" aria-hidden="true">
+          <svg width="46" height="46" viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M12 3.2c-3.9 0-6.6 2.9-6.6 6.7v9.3c0 .7.8 1.1 1.3.6l1.3-1.1 1.5 1.2c.4.3.9.3 1.3 0L12 18.7l1.2 1.2c.4.3.9.3 1.3 0l1.5-1.2 1.3 1.1c.5.5 1.3.1 1.3-.6V9.9c0-3.8-2.7-6.7-6.6-6.7Z"/><circle cx="9.6" cy="10.2" r="1.25" fill="#2B1752"/><circle cx="14.4" cy="10.2" r="1.25" fill="#2B1752"/></svg>
+        </span>
+        <h3 id="homeTitle" data-i18n="homeGreetTitle">Good day. How can I help?</h3>
+        <p data-i18n="homeGreetBody" id="homeGreetSite">I keep the desk at Misty Mountain — six hundred acres of tea above Peermade, with Normal and Luxury rooms in the middle of it. Ask me anything about the estate.</p>
+        <p id="homeGreetOther" hidden></p>
+      </div>
+
+      <!-- The hotels on the platform, read from /api/hotels. Hidden while
+           there is only one. -->
+      <div class="home__hotels" id="homeHotels" hidden>
+        <p class="home__label" id="homeHotelsLabel" data-i18n="hotelPick">Choose a hotel</p>
+        <div class="home__hotelset" id="homeHotelSet" role="group" aria-labelledby="homeHotelsLabel"></div>
       </div>
 
       <!-- Booking comes first: one tap starts the live booking conversation
            (the same "start" action the backend's own buttons send, so it
-           works the same in every language). -->
-      <button class="home__book" type="button" id="homeBook">
-        <span class="home__book-ico" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" focusable="false"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18M8.5 14.5l2.2 2.2 4.8-4.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </span>
-        <span class="home__book-txt">
-          <b data-i18n="homeBook">Book a room</b>
-          <small data-i18n="homeBookSub">Live availability for your dates, in a few taps</small>
-        </span>
-        <svg class="home__book-go" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" aria-hidden="true" focusable="false"><path d="M2 7h9M7.5 3.5 11 7l-3.5 3.5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-
-      <!-- The estate, in pictures. The big frame is the accommodation and
-           the three tiles under it are the rest of the place; each one is
-           its own button, so every photograph leads somewhere. -->
-      <div class="home__hero" id="homeHero">
-        <button class="home__hero-main" type="button" id="homeHeroBtn" data-i18n-aria="heroAria" aria-label="See the rooms and cottages at Misty Mountain">
-          <span class="home__hero-fig">
-            <img id="homeHeroImg" alt="" loading="lazy" decoding="async">
-            <span class="home__hero-scrim"></span>
-            <span class="home__hero-cap">
-              <span class="home__hero-eyebrow" data-i18n="heroEyebrow">Where you stay</span>
-              <b class="home__hero-title" data-i18n="heroTitle">Rooms among the tea</b>
+           works the same in every language). The cards after it ask the
+           most-asked questions, in whichever language is on. -->
+      <ul class="sugg" id="homeSugg">
+        <li>
+          <button class="sugg__btn" type="button" id="homeBook">
+            <span class="sugg__ico sugg__ico--purple" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" focusable="false"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M16 3v4M8 3v4M3.5 10h17M9 15l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-          </span>
-          <span class="home__hero-foot">
-            <span class="home__hero-sub" data-i18n="heroBody">Wooden Chalets on stilts and stone Reverie Cottages, set in the plantation.</span>
-            <span class="home__hero-cta"><span data-i18n="heroCta">See the rooms</span>
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
-                <path d="M2 7h9M7.5 3.5 11 7l-3.5 3.5" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+            <span class="sugg__txt">
+              <b data-i18n="homeBook">Book a room</b>
+              <small data-i18n="homeBookSub">Live availability for your dates, in a few taps</small>
             </span>
-          </span>
-        </button>
-        <div class="home__tiles" id="homeTiles"></div>
-      </div>
+            <svg class="sugg__go" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true" focusable="false"><path d="m6 3.5 4.5 4.5L6 12.5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </li>
+      </ul>
 
-      <button class="home__start" type="button" id="homeStart">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
-          <path d="M14 7.6a5.6 5.6 0 0 1-6 5.6L3 14.2l1-3.4A5.6 5.6 0 1 1 14 7.6Z" stroke-width="1.5" stroke-linejoin="round"/>
-        </svg>
-        <span data-i18n="homeStart">Start a conversation</span>
-      </button>
-
-      <div>
-        <p class="home__label" data-i18n="homeEnq">Most asked questions</p>
-        <ul class="enq__list enq__list--ranked" id="homeEnq"></ul>
-      </div>
-
-      <div>
-        <p class="home__label" style="margin-bottom:.5rem" data-i18n="homeGlance">The estate at a glance</p>
-        <div class="home__facts">
-          <div class="home__fact"><b>600</b><span data-i18n="factAcres">acres of estate</span></div>
-          <div class="home__fact"><b>7</b><span data-i18n="factRooms">rooms in total</span></div>
-          <div class="home__fact"><b>9</b><span data-i18n="factThings">things to do</span></div>
-        </div>
-      </div>
+      <p class="home__label" data-i18n="homeEnq">Most asked questions</p>
+      <ul class="enq__list" id="homeEnq"></ul>
     </section>
 
-    <!-- PAGE 2 — Chat -->
-    <section class="page page--chat" id="pgChat" role="tabpanel" aria-labelledby="tabChat" hidden>
+    <!-- Conversation -->
+    <section class="page page--chat" id="pgChat" hidden>
       <div class="chat__log" id="log" role="log" aria-live="polite" data-i18n-aria="chatLogLabel" aria-label="Conversation with the ChatBot"></div>
-      <form class="chat__form" id="form">
-        <label for="ask" class="skip" data-i18n="askLabel">Ask the ChatBot a question</label>
-        <div class="chat__field">
-          <input id="ask" type="text" autocomplete="off" data-i18n-ph="askPlaceholder" placeholder="Ask about rooms, food, the drive up…">
-        </div>
-        <button class="chat__send" id="send" type="submit" data-i18n-aria="send" aria-label="Send" disabled>
-          <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
-            <path d="M2 9h13M9.5 3.5 15 9l-5.5 5.5" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      </form>
     </section>
 
-    <!-- PAGE 3 — Contact -->
-    <section class="page page--contact" id="pgContact" role="tabpanel" aria-labelledby="tabContact" tabindex="0" hidden>
+    <!-- Contact -->
+    <section class="page page--contact" id="pgContact" aria-labelledby="contactTitle" tabindex="-1" hidden>
+      <div class="contact__bar">
+        <button class="contact__back" id="contactBack" type="button">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true" focusable="false"><path d="M10 3.5 5.5 8l4.5 4.5" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span data-i18n="back">Back</span>
+        </button>
+        <h3 id="contactTitle" data-i18n="tabContact">Contact</h3>
+      </div>
+
       <div class="card">
         <p class="card__label" data-i18n="contactReception">Reception</p>
         <p class="card__num">+91 944 784 8123</p>
-        <p class="card__label"><span data-i18n="contactBothRest">Both restaurants</span> — +91 90721 91920</p>
+        <p class="card__label" style="text-transform:none;letter-spacing:0;font-weight:500"><span data-i18n="contactBothRest">Both restaurants</span> — +91 90721 91920</p>
       </div>
 
       <div class="actions">
@@ -1933,7 +1826,7 @@ a{ color: inherit; }
 
       <div class="card">
         <p class="card__label" data-i18n="contactWhere">Where we are</p>
-        <p style="font-size:13.5px;line-height:1.6" data-i18n-html="contactAddress">Kuttikkanam PO, Peermade<br>Idukki District, Kerala 685531</p>
+        <p style="font-size:14px;line-height:1.6" data-i18n-html="contactAddress">Kuttikkanam PO, Peermade<br>Idukki District, Kerala 685531</p>
         <dl class="card__rows">
           <div class="card__row"><dt data-i18n="distMunnar">Munnar</dt><dd>96 km</dd></div>
           <div class="card__row"><dt data-i18n="distAlappuzha">Alappuzha</dt><dd>102 km</dd></div>
@@ -1955,26 +1848,24 @@ a{ color: inherit; }
 
   </div>
 
-  <nav class="tabs" role="tablist" data-i18n-aria="tabsLabel" aria-label="ChatBot sections">
-    <button class="tab" id="tabHome" role="tab" type="button" aria-selected="true" aria-controls="pgHome" data-page="pgHome">
-      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
-        <path d="M3 8.4 10 3l7 5.4V16a1.4 1.4 0 0 1-1.4 1.4H4.4A1.4 1.4 0 0 1 3 16V8.4Z" stroke-width="1.6" stroke-linejoin="round"/>
-      </svg>
-      <span data-i18n="tabHome">Home</span>
-    </button>
-    <button class="tab" id="tabChat" role="tab" type="button" aria-selected="false" aria-controls="pgChat" data-page="pgChat" tabindex="-1">
-      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
-        <path d="M17 9.5a6.6 6.6 0 0 1-7.2 6.6L4.6 17.4l1.3-3.9A6.6 6.6 0 1 1 17 9.5Z" stroke-width="1.6" stroke-linejoin="round"/>
-      </svg>
-      <span data-i18n="tabChat">Chat</span>
-    </button>
-    <button class="tab" id="tabContact" role="tab" type="button" aria-selected="false" aria-controls="pgContact" data-page="pgContact" tabindex="-1">
-      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
-        <path d="M7 3.2 8.6 6.6 6.8 8.3a10.3 10.3 0 0 0 5.7 5.7l1.7-1.8 3.4 1.6v2.7c0 .7-.6 1.2-1.3 1.2A15.3 15.3 0 0 1 2.3 4.5c0-.7.5-1.3 1.2-1.3H7Z" stroke-width="1.6" stroke-linejoin="round"/>
-      </svg>
-      <span data-i18n="tabContact">Contact</span>
-    </button>
-  </nav>
+  <form class="chat__form" id="form">
+    <label for="ask" class="skip" data-i18n="askLabel">Ask the ChatBot a question</label>
+    <div class="chat__field">
+      <input id="ask" type="text" autocomplete="off" data-i18n-ph="askPlaceholder" placeholder="Ask about rooms, food, the drive up…">
+      <button class="chat__mic" id="mic" type="button" data-i18n-aria="micStart" aria-label="Speak your question" aria-pressed="false" hidden>
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
+          <rect x="7" y="2.5" width="6" height="10" rx="3" stroke-width="1.6"/>
+          <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button class="chat__send" id="send" type="submit" data-i18n-aria="send" aria-label="Send" disabled>
+        <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
+          <path d="M17.5 2.5 9 11M17.5 2.5l-5.2 15-3.3-6.5-6.5-3.3 15-5.2Z" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+    <p class="chat__note" data-i18n="disclaimer">The ChatBot can make mistakes. Review details before you confirm.</p>
+  </form>
 </div>
 <!-- Knowledge base: 1,000 Q&A pairs, the verified picture library and the
      nearby-places data. Classic scripts, so this works from file:// too.
@@ -2019,10 +1910,24 @@ a{ color: inherit; }
   "tabChat": "Chat",
   "tabContact": "Contact",
   "tabsLabel": "ChatBot sections",
+  "beta": "Beta",
+  "newChat": "New conversation",
+  "back": "Back",
+  "micStart": "Speak your question",
+  "micStop": "Stop listening",
+  "disclaimer": "The ChatBot can make mistakes. Review details before you confirm.",
+  "today": "Today",
+  "contactCardSub": "Call, WhatsApp or email the desk",
   "homeGreetTitle": "Good day. How can I help?",
   "homeGreetBody": "I keep the desk at Misty Mountain — six hundred acres of tea above Peermade, with Normal and Luxury rooms in the middle of it. Ask me anything about the estate.",
   "homeBook": "Book a room",
   "homeBookSub": "Live availability for your dates, in a few taps",
+  "hotelPick": "Choose a hotel",
+  "hotelAria": "Hotel",
+  "hotelSwitch": "Switch to {hotel}",
+  "homeGreetOther": "I keep the desk for {hotel} in Kuttikkanam. I can show you its rooms and rates, check live availability and book a room for you.",
+  "homeRates": "Rooms and rates",
+  "homeRatesSub": "Room types and nightly prices",
   "homeStart": "Start a conversation",
   "homeEnq": "Most asked questions",
   "homeGlance": "The estate at a glance",
@@ -2130,10 +2035,24 @@ a{ color: inherit; }
   "tabChat": "ചാറ്റ്",
   "tabContact": "ബന്ധപ്പെടുക",
   "tabsLabel": "ചാറ്റ്ബോട്ട് വിഭാഗങ്ങൾ",
+  "beta": "ബീറ്റ",
+  "newChat": "പുതിയ സംഭാഷണം",
+  "back": "തിരികെ",
+  "micStart": "നിങ്ങളുടെ ചോദ്യം പറയൂ",
+  "micStop": "കേൾക്കുന്നത് നിർത്തുക",
+  "disclaimer": "ചാറ്റ്ബോട്ടിന് തെറ്റുകൾ സംഭവിക്കാം. സ്ഥിരീകരിക്കുന്നതിന് മുമ്പ് വിവരങ്ങൾ പരിശോധിക്കുക.",
+  "today": "ഇന്ന്",
+  "contactCardSub": "വിളിക്കുക, വാട്സ്ആപ്പ് അല്ലെങ്കിൽ ഇമെയിൽ ചെയ്യുക",
   "homeGreetTitle": "നമസ്കാരം. എന്ത് സഹായം വേണം?",
   "homeGreetBody": "മിസ്റ്റി മൗണ്ടനിലെ ഡെസ്ക് ഞാനാണ് നോക്കുന്നത് — പീരുമേടിന് മുകളിൽ അറുനൂറ് ഏക്കർ തേയിലത്തോട്ടം, അതിന്റെ നടുവിൽ നോർമൽ, ലക്ഷ്വറി മുറികൾ. എസ്റ്റേറ്റിനെക്കുറിച്ച് എന്തും ചോദിക്കൂ.",
   "homeBook": "മുറി ബുക്ക് ചെയ്യൂ",
   "homeBookSub": "നിങ്ങളുടെ തീയതികളിലെ തത്സമയ ലഭ്യത, കുറച്ച് ടാപ്പുകളിൽ",
+  "hotelPick": "ഹോട്ടൽ തിരഞ്ഞെടുക്കൂ",
+  "hotelAria": "ഹോട്ടൽ",
+  "hotelSwitch": "{hotel}-ലേക്ക് മാറുക",
+  "homeGreetOther": "കുട്ടിക്കാനത്തെ {hotel}-ന്റെ ഡെസ്ക് ഞാനാണ് നോക്കുന്നത്. അവിടത്തെ മുറികളും നിരക്കുകളും കാണിക്കാനും തത്സമയ ലഭ്യത നോക്കാനും മുറി ബുക്ക് ചെയ്യാനും എനിക്ക് കഴിയും.",
+  "homeRates": "മുറികളും നിരക്കുകളും",
+  "homeRatesSub": "മുറിയുടെ തരങ്ങളും ഒരു രാത്രിയിലെ നിരക്കും",
   "homeStart": "സംഭാഷണം തുടങ്ങുക",
   "homeEnq": "കൂടുതൽ ചോദിക്കുന്ന ചോദ്യങ്ങൾ",
   "homeGlance": "ഒറ്റനോട്ടത്തിൽ എസ്റ്റേറ്റ്",
@@ -2241,10 +2160,24 @@ a{ color: inherit; }
   "tabChat": "चैट",
   "tabContact": "संपर्क",
   "tabsLabel": "चैटबॉट अनुभाग",
+  "beta": "बीटा",
+  "newChat": "नई बातचीत",
+  "back": "वापस",
+  "micStart": "अपना सवाल बोलें",
+  "micStop": "सुनना बंद करें",
+  "disclaimer": "चैटबॉट से गलती हो सकती है। पुष्टि करने से पहले विवरण जाँच लें।",
+  "today": "आज",
+  "contactCardSub": "कॉल, व्हाट्सऐप या ईमेल करें",
   "homeGreetTitle": "नमस्ते। मैं आपकी क्या मदद करूँ?",
   "homeGreetBody": "मैं मिस्टी माउंटेन का डेस्क सँभालता हूँ — पीरमेड़ के ऊपर छह सौ एकड़ चाय के बागान, और उनके बीच नॉर्मल और लग्ज़री कमरे। एस्टेट के बारे में कुछ भी पूछिए।",
   "homeBook": "कमरा बुक करें",
   "homeBookSub": "आपकी तारीख़ों की ताज़ा उपलब्धता, कुछ ही टैप में",
+  "hotelPick": "होटल चुनें",
+  "hotelAria": "होटल",
+  "hotelSwitch": "{hotel} पर जाएँ",
+  "homeGreetOther": "मैं कुट्टिक्कानम में {hotel} का डेस्क सँभालता हूँ। मैं आपको वहाँ के कमरे और दरें दिखा सकता हूँ, ताज़ा उपलब्धता देख सकता हूँ और कमरा बुक कर सकता हूँ।",
+  "homeRates": "कमरे और दरें",
+  "homeRatesSub": "कमरों के प्रकार और प्रति रात की दरें",
   "homeStart": "बातचीत शुरू करें",
   "homeEnq": "सबसे ज़्यादा पूछे जाने वाले सवाल",
   "homeGlance": "एक नज़र में एस्टेट",
@@ -2352,10 +2285,24 @@ a{ color: inherit; }
   "tabChat": "அரட்டை",
   "tabContact": "தொடர்பு",
   "tabsLabel": "சாட்பாட் பிரிவுகள்",
+  "beta": "பீட்டா",
+  "newChat": "புதிய உரையாடல்",
+  "back": "பின்செல்",
+  "micStart": "உங்கள் கேள்வியைச் சொல்லுங்கள்",
+  "micStop": "கேட்பதை நிறுத்து",
+  "disclaimer": "சாட்பாட் தவறு செய்யலாம். உறுதிசெய்வதற்கு முன் விவரங்களைச் சரிபார்க்கவும்.",
+  "today": "இன்று",
+  "contactCardSub": "அழைக்க, வாட்ஸ்அப் அல்லது மின்னஞ்சல் செய்ய",
   "homeGreetTitle": "வணக்கம். நான் எப்படி உதவ முடியும்?",
   "homeGreetBody": "நான் மிஸ்டி மவுண்டனின் வரவேற்பைக் கவனிக்கிறேன் — பீர்மேட்டுக்கு மேலே அறுநூறு ஏக்கர் தேயிலைத் தோட்டம், அதன் நடுவே நார்மல், லக்ஷுரி அறைகள். தோட்டம் குறித்து எதுவும் கேட்கலாம்.",
   "homeBook": "அறையை முன்பதிவு செய்யுங்கள்",
   "homeBookSub": "உங்கள் தேதிகளுக்கான நேரடிக் கிடைப்பு, சில தட்டல்களில்",
+  "hotelPick": "ஹோட்டலைத் தேர்ந்தெடுங்கள்",
+  "hotelAria": "ஹோட்டல்",
+  "hotelSwitch": "{hotel}-க்கு மாறவும்",
+  "homeGreetOther": "குட்டிக்கானத்தில் உள்ள {hotel}-இன் வரவேற்பை நான் கவனிக்கிறேன். அங்குள்ள அறைகள், கட்டணங்களைக் காட்டவும், நேரடிக் கிடைப்பைப் பார்க்கவும், அறையை முன்பதிவு செய்யவும் என்னால் முடியும்.",
+  "homeRates": "அறைகளும் கட்டணங்களும்",
+  "homeRatesSub": "அறை வகைகளும் ஒரு இரவுக்கான கட்டணமும்",
   "homeStart": "உரையாடலைத் தொடங்கு",
   "homeEnq": "அதிகம் கேட்கப்படும் கேள்விகள்",
   "homeGlance": "ஒரு பார்வையில் தோட்டம்",
@@ -3681,8 +3628,10 @@ function requestLocation(btn){
 }
 
 /* ---- view ----------------------------------------------------
-   Three pages: Home, Chat, Contact. Replies render progressively
-   at a steady character rate, the way a streamed answer reads.
+   One sheet, three states: the welcome, the conversation and the
+   contact page, with the composer under all three. Replies render
+   progressively at a steady character rate, the way a streamed
+   answer reads.
    --------------------------------------------------------------- */
 const dock   = document.getElementById("dock");
 const scrim  = document.getElementById("scrim");
@@ -3692,7 +3641,6 @@ const form   = document.getElementById("form");
 const ask    = document.getElementById("ask");
 const sendBtn= document.getElementById("send");
 const clearBtn = document.getElementById("dockClear");
-const TABS   = [...document.querySelectorAll(".tab")];
 
 /* The six starter questions, in the current language. They are sent as
    typed, so the vocabulary in misty_i18n.js has to reach each of them —
@@ -3702,40 +3650,44 @@ function starters(){
   return Array.isArray(list) && list.length ? list : (UI.en.starters || []);
 }
 
-const BOT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">'
-  + '<circle cx="12" cy="2.2" r="1.3" fill="currentColor" stroke="none"/>'
-  + '<path d="M12 3.5v1.6" stroke-width="1.8" stroke-linecap="round"/>'
-  + '<rect x="3.7" y="5.1" width="16.6" height="13.2" rx="4.3" stroke-width="1.8"/>'
-  + '<circle cx="9" cy="11.3" r="1.5" fill="currentColor" stroke="none"/>'
-  + '<circle cx="15" cy="11.3" r="1.5" fill="currentColor" stroke="none"/>'
-  + '<path d="M9.5 15.1h5" stroke-width="1.8" stroke-linecap="round"/>'
-  + '<path d="M1.5 10.3v3.4M22.5 10.3v3.4" stroke-width="1.8" stroke-linecap="round"/></svg>';
+// The Copilot ghost, white on the avatar's purple disc (.cp-ava).
+const BOT = '<svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+  + '<path fill="currentColor" d="M12 3.2c-3.9 0-6.6 2.9-6.6 6.7v9.3c0 .7.8 1.1 1.3.6l1.3-1.1 1.5 1.2c.4.3.9.3 1.3 0L12 18.7l1.2 1.2c.4.3.9.3 1.3 0l1.5-1.2 1.3 1.1c.5.5 1.3.1 1.3-.6V9.9c0-3.8-2.7-6.7-6.6-6.7Z"/>'
+  + '<circle cx="9.6" cy="10.2" r="1.25" fill="#2B1752"/>'
+  + '<circle cx="14.4" cy="10.2" r="1.25" fill="#2B1752"/></svg>';
 
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function el(html){ const d = document.createElement("div"); d.innerHTML = html; return d.firstElementChild; }
 
-/* ---- pages ---- */
-function showPage(pageId, focusTab){
-  TABS.forEach(t => {
-    const on = t.dataset.page === pageId;
-    t.setAttribute("aria-selected", on ? "true" : "false");
-    t.tabIndex = on ? 0 : -1;
-    document.getElementById(t.dataset.page).hidden = !on;
-    if (on && focusTab) t.focus();
-  });
+/* ---- pages ----
+   The contact page remembers which state it was opened from, so Back
+   (and the header's contact button, pressed again) returns there. */
+const PAGES = ["pgHome", "pgChat", "pgContact"];
+const contactBtn = document.getElementById("dockContact");
+let page = "pgHome";
+let pageBefore = "pgHome";
+
+function showPage(pageId){
+  if (pageId === "pgContact" && page !== "pgContact") pageBefore = page;
+  page = pageId;
+  PAGES.forEach(id => { document.getElementById(id).hidden = id !== pageId; });
+  contactBtn.setAttribute("aria-pressed", pageId === "pgContact" ? "true" : "false");
+  refreshClear();
   if (pageId === "pgChat"){
     seed();
     stick(true);
     setTimeout(() => ask.focus({ preventScroll: true }), 20);
   }
 }
-TABS.forEach(t => t.addEventListener("click", () => showPage(t.dataset.page)));
-document.querySelector(".tabs").addEventListener("keydown", e => {
-  const i = TABS.findIndex(t => t.getAttribute("aria-selected") === "true");
-  if (e.key === "ArrowRight"){ e.preventDefault(); showPage(TABS[(i + 1) % TABS.length].dataset.page, true); }
-  if (e.key === "ArrowLeft"){ e.preventDefault(); showPage(TABS[(i + TABS.length - 1) % TABS.length].dataset.page, true); }
+function openContact(){
+  showPage("pgContact");
+  document.getElementById("contactBack").focus({ preventScroll: true });
+}
+contactBtn.addEventListener("click", () => {
+  if (page === "pgContact") showPage(pageBefore); else openContact();
 });
+document.getElementById("contactBack").addEventListener("click", () => showPage(pageBefore));
 
 /* ---- scrolling: pinned to the bottom unless the reader scrolls up ---- */
 let atBottom = true;
@@ -3840,7 +3792,7 @@ function addGuest(text){
 }
 
 function addThinking(){
-  const turn = el('<div class="turn turn--bot"><span class="avatar">' + BOT + '</span>'
+  const turn = el('<div class="turn turn--bot"><span class="avatar cp-ava">' + BOT + '</span>'
     + '<div class="bubble"><div class="dots"><i></i><i></i><i></i></div></div></div>');
   log.appendChild(turn);
   stick(true);
@@ -3849,7 +3801,7 @@ function addThinking(){
 
 /* Streams the prose, then reveals any listing and the desk offer. */
 function addBot(answer, onDone){
-  const turn = el('<div class="turn turn--bot"><span class="avatar">' + BOT + '</span>'
+  const turn = el('<div class="turn turn--bot"><span class="avatar cp-ava">' + BOT + '</span>'
     + '<div class="bubble"><div class="prose"></div></div></div>');
   log.appendChild(turn);
   stick(true);
@@ -3953,6 +3905,92 @@ const LOOKS_LIKE_BOOKING = /\b(availab\w*|vacan\w*|fully booked|sold out|any roo
 
 let chatState = null;
 
+/* ---- which hotel ------------------------------------------------
+   The hotels come from GET /api/hotels (the hotels table). Until that
+   answers — or if it cannot — the panel is about the site's own hotel
+   only, exactly as before. `site` is the hotel this page's knowledge base
+   describes; for any other hotel the backend answers what it can and the
+   welcome page offers only what is live: booking, rooms and rates.
+
+   The chosen hotel goes with every request. A booking in progress stays at
+   its own hotel whatever is chosen, so changing hotel mid-conversation is
+   sent as a "switch" the backend acts on (releasing any hold), not just a
+   new value. Every reply says which hotel it was about, and the pickers
+   follow it — "rooms at Royal Hotel?" moves them to Royal Hotel. */
+// (Built with ["id"] so smoke_test.js, which reads every `id: "…"` in this
+// page as a chat intent, does not take the hotel for one.)
+const HOTELS = { site: "misty_mountain", list: [{ ["id"]: "misty_mountain", name: "Misty Mountain" }] };
+let hotelId = HOTELS.site;
+
+const hotelSel = document.getElementById("dockHotel");
+const hotelSet = document.getElementById("homeHotelSet");
+const hotelName = id => (HOTELS.list.find(h => h.id === id) || {}).name || "";
+const atSite = () => hotelId === HOTELS.site;
+
+function renderHotels(){
+  const many = HOTELS.list.length > 1;
+  document.getElementById("homeHotels").hidden = !many;
+  hotelSel.hidden = !many;
+  document.getElementById("dockSub").hidden = many;
+  hotelSel.innerHTML = HOTELS.list.map(h => '<option value="' + esc(h.id) + '">' + esc(h.name) + "</option>").join("");
+  hotelSet.innerHTML = HOTELS.list.map(h => '<button type="button" class="home__hotel" data-hotel="' + esc(h.id) + '"></button>').join("");
+  hotelSet.querySelectorAll(".home__hotel").forEach((b, i) => { b.textContent = HOTELS.list[i].name; });
+  showHotel();
+}
+
+/* The chrome for the current hotel. The site's own greeting and starters
+   describe the site's hotel, so another hotel gets its own short greeting
+   and only the cards that are answered live. */
+function showHotel(){
+  hotelSel.value = hotelId;
+  hotelSet.querySelectorAll(".home__hotel").forEach(b => b.setAttribute("aria-pressed", b.dataset.hotel === hotelId ? "true" : "false"));
+  const site = atSite();
+  document.getElementById("homeGreetSite").hidden = !site;
+  const other = document.getElementById("homeGreetOther");
+  other.hidden = site;
+  other.textContent = site ? "" : fmt(t("homeGreetOther", "I keep the desk for {hotel} in Kuttikkanam. I can show you its rooms and rates, check live availability and book a room for you."), { hotel: hotelName(hotelId) });
+  if (typeof renderStarters === "function") renderStarters();
+  contactBtn.hidden = !site;             // the contact page lists the site's own desk
+  if (!site && page === "pgContact") showPage(pageBefore === "pgContact" ? "pgHome" : pageBefore);
+  window.dispatchEvent(new CustomEvent("mm:hotel-changed", { detail: { id: hotelId, name: hotelName(hotelId) } }));
+}
+
+function setHotel(id){
+  if (!id || id === hotelId || !HOTELS.list.some(h => h.id === id)) return;
+  hotelId = id;
+  showHotel();
+}
+
+/* A choice on the page. Mid-conversation the backend is told, so a booking
+   in progress is stopped and its hold released; otherwise nothing is sent. */
+function chooseHotel(id){
+  if (!id || id === hotelId || !HOTELS.list.some(h => h.id === id)) return showHotel();
+  if (chatState){
+    if (busy) return showHotel();
+    sendAction({ type: "switch", hotelId: id }, fmt(t("hotelSwitch", "Switch to {hotel}"), { hotel: hotelName(id) }));
+    return;
+  }
+  setHotel(id);
+}
+
+hotelSel.addEventListener("change", () => chooseHotel(hotelSel.value));
+hotelSet.addEventListener("click", e => {
+  const b = e.target.closest("[data-hotel]");
+  if (b) chooseHotel(b.dataset.hotel);
+});
+
+async function loadHotels(){
+  try {
+    const res = await fetch("/api/hotels", { headers: { Accept: "application/json" }, credentials: "same-origin" });
+    const body = res.ok ? await res.json() : null;
+    if (!body || !Array.isArray(body.hotels) || !body.hotels.length) return;
+    HOTELS.list = body.hotels.filter(h => h && typeof h.id === "string" && typeof h.name === "string");
+    if (HOTELS.list.some(h => h.id === body.site)) HOTELS.site = body.site;
+    if (!HOTELS.list.some(h => h.id === hotelId)) hotelId = HOTELS.site;
+    renderHotels();
+  } catch { /* the site's own hotel only, as before */ }
+}
+
 async function askBackend(payload){
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
@@ -3964,7 +4002,7 @@ async function askBackend(payload){
     const res = await fetch(API_URL, {
       method: "POST",
       headers,
-      body: JSON.stringify({ ...payload, lang: LANG, state: chatState }),
+      body: JSON.stringify({ ...payload, lang: LANG, state: chatState, hotelId }),
       signal: ctrl.signal,
       credentials: "same-origin"
     });
@@ -3986,6 +4024,7 @@ const liveDown = () => ({
    knowledge base answer. */
 function fromBackend(r, q){
   const b = r.ok ? r.body : null;
+  if (b && b.hotel) setHotel(b.hotel.id);
   if (b && b.handled){
     if ("state" in b) chatState = b.state;
     // A hold, a confirmation or a release changes what the room board
@@ -4284,7 +4323,9 @@ function send(text){
     if (mine !== session) return;                 // cleared while waiting: drop it
     let answer = fromBackend(r, q);
     if (!answer){
-      answer = respond(q);
+      // The knowledge base describes the site's own hotel only; for another
+      // hotel the backend is the only source, so say it can't be reached.
+      answer = atSite() ? respond(q) : liveDown();
       // A side question mid-booking: answer it, then offer the way back.
       if (chatState && r.body && r.body.bookingActive){
         answer = Object.assign({}, answer, { panel: (answer.panel || "") + resumeChip() });
@@ -4303,37 +4344,41 @@ function send(text){
   });
 }
 
-/* ---- seeding, clearing ---- */
+/* ---- seeding, clearing ----
+   A conversation opens under a "Today · 9:41 AM" line. The welcome page
+   has already said hello, so the transcript starts with the guest. */
 let seeded = false;
 function seed(){
   if (seeded) return;
   seeded = true;
-  const turn = el('<div class="turn turn--bot"><span class="avatar">' + BOT + '</span>'
-    + '<div class="bubble"><p></p></div></div>');
-  turn.querySelector("p").innerHTML = localReply("greeting", byId("greeting").reply);
-  log.appendChild(turn);
-  stick(true);
+  const time = new Date().toLocaleTimeString(LANG === "en" ? "en-US" : LANG + "-IN", { hour: "numeric", minute: "2-digit" });
+  const stamp = el('<p class="chat__stamp"></p>');
+  stamp.textContent = t("today", "Today") + " \u00b7 " + time;
+  log.appendChild(stamp);
 }
 
+/* "New conversation" is always on away from the welcome page; on it, only
+   once something has been asked. */
 function refreshClear(){
-  clearBtn.disabled = !log.querySelector(".turn--guest");
+  clearBtn.disabled = page === "pgHome" && !log.querySelector(".turn--guest");
 }
 
 function resetChat(takeFocus){
   session += 1;
   stopAll();
+  stopHearing();
   chatState = null;
   hintFor(null);
   log.innerHTML = "";
   seeded = false;
-  seed();
   ask.value = "";
   setBusy(false);
-  refreshClear();
   atBottom = true;
+  // A fresh conversation starts from the welcome, not an empty log.
+  if (page === "pgChat") showPage("pgHome"); else refreshClear();
   if (takeFocus) ask.focus({ preventScroll: true });
 }
-function clearChat(){ resetChat(true); }
+function clearChat(){ resetChat(true); showPage("pgHome"); }
 
 /* ---- one guest at a time -------------------------------------
    Nothing is written to localStorage, sessionStorage or a cookie, so
@@ -4391,7 +4436,10 @@ function openDock(question){
   refreshClear();
   touched();
   if (question){ send(question); }
-  else { setTimeout(() => TABS[0].focus(), 30); }
+  else {
+    setTimeout(() => (window.innerWidth > 620 ? ask : document.getElementById("dockClose"))
+      .focus({ preventScroll: true }), 30);
+  }
 }
 
 function closeDock(){
@@ -4431,102 +4479,142 @@ form.addEventListener("submit", e => {
 });
 ask.addEventListener("input", () => { sendBtn.disabled = busy || !ask.value.trim(); });
 
-// The most asked questions, rendered into the Home page. The order is the
-// ranking, so it is numbered on screen — see .enq__list--ranked.
-const homeEnq = document.getElementById("homeEnq");
-function renderStarters(){
-  const qs = starters();
-  homeEnq.innerHTML = qs.map((_, i) =>
-    '<li><button type="button" class="enq__btn" data-rank="' + (i + 1) + '"></button></li>').join("");
-  [...homeEnq.querySelectorAll(".enq__btn")].forEach((b, i) => { b.textContent = qs[i]; });
+/* ---- the welcome cards -----------------------------------------
+   After "Book a room", the most-asked questions each get a card: a tinted
+   icon, a short heading, and the question itself quoted underneath. The
+   question is sent in the language on, which is the same path a guest's
+   own typing takes. Starters without a card follow as chips, so every one
+   of them is still a tap away; the last card opens the contact page.
+   --------------------------------------------------------------- */
+const homeSugg = document.getElementById("homeSugg");
+const homeEnq  = document.getElementById("homeEnq");
+const homeEnqLabel = homeEnq.previousElementSibling;
+
+const ICO = d => '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"'
+  + ' stroke-linecap="round" stroke-linejoin="round" focusable="false">' + d + "</svg>";
+const SUGG = [
+  { ask: 0, title: "heroCta",     en: "See the rooms", tone: "blue",
+    icon: ICO('<path d="M3 18.5v-12M3 14h18v4.5M21 14v-2.5a3 3 0 0 0-3-3h-7V14"/><circle cx="7" cy="10.8" r="1.8"/>') },
+  { ask: 1, title: "stripDining", en: "Dining",        tone: "orange",
+    icon: ICO('<path d="M7 3v7a2 2 0 0 0 4 0V3M9 12v9M16.5 21V3c-1.9 1.2-3 3.4-3 6v4h3"/>') },
+  { ask: 3, title: "stripDo",     en: "Things to do",  tone: "green",
+    icon: ICO('<circle cx="12" cy="12" r="8.5"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>') },
+  { ask: 2, title: "stripNear",   en: "Nearby",        tone: "purple",
+    icon: ICO('<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/>') }
+];
+const PHONE_ICO = ICO('<path d="M8.4 3.8 10.3 7.9 8.2 10a12.4 12.4 0 0 0 5.8 5.8l2.1-2.1 4.1 1.9v3.2c0 .8-.7 1.5-1.5 1.4A18.4 18.4 0 0 1 2.8 5.3c-.1-.8.6-1.5 1.4-1.5h4.2Z"/>');
+const CHEVRON = '<svg class="sugg__go" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">'
+  + '<path d="m6 3.5 4.5 4.5L6 12.5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function card(attrs, tone, icon){
+  return '<li data-sugg><button type="button" class="sugg__btn" ' + attrs + '>'
+    + '<span class="sugg__ico sugg__ico--' + tone + '" aria-hidden="true">' + icon + "</span>"
+    + '<span class="sugg__txt"><b></b><small></small></span>' + CHEVRON + "</button></li>";
 }
+
+/* Asked in English whatever the panel's language: only the backend answers
+   it, from the rooms table. */
+const RATES_Q = "What types of rooms do you have, and what do they cost?";
+
+function renderStarters(){
+  homeSugg.querySelectorAll("li[data-sugg]").forEach(n => n.remove());
+  // Another hotel: the knowledge-base starters would describe the wrong
+  // place, so only rooms and rates — answered live — follow "Book a room".
+  if (!atSite()){
+    homeSugg.insertAdjacentHTML("beforeend", card("data-rates", "blue", SUGG[0].icon));
+    const b = homeSugg.querySelector(".sugg__btn[data-rates]");
+    b.querySelector("b").textContent = t("homeRates", "Rooms and rates");
+    b.querySelector("small").textContent = t("homeRatesSub", "Room types and nightly prices");
+    homeEnq.innerHTML = "";
+    homeEnqLabel.hidden = true;
+    return;
+  }
+  const qs = starters();
+  const cards = SUGG.filter(c => qs[c.ask]);
+  homeSugg.insertAdjacentHTML("beforeend",
+    cards.map(c => card('data-ask="' + c.ask + '"', c.tone, c.icon)).join("")
+    + card("data-contact", "blue", PHONE_ICO));
+  const added = [...homeSugg.querySelectorAll("li[data-sugg] .sugg__btn")];
+  cards.forEach((c, i) => {
+    added[i].querySelector("b").textContent = t(c.title, c.en);
+    added[i].querySelector("small").textContent = "\u201c" + qs[c.ask] + "\u201d";
+  });
+  const contact = added[added.length - 1];
+  contact.querySelector("b").textContent = t("tabContact", "Contact");
+  contact.querySelector("small").textContent = t("contactCardSub", "Call, WhatsApp or email the desk");
+
+  const shown = new Set(cards.map(c => c.ask));
+  const rest = qs.filter((_, i) => !shown.has(i));
+  homeEnq.innerHTML = rest.map(() => '<li><button type="button" class="enq__btn"></button></li>').join("");
+  [...homeEnq.querySelectorAll(".enq__btn")].forEach((b, i) => { b.textContent = rest[i]; });
+  homeEnqLabel.hidden = !rest.length;
+}
+
+homeSugg.addEventListener("click", e => {
+  if (e.target.closest(".sugg__btn[data-rates]")){ send(RATES_Q); return; }
+  const b = e.target.closest(".sugg__btn[data-ask]");
+  if (b){
+    const q = starters()[Number(b.dataset.ask)];
+    if (q) send(q);
+    return;
+  }
+  if (e.target.closest(".sugg__btn[data-contact]")) openContact();
+});
 homeEnq.addEventListener("click", e => {
   const b = e.target.closest(".enq__btn");
   if (b) send(b.textContent.trim());
 });
 
-/* ---- the estate in pictures, on the Home page ----------------
-   Photographs come from the verified library rather than being
-   hard-coded here, so they stay in step with the rest of the panel
-   and there is one place to change them. Each frame asks a question
-   when pressed, which is what puts the full listing and the picture
-   strip into the conversation — the picture leads somewhere rather
-   than merely filling space.
-
-   HERO_FALLBACK is the one exception: a single URL from that same
-   library, kept here so the Home page still has a photograph if
-   misty_knowledge_base.js never reaches the page.
+/* ---- speaking a question ----------------------------------------
+   Where the browser offers speech recognition, a microphone appears in
+   the composer. What is heard fills the field as it is spoken and is sent
+   when the guest stops — the same path typing takes. Nothing is kept: the
+   browser hands back text once, and the button stays hidden where there
+   is no support.
    --------------------------------------------------------------- */
-const HERO_FALLBACK = "https://framerusercontent.com/images/0DVVsrZyfwFyEtiF1TvTtXMMBdQ.jpg?scale-down-to=512";
+const micBtn = document.getElementById("mic");
+const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SPEECH_LANG = { en: "en-IN", ml: "ml-IN", hi: "hi-IN", ta: "ta-IN" };
+let hearing = null;
 
-const homeHero    = document.getElementById("homeHero");
-const homeHeroBtn = document.getElementById("homeHeroBtn");
-const homeHeroImg = document.getElementById("homeHeroImg");
-const homeTiles   = document.getElementById("homeTiles");
+function micState(on){
+  micBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  micBtn.setAttribute("aria-label", t(on ? "micStop" : "micStart"));
+}
+function stopHearing(){
+  if (!hearing) return;
+  const rec = hearing;
+  hearing = null;
+  rec.onresult = rec.onend = null;
+  try { rec.abort(); } catch {}
+  micState(false);
+}
 
-const pickPic = (...keys) => {
-  for (const k of keys){
-    const pic = ((MEDIA.sets && MEDIA.sets[k]) || [])[0];
-    if (pic && pic.src) return pic;
-  }
-  return null;
-};
-
-/* The three tiles: what is cooked, what there is to do, what is near.
-   The rooms are the big frame above, so they are not repeated here.
-   Each label is translated; each question is sent in the language on,
-   which is the same path a guest's own typing takes. The captions carry
-   the meaning, so the photographs themselves are marked decorative. */
-const TILES = [
-  { label: "stripDining", en: "Dining",        sets: ["dining", "food"],        ask: 1 },
-  { label: "stripDo",     en: "Things to do",  sets: ["activities", "teaTour"], ask: 3 },
-  { label: "stripNear",   en: "Nearby",        sets: ["estate", "views"],       ask: 2 }
-];
-
-function renderTiles(){
-  const shown = TILES.map(tile => ({ tile, pic: pickPic(...tile.sets) })).filter(x => x.pic);
-  // A caption on an empty box reads as a bug, so the row goes rather
-  // than degrade when the library is not there. :empty hides it in CSS.
-  if (!shown.length){ homeTiles.innerHTML = ""; return; }
-  homeTiles.innerHTML = shown.map(({ tile, pic }) =>
-    '<button class="home__tile" type="button" data-ask="' + tile.ask + '">'
-    + '<img src="' + esc(pic.src) + '" alt="" loading="lazy" decoding="async">'
-    + '<b></b></button>').join("");
-  [...homeTiles.querySelectorAll(".home__tile")].forEach((b, i) => {
-    b.querySelector("b").textContent = t(shown[i].tile.label, shown[i].tile.en);
-    const img = b.querySelector("img");
-    if (img.complete && img.naturalWidth) img.classList.add("is-ready");
-    else {
-      img.addEventListener("load",  () => img.classList.add("is-ready"), { once: true });
-      img.addEventListener("error", () => b.remove(), { once: true });
-    }
+if (Speech){
+  micBtn.hidden = false;
+  micBtn.addEventListener("click", () => {
+    if (hearing){ hearing.stop(); return; }
+    if (busy) return;
+    const rec = new Speech();
+    rec.lang = SPEECH_LANG[LANG] || "en-IN";
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    let said = "";
+    rec.onresult = e => {
+      said = [...e.results].map(r => r[0].transcript).join(" ").trim();
+      ask.value = said;
+      sendBtn.disabled = busy || !said;
+    };
+    rec.onend = () => {
+      hearing = null;
+      micState(false);
+      if (said && !busy){ ask.value = ""; send(said); }
+    };
+    hearing = rec;
+    micState(true);
+    try { rec.start(); } catch { hearing = null; micState(false); }
   });
 }
-
-homeTiles.addEventListener("click", e => {
-  const b = e.target.closest(".home__tile");
-  if (!b) return;
-  const qs = starters();
-  const q = qs[Number(b.dataset.ask)] || qs[0];
-  if (q) send(q);
-});
-
-function renderHero(){
-  const pic = pickPic("rooms", "estate");
-  const src = (pic && pic.src) || HERO_FALLBACK;
-  homeHeroImg.alt = t("heroAlt");
-  renderTiles();
-  if (homeHeroImg.getAttribute("src") === src) return;   // language change only
-  homeHeroImg.classList.remove("is-ready");
-  homeHero.classList.remove("is-nopic");
-  homeHeroImg.src = src;
-}
-
-homeHeroImg.addEventListener("load",  () => homeHeroImg.classList.add("is-ready"));
-homeHeroImg.addEventListener("error", () => homeHero.classList.add("is-nopic"));
-// The rooms question, in whichever language is on: the first starter is
-// always "show me the rooms", so it is the one the picture stands for.
-homeHeroBtn.addEventListener("click", () => send(starters()[0] || "Show me the rooms"));
 
 /* ---- the language picker -------------------------------------
    One switch re-renders the whole panel: the fixed chrome from the
@@ -4563,7 +4651,6 @@ function applyLang(){
   launch.lang = LANG;
 
   renderStarters();
-  renderHero();
 }
 
 langSel.addEventListener("change", () => {
@@ -4571,13 +4658,14 @@ langSel.addEventListener("change", () => {
   if (next === LANG) return;
   LANG = next;
   applyLang();
+  showHotel();
   resetChat(false);          // a half-translated transcript helps nobody
 });
 
 applyLang();
+loadHotels();
 
-document.getElementById("homeStart").addEventListener("click", () => showPage("pgChat"));
-document.getElementById("homeBook").addEventListener("click", () => sendAction({ type: "start" }, t("homeBook", "Book a room")));
+document.getElementById("homeBook").addEventListener("click", () => sendAction({ type: "start", hotelId }, t("homeBook", "Book a room")));
 clearBtn.addEventListener("click", clearChat);
 document.getElementById("dockClose").addEventListener("click", closeDock);
 scrim.addEventListener("click", closeDock);
@@ -4627,6 +4715,9 @@ refreshClear();
    it on sign-out so the next person never sees the last one's booking. */
 window.MMChat = {
   open: question => openDock(question),
+  // The guest area's own hotel picker; same rules as the panel's.
+  hotel: () => ({ id: hotelId, name: hotelName(hotelId), site: HOTELS.site, list: HOTELS.list.slice() }),
+  chooseHotel: id => chooseHotel(id),
   resume(){ closedAt = 0; openDock(); },
   reset(){ resetChat(false); showPage("pgHome"); if (!dock.hidden) closeDock(); }
 };

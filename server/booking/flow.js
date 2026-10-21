@@ -24,7 +24,9 @@
 const { extract, normalizePhone, cleanName, EMAIL_RE } = require("./extract");
 const { todayIn, addDays, diffDays, iso } = require("../dates");
 const { newHoldToken, hashToken } = require("./state");
+const { isHotelId } = require("../sanitize");
 const F = require("./format");
+const R = require("../responses");
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -852,8 +854,16 @@ class ActionError extends Error {}
 function readAction(a){
   if (!a || typeof a !== "object" || Array.isArray(a) || typeof a.type !== "string") throw new ActionError("invalid_action");
   switch (a.type){
-    case "start": case "restart": case "cancel": case "resume": case "confirm":
+    case "restart": case "cancel": case "resume": case "confirm":
       return { type: a.type };
+    // The hotel itself was resolved by the caller (server/chat.js); only
+    // its shape is checked here.
+    case "start":
+      if (a.hotelId != null && !isHotelId(a.hotelId)) throw new ActionError("invalid_hotel");
+      return { type: "start" };
+    case "switch":
+      if (!isHotelId(a.hotelId)) throw new ActionError("invalid_hotel");
+      return { type: "switch" };
     case "set": {
       if (!SLOTS.has(a.slot)) throw new ActionError("invalid_slot");
       const v = a.value;
@@ -898,7 +908,24 @@ async function handleAction(st, action, ctx){
   const a = readAction(action);
   const active = st && st.flow === "booking";
 
-  if (a.type === "start") return start(null, ctx);
+  if (a.type === "start"){
+    // A new booking replaces one in progress: its hold is given back now
+    // rather than left to lapse.
+    if (active) await dropHold(st, ctx);
+    return start(null, ctx);
+  }
+  if (a.type === "switch"){
+    // The guest picked another hotel on the page. ctx.hotel is already the
+    // new one; a booking in progress at the old one is stopped.
+    if (active && st.hotelId === ctx.hotel.id) return ask(st, ctx, `You're already booking at ${ctx.hotel.name}.`);
+    const from = active ? (ctx.hotels || []).find(h => h.id === st.hotelId) || null : null;
+    const released = !!(active && st.hold);
+    if (active) await dropHold(st, ctx);
+    return {
+      kind: "answer", state: null, reply: R.switched(ctx.hotel, from, released),
+      ui: { options: [{ label: `Book at ${ctx.hotel.name}`, action: { type: "start", hotelId: ctx.hotel.id }, tone: "primary" }] }
+    };
+  }
   if (a.type === "confirm" && !active && st && st.lastRef){
     return { kind: "answer", state: st, reply: `Your booking ${st.lastRef} is already confirmed — there's nothing more to do.`,
              ui: { options: [{ label: "Book another stay", action: { type: "start" } }] } };

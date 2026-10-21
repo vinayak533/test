@@ -12,7 +12,7 @@ and guests, and to read revenue and occupancy reports.
 | `index.html` | The welcome screen with sign-in / sign-up, the guest area, the dashboard markup and the ChatBot. |
 | `hotel_admin.js` / `hotel_admin.css` | Supabase Auth sign-in and sign-up for everyone, then the staff dashboard: live data, edits, reports. The stylesheet covers the guest area too. |
 | `hotel_guest.js` | The signed-in guest's area: live room board for any dates, their own bookings, cancelling. |
-| `server/` | The backend for `POST /api/chat` and `GET /api/config` (see below). |
+| `server/` | The backend for `POST /api/chat`, `GET /api/config` and `GET /api/hotels` (see below). |
 | `netlify/functions/` | Thin adapters from Netlify Functions to `server/app.js`. |
 | `supabase/migrations/` | Schema, seed, booking functions, security. Idempotent; run in order. |
 | `scripts/` | `migrate.js`, `create_admin.js`, `inspect_schema.js`, `dev_server.js`. |
@@ -30,7 +30,7 @@ and guests, and to read revenue and occupancy reports.
 npm install
 npm run db:migrate          # schema, seed, functions, RLS — safe to re-run
 npm run admin:create -- you@example.com   # once: a dashboard login (prints a temporary password)
-npm run serve               # http://localhost:8792 — page, /api/chat, /api/config
+npm run serve               # http://localhost:8792 — page, /api/chat, /api/config, /api/hotels
 ```
 
 `npx netlify dev` runs the real functions locally as well. The page alone can
@@ -139,14 +139,25 @@ answer says so and points at the reception number.
 | File | What it does |
 |---|---|
 | `001_schema.sql` | `hotels`, `rooms`, `guests`, `reservations`, constraints, indexes. Upgrades the earlier prototype tables in place (removing only their demo rows, by exact key) and stops rather than delete anything else. |
-| `002_seed_misty_mountain.sql` | The one hotel and rooms 1–10. Upserts on natural keys, so re-running never duplicates; rates, types and capacity are written only when a room is first created, so dashboard edits survive a re-run. |
+| `002_seed_misty_mountain.sql` | Misty Mountain and its rooms 1–10. Upserts on natural keys, so re-running never duplicates; rates, types and capacity are written only when a room is first created, so dashboard edits survive a re-run. |
 | `003_booking_functions.sql` | `get_availability`, `hold_rooms`, `confirm_booking`, `release_hold`, `find_booking`, and the admin functions `admin_availability`, `admin_update_booking_status`, `admin_report`. |
 | `004_security.sql` | RLS, grants, the `guest_summaries` view, Realtime publication. |
 | `005_guest_accounts.sql` | Guest accounts: `room_board`, `my_bookings`, `cancel_my_booking`, and `inventory_pulse` (the change signal the guest area listens to). `reservations.user_id` (in `001`) links a booking to the account that made it. |
+| `006_seed_kuttikkanam_hotels.sql` | Royal Hotel (`royal_kuttikkanam`) and Taj Hotel (`taj_kuttikkanam`), rooms 1–10 each. Same re-run rules as `002`. Contact details are left empty for the admin to fill in. |
 
-Seeded inventory: rooms 1–6 **Normal at ₹2,500**, rooms 7–10 **Luxury at ₹4,500**,
-each sleeping up to 3 (the estate's published maximum). Policy: check-in from
-14:00, check-out by 12:00. Money is `numeric`, always INR.
+Seeded inventory, ten rooms per hotel, each sleeping up to 3:
+
+| Hotel | Normal | Luxury |
+|---|---|---|
+| Misty Mountain | rooms 1–6, ₹2,500 | rooms 7–10, ₹4,500 |
+| Royal Hotel | rooms 1–6, ₹3,000 | rooms 7–10, ₹5,500 |
+| Taj Hotel | rooms 1–5, ₹4,000 | rooms 6–10, ₹7,500 |
+
+Policy at all three: check-in from 14:00, check-out by 12:00. Money is `numeric`,
+always INR. Every room, guest profile and reservation carries its `hotel_id`; the
+double-booking constraint is per room, so a booking at one hotel can never affect
+another's availability. Booking references (`MM-XXXXXX`) are unique across all
+hotels.
 
 A reservation row is one room for one stay; a booking of two rooms is two rows
 sharing a `booking_ref` (`MM-` + six characters from an alphabet without
@@ -204,9 +215,22 @@ look-up, and failed look-ups are rate-limited per address. Contact details are
 shown masked.
 
 **Hotels:** "which hotels are available / where can I stay / which hotel do you
-support" is answered from the `hotels` table: *Misty Mountain is currently the
-only hotel available on this platform.* Another hotel by name gets the same answer;
-none is ever invented.
+support" is answered from the `hotels` table, with a "Book at …" button for each.
+A hotel that is not in the table is never invented. Which hotel a turn is about:
+
+1. a booking in progress stays at its own hotel;
+2. a hotel named in the message ("rooms at Royal Hotel?") — mid-booking this is
+   offered as a switch, never done silently;
+3. the hotel chosen in the panel's picker (sent as `hotelId`);
+4. the site's own hotel, `DEFAULT_HOTEL_ID` (Misty Mountain).
+
+Every reply carries `hotel: { id, name }` and the page's pickers follow it.
+Changing hotel on the page mid-conversation sends a `switch` action, which stops
+the booking there and releases its hold at once. The page's knowledge base
+describes Misty Mountain only, so for Royal Hotel and Taj Hotel anything outside
+rooms, rates, availability, bookings and look-ups gets a plain "I don't have other
+details about … yet" rather than Misty Mountain's answer. `GET /api/hotels` lists
+the active hotels (ids, names, towns — nothing private) for the pickers.
 
 **State:** Netlify Functions keep nothing between requests, so the conversation's
 state travels with it as an HMAC-signed token (`server/booking/state.js`), held in
@@ -261,6 +285,7 @@ guest detail is wiped from the page on sign-out.
 
 | Page | What it does |
 |---|---|
+| Property | The sidebar's picker chooses which hotel every page below is about (all active hotels). Switching re-reads everything for that hotel and re-subscribes Realtime to it; the choice is kept for the tab. |
 | Dashboard | Tonight: total / available / occupied rooms and occupancy rate, arrivals and departures, month-to-date room revenue; a status board for all ten rooms for tonight or any night you pick (a ChatBot booking turns its room to *Booked* as soon as it is confirmed); next-7-day arrivals and departures; 14-night occupancy chart; latest bookings. Updates live through Supabase Realtime (and refreshes every minute regardless). |
 | Rooms | Availability check for any dates (the ChatBot's own calculation); one rate for all rooms of a type; per-room type, rate, capacity and bookable switch. Existing bookings keep their booked rate. |
 | Reservations | Search (reference, guest, email, phone, room), filter by status, type and dates; a detail panel with check-in, check-out, no-show and cancel (with a reason). Status only moves forward. |

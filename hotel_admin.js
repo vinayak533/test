@@ -30,6 +30,12 @@
      Reports       revenue, room-nights, occupancy, ADR, RevPAR from
                    admin_report, by night and by room type; CSV export
 
+   Every view is about one hotel at a time, chosen with the Property picker
+   (all active hotels in the hotels table). Switching re-reads everything
+   for that hotel and re-subscribes Realtime to it; a load still in flight
+   for the previous hotel is discarded, never shown under the new one. The
+   choice is kept for the tab in sessionStorage.
+
    The session is kept in sessionStorage: it survives a page refresh and
    ends with the tab — the right default for a front-desk machine or a
    shared phone. Guest data and the ChatBot conversation are wiped from the
@@ -51,8 +57,31 @@
                          checked_out: "Checked out", cancelled: "Cancelled", no_show: "No-show", mixed: "Mixed" };
   const PAGE = 20;
 
+  /* Round icons for the KPI tiles, drawn at 20px in the tile's purple disc. */
+  const svg = d => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const ICON = {
+    bed:      svg('<path d="M3 18.5v-12M3 14h18v4.5M21 14v-2.5a3 3 0 0 0-3-3h-7V14"/><circle cx="7" cy="10.8" r="1.8"/>'),
+    door:     svg('<path d="M5 20.5h14M7 20.5V4.5A1.5 1.5 0 0 1 8.5 3h7A1.5 1.5 0 0 1 17 4.5v16"/><circle cx="14" cy="12" r=".9" fill="currentColor"/>'),
+    guests:   svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>'),
+    gauge:    svg('<path d="M4 17a8 8 0 1 1 16 0"/><path d="m12 17 3.5-5"/><path d="M8.5 21h7"/>'),
+    luggage:  svg('<rect x="6" y="6.5" width="12" height="13" rx="2"/><path d="M9.5 6.5V4.5A1.5 1.5 0 0 1 11 3h2a1.5 1.5 0 0 1 1.5 1.5v2M10 10.5v5M14 10.5v5M9 19.5v1.5M15 19.5v1.5"/>'),
+    out:      svg('<path d="M14 4h3.5A1.5 1.5 0 0 1 19 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14M9.5 16.5 5 12l4.5-4.5M5 12h10"/>'),
+    rupee:    svg('<path d="M7 4.5h10M7 9h10M8 4.5h2.5a4.5 4.5 0 0 1 0 9H8l7.5 6.5"/>'),
+    moon:     svg('<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/>'),
+    tag:      svg('<path d="M3.5 12.6V4.5a1 1 0 0 1 1-1h8.1l8 8a1.5 1.5 0 0 1 0 2.1l-6 6a1.5 1.5 0 0 1-2.1 0z"/><circle cx="8.3" cy="8.3" r="1.4"/>'),
+    chart:    svg('<path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/>'),
+    calendar: svg('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M16 3v4M8 3v4M3.5 10h17"/>')
+  };
+  const kpiTile = (label, val, foot, icon, extra = "") => `<div class="mm-kpi"><span class="mm-kpi__label">${esc(label)}</span>`
+    + `<span class="mm-kpi__ico">${ICON[icon] || ""}</span><span class="mm-kpi__val">${esc(val)}</span>${extra}<span class="mm-kpi__foot">${foot}</span></div>`;
+
+  /* A guest's initials in a lavender disc, beside their name in the lists. */
+  const initials = name => String(name || "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase() || "·";
+  const who = (name, inner) => `<span class="mm-who"><span class="mm-initials" aria-hidden="true">${esc(initials(name))}</span><span class="mm-who__txt">${inner}</span></span>`;
+  const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
+
   const S = {
-    client: null, user: null, mode: null, resumeChat: false, hotelId: "misty_mountain", hotel: null, boardDate: "",
+    client: null, user: null, mode: null, resumeChat: false, hotelId: "misty_mountain", hotel: null, hotels: [], boardDate: "", again: false,
     rooms: [], roomById: new Map(), res: [], guests: [],
     view: "dashboard", moves: "arrivals", resPage: 0, report: null,
     channel: null, poll: 0, reloadTimer: 0, toasted: new Set(), loading: false, opener: null
@@ -350,10 +379,45 @@
     $("#userEmail").textContent = email;
     $("#userAvatar").textContent = (email[0] || "·");
     route();
-    loadAll();
-    subscribe();
+    loadHotels().then(() => { loadAll(); subscribe(); });
     clearInterval(S.poll);
     S.poll = setInterval(() => loadAll(true), 60000);
+  }
+
+  /* ---- which hotel ------------------------------------------------------ */
+
+  const PICK_KEY = "mm-admin-hotel";
+  function rememberHotel(id){ try { sessionStorage.setItem(PICK_KEY, id); } catch {} }
+  function rememberedHotel(){ try { return sessionStorage.getItem(PICK_KEY); } catch { return null; } }
+
+  async function loadHotels(){
+    const { data, error } = await S.client.from("hotels").select("id, name").eq("is_active", true).order("name");
+    if (error || !data || !data.length) return;           // loadAll reports a real failure
+    S.hotels = data;
+    const saved = rememberedHotel();
+    if (saved && data.some(h => h.id === saved)) S.hotelId = saved;
+    else if (!data.some(h => h.id === S.hotelId)) S.hotelId = data[0].id;
+    $("#hotelSwitch").innerHTML = data.map(h => `<option value="${esc(h.id)}">${esc(h.name)}</option>`).join("");
+    $("#hotelSwitch").value = S.hotelId;
+    $("#hotelPick").hidden = data.length < 2;
+  }
+
+  function switchHotel(id){
+    if (!id || id === S.hotelId || !S.hotels.some(h => h.id === id)) return;
+    S.hotelId = id;
+    rememberHotel(id);
+    closeDrawer();
+    // Nothing of the previous hotel may stay on screen under the new name.
+    S.hotel = null; S.rooms = []; S.roomById = new Map(); S.res = []; S.guests = []; S.report = null;
+    ["#kpis", "#roomBoard", "#moves", "#occChart", "#recentTable", "#roomsTable", "#typeRates", "#resTable",
+     "#guestTable", "#reportKpis", "#revChart", "#repOccChart", "#typeSplit", "#availResult", "#resCount", "#guestCount", "#resPager"]
+      .forEach(s => { const n = $(s); if (n) n.innerHTML = ""; });
+    const name = (S.hotels.find(h => h.id === id) || {}).name || "";
+    $("#sideHotel").textContent = name;
+    navOpen(false);
+    loadAll();
+    subscribe();
+    if (S.view === "reports") loadReport();
   }
 
   function enterGuest(session){
@@ -368,7 +432,7 @@
     const was = S.mode;
     clearInterval(S.poll);
     if (S.channel && S.client){ S.client.removeChannel(S.channel); S.channel = null; }
-    S.user = null; S.mode = null; S.hotel = null; S.rooms = []; S.res = []; S.guests = []; S.report = null; S.roomById = new Map();
+    S.user = null; S.mode = null; S.hotel = null; S.hotels = []; S.rooms = []; S.res = []; S.guests = []; S.report = null; S.roomById = new Map();
     ["#kpis", "#roomBoard", "#moves", "#occChart", "#recentTable", "#roomsTable", "#typeRates", "#resTable",
      "#guestTable", "#reportKpis", "#revChart", "#repOccChart", "#typeSplit", "#availResult", "#resCount", "#guestCount", "#resPager"]
       .forEach(s => { const n = $(s); if (n) n.innerHTML = ""; });
@@ -403,8 +467,10 @@
   /* ==================================================================== DATA */
 
   async function loadAll(quiet){
-    if (!S.client || !S.user || S.loading) return;
+    if (!S.client || !S.user) return;
+    if (S.loading){ S.again = true; return; }
     S.loading = true;
+    const hid = S.hotelId;
     if (!quiet && !S.rooms.length) renderSkeletons();
     try {
       const [h, r, x, g] = await Promise.all([
@@ -413,6 +479,7 @@
         S.client.from("reservations").select("id, booking_ref, room_id, guest_id, guest_name, guest_email, guest_phone, check_in, check_out, arrival_time, departure_time, num_guests, room_type, price_per_night, nights, total_price, status, source, hold_expires_at, confirmed_at, cancelled_at, cancel_reason, created_at").eq("hotel_id", S.hotelId).order("created_at", { ascending: false }).limit(5000),
         S.client.from("guest_summaries").select("*").eq("hotel_id", S.hotelId).order("full_name")
       ]);
+      if (hid !== S.hotelId) return;                      // switched while loading: the re-run below reads the new one
       const err = [h, r, x, g].find(q => q.error);
       if (err){
         const e = err.error;
@@ -420,7 +487,7 @@
         throw new Error(e.message || "query failed");
       }
       if (!h.data.length){
-        banner("This account can't see Misty Mountain's data. Its admin rights may have been removed — sign out and back in, or ask the property administrator.", true);
+        banner("This account can't see this hotel's data. Its admin rights may have been removed — sign out and back in, or ask the property administrator.", true);
         return;
       }
       S.hotel = h.data[0];
@@ -435,6 +502,7 @@
       banner("Couldn't load data from Supabase: " + e.message + ". The figures shown may be out of date.", true);
     } finally {
       S.loading = false;
+      if (S.again || hid !== S.hotelId){ S.again = false; loadAll(true); }
     }
   }
 
@@ -449,7 +517,7 @@
   function subscribe(){
     if (S.channel) S.client.removeChannel(S.channel);
     setLive("connecting");
-    S.channel = S.client.channel("mm-admin")
+    S.channel = S.client.channel("mm-admin-" + S.hotelId)
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations", filter: "hotel_id=eq." + S.hotelId }, payload => {
         const n = payload.new || {};
         if (n.status === "confirmed" && n.booking_ref && !S.toasted.has(n.booking_ref)
@@ -500,7 +568,7 @@
       if (a.dataset.view === S.view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
     $("#topPage").textContent = TITLES[S.view];
-    document.title = TITLES[S.view] + " — Misty Mountain";
+    document.title = TITLES[S.view] + " — " + ((S.hotel && S.hotel.name) || "Misty Mountain");
     navOpen(false);
     if (S.view === "reports" && S.user && S.hotel) loadReport();
   }
@@ -522,7 +590,9 @@
     if (!S.hotel) return;
     $("#sideHotel").textContent = S.hotel.name;
     $("#policyChip").textContent = `Check-in ${fmtTime(S.hotel.check_in_time)} · Check-out ${fmtTime(S.hotel.check_out_time)}`;
-    $("#todayLabel").textContent = fmtDate(todayISO());
+    const first = String((S.user && S.user.user_metadata && S.user.user_metadata.full_name) || "").trim().split(/\s+/)[0];
+    $("#hDashboard").textContent = greeting() + (first ? ", " + first : "");
+    $("#todayLabel").textContent = S.hotel.name + " · Business date " + fmtDate(todayISO());
     const active = S.rooms.filter(r => r.is_active).length;
     $("#navRooms").textContent = active + "/" + S.rooms.length;
     const upcoming = bookings().filter(b => (b.status === "confirmed" || b.status === "checked_in") && b.check_out >= todayISO()).length;
@@ -592,15 +662,14 @@
     const inactive = S.rooms.length - active.length;
     const occPct = pct(occupied, active.length);
 
-    const kpi = (label, val, foot, extra = "") => `<div class="mm-kpi"><span class="mm-kpi__label">${esc(label)}</span><span class="mm-kpi__val">${esc(val)}</span>${extra}<span class="mm-kpi__foot">${foot}</span></div>`;
     $("#kpis").innerHTML = [
-      kpi("Total rooms", S.rooms.length, esc(Object.entries(types).map(([t, n]) => `${n} ${t}`).join(" · ") + (inactive ? ` · ${inactive} inactive` : ""))),
-      kpi("Available tonight", available, held ? `${held} held by guests booking now` : "Ready to sell"),
-      kpi("Occupied tonight", occupied, `of ${active.length} active rooms`),
-      kpi("Occupancy rate", occPct + "%", "Tonight", `<span class="mm-kpi__bar" role="presentation"><i style="width:${occPct}%"></i></span>`),
-      kpi("Arrivals today", arrivals.length, arrivals.filter(b => b.status === "confirmed").length + " still to check in"),
-      kpi("Departures today", departures.length, departures.filter(b => b.status === "checked_in").length + " still to check out"),
-      kpi("Room revenue · " + dateObj(today).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" }), inr(mtd), "Booked nights this month")
+      kpiTile("Arrivals today", arrivals.length, arrivals.filter(b => b.status === "confirmed").length + " still to check in", "luggage"),
+      kpiTile("Occupied tonight", occupied, `of ${active.length} active rooms`, "guests"),
+      kpiTile("Departures today", departures.length, departures.filter(b => b.status === "checked_in").length + " still to check out", "out"),
+      kpiTile("Available tonight", available, held ? `${held} held by guests booking now` : "Ready to sell", "door"),
+      kpiTile("Room revenue · " + dateObj(today).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" }), inr(mtd), "Booked nights this month", "rupee"),
+      kpiTile("Occupancy rate", occPct + "%", "Tonight", "gauge", `<span class="mm-kpi__bar" role="presentation"><i style="width:${occPct}%"></i></span>`),
+      kpiTile("Total rooms", S.rooms.length, esc(Object.entries(types).map(([t, n]) => `${n} ${t}`).join(" · ") + (inactive ? ` · ${inactive} inactive` : "")), "bed")
     ].join("");
 
     const day = S.boardDate && S.boardDate >= today ? S.boardDate : today;
@@ -628,7 +697,7 @@
     $("#recentTable").innerHTML = recent.length
       ? `<thead><tr><th>Booking</th><th>Guest</th><th>Stay</th><th class="num">Total</th><th>Status</th></tr></thead><tbody>` +
         recent.map(b => `<tr><td><button type="button" class="mm-rowbtn" data-ref="${esc(b.ref)}"><span class="ref">${esc(b.ref)}</span></button><span class="sub">${fmtStamp(b.created_at)}</span></td>
-          <td>${esc(b.guest_name || "—")}<span class="sub">Room ${b.rooms.join(", ")}</span></td>
+          <td>${who(b.guest_name, `${esc(b.guest_name || "—")}<span class="sub">Room ${b.rooms.join(", ")}</span>`)}</td>
           <td>${fmtShort(b.check_in)} → ${fmtShort(b.check_out)}<span class="sub">${plural(b.nights, "night")}</span></td>
           <td class="num">${inr(b.total)}</td><td>${badge(b.status)}</td></tr>`).join("") + "</tbody>"
       : '<tbody><tr><td class="mm-empty">No bookings yet. New ChatBot bookings appear here as soon as they are confirmed.</td></tr></tbody>';
@@ -808,7 +877,9 @@
     const out = $("#availResult");
     if (!a || !b || b <= a){ out.textContent = "Choose a check-out date after the check-in date."; return; }
     out.textContent = "Checking…";
-    const { data, error } = await S.client.rpc("admin_availability", { p_hotel_id: S.hotelId, p_check_in: a, p_check_out: b });
+    const hid = S.hotelId;
+    const { data, error } = await S.client.rpc("admin_availability", { p_hotel_id: hid, p_check_in: a, p_check_out: b });
+    if (hid !== S.hotelId) return;
     if (error){ out.textContent = "Couldn't check availability: " + error.message; return; }
     const free = data.filter(r => r.is_available);
     const byType = t => free.filter(r => r.room_type === t).length;
@@ -854,7 +925,7 @@
       ? `<thead><tr><th>Booking</th><th>Guest</th><th>Stay</th><th>Rooms</th><th class="num">Guests</th><th class="num">Total</th><th>Status</th></tr></thead><tbody>` +
         shown.map(b => `<tr>
           <td data-label="Booking"><button type="button" class="mm-rowbtn" data-ref="${esc(b.ref)}"><span class="ref">${esc(b.ref)}</span></button><span class="sub">${b.source === "chatbot" ? "ChatBot" : "Admin"} · ${fmtStamp(b.created_at)}</span></td>
-          <td data-label="Guest">${esc(b.guest_name || "—")}<span class="sub">${esc(b.guest_phone || "")}</span></td>
+          <td data-label="Guest">${who(b.guest_name, `${esc(b.guest_name || "—")}<span class="sub">${esc(b.guest_phone || "")}</span>`)}</td>
           <td data-label="Stay">${fmtShort(b.check_in)} → ${fmtShort(b.check_out)}<span class="sub">${plural(b.nights, "night")} · arrives ${fmtTime(b.arrival_time)}</span></td>
           <td data-label="Rooms">${b.rows.map(r => `<span class="mm-type mm-type--${esc(r.room_type)}">${(S.roomById.get(r.room_id) || {}).room_number || "?"}</span>`).join(" ")}</td>
           <td data-label="Guests" class="num">${b.guests}</td>
@@ -953,7 +1024,7 @@
     t.innerHTML = list.length
       ? `<thead><tr><th>Guest</th><th>Mobile</th><th class="num">Bookings</th><th class="num">Total spend</th><th>Last stay</th><th>Next stay</th></tr></thead><tbody>` +
         list.map(g => `<tr>
-          <td data-label="Guest"><button type="button" class="mm-rowbtn" data-guest="${esc(g.id)}"><b>${esc(g.full_name)}</b></button><span class="sub">${esc(g.email)}</span></td>
+          <td data-label="Guest">${who(g.full_name, `<button type="button" class="mm-rowbtn" data-guest="${esc(g.id)}"><b>${esc(g.full_name)}</b></button><span class="sub">${esc(g.email)}</span>`)}</td>
           <td data-label="Mobile">${esc(g.phone)}</td>
           <td data-label="Bookings" class="num">${Number(g.bookings)}${Number(g.cancelled) ? `<span class="sub">${g.cancelled} cancelled</span>` : ""}</td>
           <td data-label="Total spend" class="num">${inr(g.total_spend)}</td>
@@ -999,7 +1070,9 @@
     if (!from || !to || to < from){ toast("Choose an end date on or after the start date.", "error"); return; }
     if (diffDays(from, to) > 366){ toast("Reports cover up to a year at a time.", "error"); return; }
     $("#reportKpis").innerHTML = '<div class="mm-kpi"><span class="mm-skel" style="width:50%"></span><span class="mm-skel" style="height:2rem;width:40%"></span></div>';
-    const { data, error } = await S.client.rpc("admin_report", { p_hotel_id: S.hotelId, p_from: from, p_to: to });
+    const hid = S.hotelId;
+    const { data, error } = await S.client.rpc("admin_report", { p_hotel_id: hid, p_from: from, p_to: to });
+    if (hid !== S.hotelId) return;
     if (error){ $("#reportKpis").innerHTML = ""; banner("Couldn't load the report: " + error.message, true); return; }
     S.report = data;
     renderReport();
@@ -1010,14 +1083,14 @@
     if (!r) return;
     const capacity = r.active_rooms * r.days;
     const rev = Number(r.room_revenue), sold = Number(r.room_nights_sold);
-    const kpi = (label, val, foot) => `<div class="mm-kpi"><span class="mm-kpi__label">${esc(label)}</span><span class="mm-kpi__val">${esc(val)}</span><span class="mm-kpi__foot">${esc(foot)}</span></div>`;
+    const kpi = (label, val, foot, icon) => kpiTile(label, val, esc(foot), icon);
     $("#reportKpis").innerHTML = [
-      kpi("Room revenue", inr(rev), `${fmtShort(r.from)} – ${fmtShort(r.to)}`),
-      kpi("Room-nights sold", sold, `of ${capacity} available`),
-      kpi("Occupancy", pct(sold, capacity) + "%", `${r.active_rooms} active rooms × ${plural(r.days, "day")}`),
-      kpi("ADR", inr(sold ? Math.round(rev / sold) : 0), "Average rate per sold night"),
-      kpi("RevPAR", inr(capacity ? Math.round(rev / capacity) : 0), "Revenue per available room-night"),
-      kpi("Bookings made", Number(r.bookings_made), `${inr(r.bookings_value)} booked in the period`),
+      kpi("Room revenue", inr(rev), `${fmtShort(r.from)} – ${fmtShort(r.to)}`, "rupee"),
+      kpi("Room-nights sold", sold, `of ${capacity} available`, "moon"),
+      kpi("Occupancy", pct(sold, capacity) + "%", `${r.active_rooms} active rooms × ${plural(r.days, "day")}`, "gauge"),
+      kpi("ADR", inr(sold ? Math.round(rev / sold) : 0), "Average rate per sold night", "tag"),
+      kpi("RevPAR", inr(capacity ? Math.round(rev / capacity) : 0), "Revenue per available room-night", "chart"),
+      kpi("Bookings made", Number(r.bookings_made), `${inr(r.bookings_value)} booked in the period`, "calendar"),
       kpi("Cancellations", Number(r.cancellations), "Cancelled in the period")
     ].join("");
 
@@ -1071,6 +1144,7 @@
   /* ================================================================ WIRING */
 
   function bindStatic(){
+    $("#hotelSwitch").addEventListener("change", e => switchHotel(e.target.value));
     $("#mmSignin").addEventListener("submit", signIn);
     $("#mmSignup").addEventListener("submit", signUp);
     $("#resendBtn").addEventListener("click", resend);

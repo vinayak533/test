@@ -100,7 +100,7 @@ for (const q of ["Tell me about the rooms", "How many rooms are there?", "How ma
     assert.equal(out.reply, "Misty Mountain has 10 rooms: 6 Normal rooms at ₹2,500 a night and 4 Luxury rooms at ₹4,500 a night. "
       + "The Luxury rooms are our premium rooms. Each room sleeps up to 3 guests. Check-in is from 2:00 PM and check-out by 12:00 PM. "
       + "Would you like me to check which rooms are free for your dates?");
-    assert.deepEqual(out.ui.options.map(o => o.action), [{ type: "start" }]);
+    assert.deepEqual(out.ui.options.map(o => o.action), [{ type: "start", hotelId: "misty_mountain" }]);
     assert.ok(!/seven|\b7\b/i.test(out.reply));
     assert.ok(c.repo.calls.some(([k]) => k === "rooms"), "read live");
   });

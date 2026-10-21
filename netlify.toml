@@ -34,8 +34,10 @@
 
 # ---- the ChatBot backend ------------------------------------------------------
 # POST /api/chat is netlify/functions/chat.mjs, GET /api/config is
-# netlify/functions/config.mjs (paths are set in the files). /api/config serves
-# only the Supabase URL and anon key, for staff sign-in on the dashboard.
+# netlify/functions/config.mjs and GET /api/hotels is netlify/functions/hotels.mjs
+# (paths are set in the files). /api/config serves only the Supabase URL and
+# anon key, for staff sign-in on the dashboard; /api/hotels only the active
+# hotels' ids and names, for the hotel picker.
 # Netlify bundles functions on its own; there is still no build command.
 # Secrets (SUPABASE_*, JEV_*) are set in Site configuration → Environment
 # variables, never in this file or the page.

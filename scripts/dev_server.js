@@ -3,7 +3,7 @@
 
        npm run serve            (http://localhost:8792)
 
-   Serves POST /api/chat and GET /api/config through the same server/app.js the
+   Serves POST /api/chat, GET /api/config and GET /api/hotels through the same server/app.js the
    Netlify Functions run, so what works here
    works deployed. Static files are served from the repository root with
    anything private (.env, server/, supabase/, scripts/, tests/, node_modules/)
@@ -15,7 +15,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { handleRequest, handleConfig } = require("../server/app");
+const { handleRequest, handleConfig, handleHotels } = require("../server/app");
 
 const ROOT = path.resolve(__dirname, "..");
 const PORT = Number(process.env.PORT) || 8792;
@@ -41,6 +41,12 @@ http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/config"){
     const out = handleConfig({ method: req.method });
+    res.writeHead(out.status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...(out.headers || {}) });
+    return res.end(JSON.stringify(out.body));
+  }
+
+  if (url.pathname === "/api/hotels"){
+    const out = await handleHotels({ method: req.method });
     res.writeHead(out.status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...(out.headers || {}) });
     return res.end(JSON.stringify(out.body));
   }
