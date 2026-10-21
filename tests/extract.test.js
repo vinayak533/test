@@ -23,6 +23,9 @@ test("dates, by the question they answer", () => {
   assert.equal(x("check out on the 22nd", "party").checkOut, "2026-10-22");
   assert.deepEqual([x("the 20th to the 23rd").checkIn, x("the 20th to the 23rd").checkOut], ["2026-10-20", "2026-10-23"]);
   assert.equal(x("a room on the 2nd floor").checkIn, undefined);
+  const said = x("Could you check if Misty Mountain has availability from the 20th to the 23rd of December, "
+    + "and also tell me the price per night and the check-in and check-out times.");
+  assert.deepEqual([said.checkIn, said.checkOut], ["2026-12-20", "2026-12-23"], "the month said once, after both days");
 });
 
 test("'tonight' in a side question moves nothing", () => {

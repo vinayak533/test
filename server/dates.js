@@ -23,6 +23,10 @@ const MONTHS = {
 };
 const MONTH_RE = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
 const ORD = "(?:st|nd|rd|th)?";
+/* "the 20th to the 23rd", as people say it: without the optional "the" a
+   range written that way fell apart into two unrelated days. */
+const THE = "(?:the\\s+)?";
+const TO = "\\s*(?:-|–|to|till|until|through)\\s*";
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const WORD_NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 
@@ -81,12 +85,17 @@ function explicitDates(s, today){
     return day ? [day] : null;
   });
 
-  // 20-23 oct / 20th to 23rd of october 2026
-  take(new RegExp(`\\b(\\d{1,2})${ORD}\\s*(?:-|–|to|till|until)\\s*(\\d{1,2})${ORD}\\s*(?:of\\s+)?${MONTH_RE}\\b(?:,?\\s*(\\d{4}))?`, "g"),
+  // between the 20th and the 23rd of december — "and" only joins a range
+  // after "between"; "2 adults and 3 december" is one date, read below.
+  take(new RegExp(`\\bbetween\\s+${THE}(\\d{1,2})${ORD}\\s+and\\s+${THE}(\\d{1,2})${ORD}\\s*(?:of\\s+)?${MONTH_RE}\\b(?:,?\\s*(\\d{4}))?`, "g"),
     (d1, d2, mon, y) => rangeIn(today, +d1, +d2, MONTHS[mon.slice(0, 3)], y));
 
-  // oct 20-23 / october 20 to 23, 2026
-  take(new RegExp(`\\b${MONTH_RE}\\.?\\s+(\\d{1,2})${ORD}\\s*(?:-|–|to|till|until)\\s*(\\d{1,2})${ORD}\\b(?:,?\\s*(\\d{4}))?`, "g"),
+  // 20-23 oct / 20th to 23rd of october 2026 / the 20th to the 23rd of december
+  take(new RegExp(`\\b(\\d{1,2})${ORD}${TO}${THE}(\\d{1,2})${ORD}\\s*(?:of\\s+)?${MONTH_RE}\\b(?:,?\\s*(\\d{4}))?`, "g"),
+    (d1, d2, mon, y) => rangeIn(today, +d1, +d2, MONTHS[mon.slice(0, 3)], y));
+
+  // oct 20-23 / october 20 to 23, 2026 / december the 20th to the 23rd
+  take(new RegExp(`\\b${MONTH_RE}\\.?\\s+${THE}(\\d{1,2})${ORD}${TO}${THE}(\\d{1,2})${ORD}\\b(?:,?\\s*(\\d{4}))?`, "g"),
     (mon, d1, d2, y) => rangeIn(today, +d1, +d2, MONTHS[mon.slice(0, 3)], y));
 
   // 20 oct / 20th of october 2026

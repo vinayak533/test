@@ -50,6 +50,28 @@ test("ranges", () => {
   assert.deepEqual(stay("2026-12-30 to 2027-01-02"), ["2026-12-30", "2027-01-02"]);
 });
 
+test("ranges spoken with 'the' before the days, the month said once at the end", () => {
+  // The second "the" used to stop the range from matching, so "the 20th"
+  // fell back to the next 20th of any month and the stay ran past 30 nights.
+  assert.deepEqual(stay("from the 20th to the 23rd of December"), ["2026-12-20", "2026-12-23"]);
+  assert.deepEqual(stay("the 20th to 23rd December"), ["2026-12-20", "2026-12-23"]);
+  assert.deepEqual(stay("20th to 23rd Dec"), ["2026-12-20", "2026-12-23"]);
+  assert.deepEqual(stay("between the 20th and the 23rd of December"), ["2026-12-20", "2026-12-23"]);
+  assert.deepEqual(stay("from the 5th through the 7th of November"), ["2026-11-05", "2026-11-07"]);
+  assert.deepEqual(stay("december the 20th to the 23rd"), ["2026-12-20", "2026-12-23"]);
+  assert.deepEqual(stay(
+    "Hello, I am planning a trip to Kuttikkanam with my family in December, we are four adults and we would like "
+    + "two rooms, preferably luxury rooms with a view. Could you check if Misty Mountain has availability from the "
+    + "20th to the 23rd of December, and also tell me the price per night and the check-in and check-out times."),
+    ["2026-12-20", "2026-12-23"]);
+});
+
+test("'and' joins two days into a range only after 'between'", () => {
+  // "2 and 3 December" alone is two separate days, not a stay.
+  assert.deepEqual(stay("between 2 and 4 December"), ["2026-12-02", "2026-12-04"]);
+  assert.deepEqual(stay("2 adults and 3 December"), ["2026-12-03", "2026-12-04"]);
+});
+
 test("length of stay", () => {
   assert.deepEqual(stay("tonight for 3 nights"), ["2026-10-16", "2026-10-19"]);
   assert.deepEqual(stay("from 20 oct for two nights"), ["2026-10-20", "2026-10-22"]);
