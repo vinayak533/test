@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>GXP — Hotel Dashboard &amp; Booking</title>
 <link rel="icon" href="gxp_logo.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -859,6 +859,26 @@ a{ color: inherit; }
 .chat__note{ margin: 0; text-align: center; font-size: 12px; line-height: 1.4; color: var(--d-ink-3); }
 @media (max-width: 620px){
   .chat__form{ padding-bottom: max(.7rem, env(safe-area-inset-bottom)); }
+}
+
+/* ---- phones ----------------------------------------------------------------
+   Text fields at 16px: below that, iOS Safari zooms the whole page in when a
+   field is tapped and leaves it zoomed. Everything tappable at least 44px
+   tall. The panel follows the visible area (fitDock, in the script) so the
+   keyboard never covers the composer; the head clears the notch. */
+@media (max-width: 620px){
+  .dock{ -webkit-tap-highlight-color: transparent; }
+  .dock__head{ padding-top: max(.85rem, env(safe-area-inset-top)); }
+  .chat__log{ overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .chat__field input, .bk-date input, .bk-form input{ font-size: 16px; }
+  .bk-date input, .bk-form input{ min-height: 44px; }
+  .chat__mic, .chat__send{ width: 44px; height: 44px; }
+  .chat__mic[aria-pressed="true"]{ height: 44px; border-radius: 22px; }
+  .dock .bk-opts .connect__btn, .dock .connect__btn{ min-height: 44px; }
+  .chat__form{ gap: .35rem; padding-top: .6rem; }
+  .chat__note{ font-size: 11.5px; }
+  /* While typing, the keyboard takes half the screen: the disclaimer goes. */
+  .dock.is-typing-mobile .chat__note{ display: none; }
 }
 
 /* ============================ CONTACT ============================ */
@@ -4688,6 +4708,7 @@ function openDock(question){
   scrim.hidden = false;
   launch.hidden = true;
   document.body.style.overflow = window.innerWidth <= 620 ? "hidden" : "";
+  fitDock();
   refreshClear();
   touched();
   if (question){ send(question); }
@@ -4696,6 +4717,30 @@ function openDock(question){
       .focus({ preventScroll: true }), 30);
   }
 }
+
+/* ---- phones: the keyboard ----------------------------------------
+   On a phone the panel fills the screen, but iOS Safari does not shrink
+   a fixed element when the keyboard opens: it slides the page up and the
+   composer ends up behind the keys. So the panel is sized to the visual
+   viewport — the part actually visible — and follows it as the keyboard
+   comes and goes, keeping the latest message in view. */
+const vv = window.visualViewport;
+function fitDock(){
+  if (!vv || dock.hidden || window.innerWidth > 620){
+    dock.style.top = dock.style.height = dock.style.bottom = "";
+    return;
+  }
+  dock.style.top = Math.round(vv.offsetTop) + "px";
+  dock.style.height = Math.round(vv.height) + "px";
+  dock.style.bottom = "auto";
+  stick();
+}
+if (vv){
+  vv.addEventListener("resize", fitDock);
+  vv.addEventListener("scroll", fitDock);
+}
+ask.addEventListener("focus", () => { dock.classList.add("is-typing-mobile"); setTimeout(fitDock, 50); });
+ask.addEventListener("blur", () => { dock.classList.remove("is-typing-mobile"); setTimeout(fitDock, 50); });
 
 function closeDock(){
   stopVoice();               // never leave the microphone on behind a closed panel

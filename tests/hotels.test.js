@@ -201,12 +201,13 @@ test("general questions: the site's hotel goes to the page's knowledge base; the
   assert.deepEqual(royal.ui.options[0].action, { type: "start", hotelId: ROYAL.id });
 });
 
-test("a side question mid-booking at another hotel offers the way back", async () => {
+test("a side question mid-booking at another hotel is answered, and the booking's question follows", async () => {
   const c = conversation({ repo: threeHotels(), hotelId: TAJ.id });
-  await c.say(RICH);
+  const before = await c.say(RICH);
   const out = await c.say("do you serve breakfast?");
   assert.equal(out.handled, true);
-  assert.deepEqual(out.ui.options[0].action, { type: "resume" });
+  assert.match(out.reply, /^For Taj Hotel I can tell you about the rooms and rates/);
+  assert.equal(out.ui.panel && out.ui.panel.type, before.ui.panel && before.ui.panel.type, "the same step is shown again");
   assert.equal(c.decoded().hotelId, TAJ.id, "the booking is kept");
 });
 
