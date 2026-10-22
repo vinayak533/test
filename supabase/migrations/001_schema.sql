@@ -97,6 +97,45 @@ begin
   end if;
 end $$;
 
+-- -------------------------------------------------------------- agencies ----
+-- The agency is the parent organisation; every hotel is one of its clients
+-- (a tenant). Everything below hotels — rooms, guests, reservations — is
+-- already keyed by hotel_id, so a hotel's data stays its own whichever
+-- agency it belongs to.
+--
+-- The agency row is created here, not in a seed, because hotels.agency_id
+-- points at it and existing hotels are filled in with it when the column is
+-- first added. Its name is set only when it is first created, so a rename
+-- survives a re-run.
+create table if not exists public.agencies (
+  id          text primary key check (id ~ '^[a-z0-9_]{2,40}$'),
+  name        text not null check (char_length(name) between 2 and 120),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+insert into public.agencies (id, name) values ('kuttikkanam_agency', 'Kuttikkanam Hotel Agency')
+on conflict (id) do nothing;
+
+alter table public.hotels add column if not exists agency_id text not null default 'kuttikkanam_agency'
+  references public.agencies(id) on delete restrict;
+create index if not exists hotels_agency_idx on public.hotels (agency_id);
+
+-- ----------------------------------------------------------- hotel staff ----
+-- Hotel-level users: a signed-in user listed here may manage that hotel and
+-- no other. Agency administrators (app_metadata.hotel_role = 'admin') manage
+-- every hotel and need no rows here. Written only with the service-role key
+-- (scripts/create_admin.js --hotel), so nobody can add themselves; removing
+-- a row takes effect on the user's next request, not at token expiry.
+create table if not exists public.hotel_staff (
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  hotel_id    text not null references public.hotels(id) on delete cascade,
+  role        text not null default 'manager' check (role in ('manager')),
+  created_at  timestamptz not null default now(),
+  primary key (user_id, hotel_id)
+);
+create index if not exists hotel_staff_hotel_idx on public.hotel_staff (hotel_id);
+
 -- ----------------------------------------------------------------- rooms ----
 create table if not exists public.rooms (
   id               uuid primary key default gen_random_uuid(),
@@ -214,6 +253,10 @@ begin
   new.updated_at := now();
   return new;
 end $$;
+
+drop trigger if exists agencies_touch on public.agencies;
+create trigger agencies_touch before update on public.agencies
+  for each row execute function public.touch_updated_at();
 
 drop trigger if exists hotels_touch on public.hotels;
 create trigger hotels_touch before update on public.hotels

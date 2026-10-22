@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="GXP">
+  <!-- Two interlocking waves, black over purple; the lower one is the upper turned half a circle. -->
+  <defs>
+    <g id="wave">
+      <path fill="#9B5CF0" d="M56 20C64 21 70 27 76 32C82 37 88 37 91 39C94 41 94 45 90 46C82 48 72 45 64 38C59 34 55 31 50 30Z"/>
+      <path fill="#0A0A0A" d="M8 41C8 36 14 34 22 31C34 27 40 19 54 19C61 19 67 20 70 21C73 23 70 26 66 27C63 28 61 29 58 30C48 31 40 38 30 42C22 45 16 47 12 46C9 45 8 43 8 41Z"/>
+    </g>
+  </defs>
+  <use href="#wave"/>
+  <use href="#wave" transform="rotate(180 50 50)"/>
+</svg>
