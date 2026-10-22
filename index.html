@@ -493,17 +493,6 @@ a{ color: inherit; }
   font-size: 16px; font-weight: 700; letter-spacing: -.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.dock__beta{
-  flex: none; font-size: 11px; font-weight: 600; line-height: 1.5;
-  padding: .05rem .45rem; border-radius: 999px;
-  background: var(--d-soft); color: var(--d-accent);
-}
-.dock__sub{
-  display: flex; align-items: center; gap: .35rem; min-width: 0;
-  font-size: 13px; color: var(--d-ink-2);
-}
-.dock__sub span{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dock__live{ width: 6px; height: 6px; border-radius: 50%; background: #56C785; flex: none; }
 .dock__tools{ display: flex; align-items: center; gap: .15rem; flex: none; }
 .dock__icon{
   background: none; border: 0; border-radius: 10px;
@@ -536,28 +525,11 @@ a{ color: inherit; }
   .dock__head{ gap: .55rem; padding-left: .8rem; }
   .dock__bot{ width: 34px; height: 34px; }
   .dock__bot svg{ width: 20px; height: 20px; }
-  .dock__beta{ display: none; }
   .dock__lang{ max-width: 5.6rem; font-size: 12px; }
   .dock__icon{ width: 34px; height: 34px; }
 }
 
-/* Hotel picker in the title bar. With more than one hotel the subtitle
-   becomes a native <select> that reads as the subtitle until it is opened. */
-.dock__hotel{
-  appearance: none; -webkit-appearance: none;
-  font: inherit; font-size: 13px; line-height: 1.35; color: var(--d-ink-2);
-  background-color: transparent; border: 0; border-radius: 6px;
-  padding: .05rem 1.15rem .05rem .2rem; margin-left: -.2rem;
-  min-width: 0; max-width: 100%; cursor: pointer; text-overflow: ellipsis;
-  field-sizing: content;                 /* as wide as the chosen name, where supported */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7' fill='none' stroke='%235C5C5C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 5 5.5 9 1.5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right .3rem center;
-  transition: background-color .16s ease, color .16s ease;
-}
-.dock__hotel[hidden], .dock__icon[hidden]{ display: none; }
-.dock__hotel:hover{ color: var(--d-ink); background-color: var(--d-hover); }
-.dock__hotel:focus-visible{ outline: 2px solid var(--d-accent); outline-offset: 1px; }
-.dock__hotel option{ background: #FFFFFF; color: #141414; }
+.dock__icon[hidden]{ display: none; }
 
 /* ---- the three states ---- */
 .dock__body{ display: grid; min-height: 0; }
@@ -585,27 +557,6 @@ a{ color: inherit; }
   font-family: var(--sans); font-size: 22px; font-weight: 700;
   line-height: 1.3; letter-spacing: -.02em; color: var(--d-ink);
 }
-.home__hi p{ font-size: 14.5px; line-height: 1.55; color: var(--d-ink-2); max-width: 44ch; }
-
-/* Which hotel the panel is about: one button per hotel, the chosen one
-   filled. Three across, stacked on the narrowest phones. */
-.home__hotels{ display: grid; gap: .5rem; margin: 0 0 .25rem; }
-.home__hotels[hidden]{ display: none; }
-.home__hotelset{ display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: .5rem; }
-.home__hotel{
-  font: inherit; font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--d-ink);
-  min-height: 48px; padding: .6rem .5rem; text-align: center; cursor: pointer;
-  background: var(--d-bg); border: 1px solid var(--d-line-firm); border-radius: 12px;
-  transition: border-color .16s ease, background .16s ease, color .16s ease;
-}
-.home__hotel:hover{ border-color: var(--d-line-hover); background: var(--d-raised); }
-.home__hotel[aria-pressed="true"]{
-  color: var(--d-accent); background: var(--d-soft); border-color: var(--d-accent);
-  box-shadow: inset 0 0 0 1px var(--d-accent);
-}
-.home__hotel:focus-visible{ outline: 2px solid var(--d-accent); outline-offset: 2px; }
-@media (max-width: 360px){ .home__hotelset{ grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce){ .home__hotel{ transition: none; } }
 
 /* Suggestion cards: a tinted icon, what it does, an example in quotes, and
    a chevron. Each is one button; the first starts the live booking. */
@@ -1887,8 +1838,7 @@ a{ color: inherit; }
       <svg width="24" height="24" viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M12 3.2c-3.9 0-6.6 2.9-6.6 6.7v9.3c0 .7.8 1.1 1.3.6l1.3-1.1 1.5 1.2c.4.3.9.3 1.3 0L12 18.7l1.2 1.2c.4.3.9.3 1.3 0l1.5-1.2 1.3 1.1c.5.5 1.3.1 1.3-.6V9.9c0-3.8-2.7-6.7-6.6-6.7Z"/><circle cx="9.6" cy="10.2" r="1.25" fill="#2B1752"/><circle cx="14.4" cy="10.2" r="1.25" fill="#2B1752"/></svg>
     </span>
     <span class="dock__title">
-      <span class="dock__name"><b id="dockTitle" data-i18n="title">ChatBot</b><span class="dock__beta" data-i18n="beta">Beta</span></span>
-      <span class="dock__sub"><i class="dock__live" aria-hidden="true"></i><span data-i18n="subtitle" id="dockSub">Misty Mountain, Kuttikkanam</span><select class="dock__hotel" id="dockHotel" data-i18n-aria="hotelAria" aria-label="Hotel" hidden></select></span>
+      <span class="dock__name"><b id="dockTitle" data-i18n="title">ChatBot</b></span>
     </span>
     <span class="dock__tools">
       <select class="dock__lang" id="dockLang" data-i18n-aria="langLabel" aria-label="Language"></select>
@@ -1920,15 +1870,6 @@ a{ color: inherit; }
           <svg width="46" height="46" viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M12 3.2c-3.9 0-6.6 2.9-6.6 6.7v9.3c0 .7.8 1.1 1.3.6l1.3-1.1 1.5 1.2c.4.3.9.3 1.3 0L12 18.7l1.2 1.2c.4.3.9.3 1.3 0l1.5-1.2 1.3 1.1c.5.5 1.3.1 1.3-.6V9.9c0-3.8-2.7-6.7-6.6-6.7Z"/><circle cx="9.6" cy="10.2" r="1.25" fill="#2B1752"/><circle cx="14.4" cy="10.2" r="1.25" fill="#2B1752"/></svg>
         </span>
         <h3 id="homeTitle" data-i18n="homeGreetTitle">Good day. How can I help?</h3>
-        <p data-i18n="homeGreetBody" id="homeGreetSite">I keep the desk at Misty Mountain — six hundred acres of tea above Peermade, with Normal and Luxury rooms in the middle of it. Ask me anything about the estate.</p>
-        <p id="homeGreetOther" hidden></p>
-      </div>
-
-      <!-- The hotels on the platform, read from /api/hotels. Hidden while
-           there is only one. -->
-      <div class="home__hotels" id="homeHotels" hidden>
-        <p class="home__label" id="homeHotelsLabel" data-i18n="hotelPick">Choose a hotel</p>
-        <div class="home__hotelset" id="homeHotelSet" role="group" aria-labelledby="homeHotelsLabel"></div>
       </div>
 
       <!-- Booking comes first: one tap starts the live booking conversation
@@ -4157,40 +4098,20 @@ let chatState = null;
    The chosen hotel goes with every request. A booking in progress stays at
    its own hotel whatever is chosen, so changing hotel mid-conversation is
    sent as a "switch" the backend acts on (releasing any hold), not just a
-   new value. Every reply says which hotel it was about, and the pickers
-   follow it — "rooms at Royal Hotel?" moves them to Royal Hotel. */
+   new value. Every reply says which hotel it was about, and the chosen
+   hotel follows it — "rooms at Royal Hotel?" moves it to Royal Hotel. */
 // (Built with ["id"] so smoke_test.js, which reads every `id: "…"` in this
 // page as a chat intent, does not take the hotel for one.)
 const HOTELS = { site: "misty_mountain", list: [{ ["id"]: "misty_mountain", name: "Misty Mountain" }] };
 let hotelId = HOTELS.site;
 
-const hotelSel = document.getElementById("dockHotel");
-const hotelSet = document.getElementById("homeHotelSet");
 const hotelName = id => (HOTELS.list.find(h => h.id === id) || {}).name || "";
 const atSite = () => hotelId === HOTELS.site;
 
-function renderHotels(){
-  const many = HOTELS.list.length > 1;
-  document.getElementById("homeHotels").hidden = !many;
-  hotelSel.hidden = !many;
-  document.getElementById("dockSub").hidden = many;
-  hotelSel.innerHTML = HOTELS.list.map(h => '<option value="' + esc(h.id) + '">' + esc(h.name) + "</option>").join("");
-  hotelSet.innerHTML = HOTELS.list.map(h => '<button type="button" class="home__hotel" data-hotel="' + esc(h.id) + '"></button>').join("");
-  hotelSet.querySelectorAll(".home__hotel").forEach((b, i) => { b.textContent = HOTELS.list[i].name; });
-  showHotel();
-}
-
-/* The chrome for the current hotel. The site's own greeting and starters
-   describe the site's hotel, so another hotel gets its own short greeting
-   and only the cards that are answered live. */
+/* The chat itself names no hotel; the starters describe the site's hotel,
+   so another hotel gets only the cards that are answered live. */
 function showHotel(){
-  hotelSel.value = hotelId;
-  hotelSet.querySelectorAll(".home__hotel").forEach(b => b.setAttribute("aria-pressed", b.dataset.hotel === hotelId ? "true" : "false"));
   const site = atSite();
-  document.getElementById("homeGreetSite").hidden = !site;
-  const other = document.getElementById("homeGreetOther");
-  other.hidden = site;
-  other.textContent = site ? "" : fmt(t("homeGreetOther", "I keep the desk for {hotel} in Kuttikkanam. I can show you its rooms and rates, check live availability and book a room for you."), { hotel: hotelName(hotelId) });
   if (typeof renderStarters === "function") renderStarters();
   contactBtn.hidden = !site;             // the contact page lists the site's own desk
   if (!site && page === "pgContact") showPage(pageBefore === "pgContact" ? "pgHome" : pageBefore);
@@ -4215,12 +4136,6 @@ function chooseHotel(id){
   setHotel(id);
 }
 
-hotelSel.addEventListener("change", () => chooseHotel(hotelSel.value));
-hotelSet.addEventListener("click", e => {
-  const b = e.target.closest("[data-hotel]");
-  if (b) chooseHotel(b.dataset.hotel);
-});
-
 async function loadHotels(){
   try {
     const res = await fetch("/api/hotels", { headers: { Accept: "application/json" }, credentials: "same-origin" });
@@ -4229,7 +4144,7 @@ async function loadHotels(){
     HOTELS.list = body.hotels.filter(h => h && typeof h.id === "string" && typeof h.name === "string");
     if (HOTELS.list.some(h => h.id === body.site)) HOTELS.site = body.site;
     if (!HOTELS.list.some(h => h.id === hotelId)) hotelId = HOTELS.site;
-    renderHotels();
+    showHotel();
   } catch { /* the site's own hotel only, as before */ }
 }
 
