@@ -102,6 +102,10 @@ function readRoomNumbers(s){
 
 function readRoomType(s, step){
   if (/\b(luxur(?:y|ious)|premium|deluxe|upgraded?)\b/.test(s)) return "Luxury";
+  // A whole answer that is just the type ("Normal.", "Standard room,
+  // please") is the room type whatever was asked: a guest who answers ahead
+  // of the question, by voice especially, is still booking.
+  if (/^\s*(normal|standard|regular|basic)(?:\s+(?:rooms?|ones?|type))?(?:,?\s+please)?\s*[.!]?\s*$/.test(s)) return "Normal";
   if (/\b(normal|standard|regular|basic|economy|budget|cheap(?:er|est)?)\s+(?:rooms?|ones?|type)\b/.test(s)) return "Normal";
   // Only phrases that are about the room type count anywhere; "anything" or
   // "both" in "got anything free?" or "both of us" are not a preference.

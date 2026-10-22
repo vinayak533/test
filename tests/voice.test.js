@@ -271,3 +271,36 @@ test("quiet audio is brought up to a standard level before transcription; loud a
   const loud = wav(0.5);
   assert.equal(normalizeWav(loud).wav, loud, "speech already at a good level is passed through");
 });
+
+/* ---- it books, it does not chat ------------------------------------------- */
+
+test("an answer given ahead of its question is kept and said back; the question asked comes again", async () => {
+  const c = three({ hotelId: "taj_kuttikkanam" });
+  await c.say("Book a room at Taj Hotel from October 25 to October 27 for two adults");
+  const out = await c.say("Normal");
+  assert.equal(out.handled, true);
+  assert.equal(c.decoded().roomType, "Normal");
+  assert.match(out.reply, /^Got it — Normal rooms\. What time do you expect to arrive\?/);
+  const next = await c.say("2 PM");
+  assert.equal(next.ui.panel.type, "rooms", "straight on to the available rooms");
+});
+
+test("a short reply that isn't an answer re-asks the booking question instead of chatting", async () => {
+  for (const hotelId of ["misty_mountain", "royal_kuttikkanam"]){
+    const c = three({ hotelId });
+    await c.say("Book a room from October 25 to October 27 for two adults");
+    const out = await c.say("blue banana");
+    assert.equal(out.handled, true, hotelId);
+    assert.equal(out.intent, "booking");
+    assert.match(out.reply, /^Sorry, I didn't catch that\. .*What time do you expect to arrive\?/);
+    assert.ok(out.ui.options.length > 1, "with the question's own options");
+  }
+});
+
+test("a real question mid-booking at Misty Mountain still goes to the knowledge base", async () => {
+  const c = three();
+  await c.say("Book a room from October 25 to October 27 for two adults");
+  const out = await c.say("Do you serve breakfast?");
+  assert.equal(out.handled, false);
+  assert.equal(out.bookingActive, true);
+});

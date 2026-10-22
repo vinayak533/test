@@ -821,10 +821,15 @@ async function respond(st, ctx, { applied, notes, error }, { intro = false } = {
   const ORDER = ["checkIn", "arrival", "checkOut", "nights", "guests", "rooms", "roomType"];
   const shown = applied.filter(k => k !== "departure").sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
   // A changed answer is always read back, even on its own, so a misheard
-  // date is seen before anything is held.
+  // date is seen before anything is held. So is an answer to a question not
+  // yet asked ("Normal" while the arrival time was asked): it is kept, said
+  // back, and the question that was asked comes again.
   const changed = st.changing && shown.includes(st.changing);
+  const ASKED = { checkIn: ["checkIn"], arrivalTime: ["arrival"], checkOut: ["checkOut", "nights"],
+                  party: ["guests", "rooms"], guests: ["guests"], rooms: ["rooms"], roomType: ["roomType"] };
+  const ahead = shown.length === 1 && ASKED[st.asked] && !ASKED[st.asked].includes(shown[0]);
   delete st.changing;
-  if (shown.length >= 2 || changed){
+  if (shown.length >= 2 || changed || ahead){
     prefix = `Got it — ${F.list(shown.map(k => SLOT_LABEL[k](st)))}.`;
     if (intro) prefix = `I'd be happy to help you book at ${ctx.hotel.name}. ${prefix}`;
   } else {
@@ -835,7 +840,7 @@ async function respond(st, ctx, { applied, notes, error }, { intro = false } = {
   const step = nextStep(st);
   // The arrival question carries its own "Great!"; avoid "Got it … Great!".
   const r = await ask(st, ctx, prefix, { intro: intro && !shown.length });
-  if (step === "arrivalTime" && shown.length >= 2) r.reply = r.reply.replace("Great! ", "");
+  if (step === "arrivalTime" && (shown.length >= 2 || changed || ahead)) r.reply = r.reply.replace("Great! ", "");
   return r;
 }
 
@@ -1043,4 +1048,12 @@ async function handleAction(st, action, ctx){
   throw new ActionError("invalid_action");
 }
 
-module.exports = { start, handleText, handleAction, readAction, nextStep, ActionError, preselect, report };
+/* The booking's current question again, with its options, after `prefix`:
+   what a turn mid-booking ends with when the message was not an answer. */
+async function askAgain(st, ctx, prefix){
+  const r = await ask(st, ctx, prefix);
+  if (prefix) r.reply = r.reply.replace(prefix + " Great! ", prefix + " ");   // not "Sorry … Great!"
+  return r;
+}
+
+module.exports = { start, handleText, handleAction, readAction, nextStep, ActionError, preselect, report, askAgain };

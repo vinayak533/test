@@ -62,6 +62,14 @@ function pickHotel(hotels, config, st, wanted){
 
 const startAt = hotel => ({ type: "start", hotelId: hotel.id });
 
+/* Mid-booking, a few words with no question in them ("nromal", "the
+   second one") are an attempt at an answer, not a question. */
+const QUESTION_WORD = /^\s*(what|how|is|are|do|does|can|could|where|when|why|which|who|will|would|should|may|tell|show|any)\b/i;
+function looksLikeAnswer(message){
+  const words = message.trim().split(/\s+/).filter(Boolean);
+  return words.length <= 4 && !message.includes("?") && !QUESTION_WORD.test(message);
+}
+
 async function handleChat(input, deps){
   const { config, repo, jev, log, codec } = deps;
   const now = deps.now ? deps.now() : new Date();
@@ -196,6 +204,12 @@ async function handleChat(input, deps){
     try { r = await flow.handleText(st, message, ctx); }
     catch (e){ return guarded(() => { throw e; }, { ...qtag, intent: "booking" }); }
     if (r) return finish(r, { ...qtag, intent: "booking" });
+    // A short reply the flow could not read is a missed answer — a typo, or
+    // a word speech-to-text got wrong — not a question for the knowledge
+    // base: the booking question comes again rather than a chat reply.
+    if (quick.intent.name === "general_question" && looksLikeAnswer(message)){
+      return guarded(() => flow.askAgain(st, ctx, "Sorry, I didn't catch that."), { ...qtag, intent: "booking" });
+    }
   }
 
   let nlu;
@@ -251,6 +265,9 @@ async function handleChat(input, deps){
   // place.
   const bookingActive = !!(st && st.flow === "booking");
   if (ctx.hotel.id !== config.defaultHotelId){
+    // Mid-booking, the booking's own question follows straight on, so the
+    // conversation stays a booking.
+    if (bookingActive) return guarded(() => flow.askAgain(st, ctx, R.limitedInfo(ctx.hotel)), tag);
     return finish({ kind: "answer", reply: R.limitedInfo(ctx.hotel),
                     ui: { options: [bookingActive
                       ? { label: "Continue booking", action: { type: "resume" }, tone: "primary" }
