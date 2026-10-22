@@ -5,7 +5,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { conversation, fakeRepo, optionLabels, option, uuid } = require("./helpers");
+const { conversation, fakeRepo, optionLabels, option, uuid, CONFIG } = require("./helpers");
 
 const confirmed = (room, check_in, check_out, extra = {}) =>
   ({ ref: "MM-OLD" + room, room_id: uuid(room), check_in, check_out, status: "confirmed", num_guests: 2, price: 2500, total_price: 5000, ...extra });
@@ -51,7 +51,7 @@ test("ask only for what is missing: one rich message skips straight ahead", asyn
   const c = conversation();
   const out = await c.say("I want to book 2 luxury rooms from Oct 20 to 22 for 4 guests, arriving at 2pm");
   assert.equal(out.ui.panel.type, "rooms", "goes straight to live availability");
-  assert.match(out.reply, /Got it — check-in Tue 20 Oct, arriving around 2:00 PM, check-out Thu 22 Oct, 4 guests, 2 rooms and Luxury rooms/);
+  assert.match(out.reply, /Got it — check-in Tue 20 Oct, arriving around 2:00 PM, check-out Thu 22 Oct, 4 guests and 2 Luxury rooms/);
   const st = c.decoded();
   assert.deepEqual([st.checkIn, st.checkOut, st.arrival, st.guests, st.rooms, st.roomType], ["2026-10-20", "2026-10-22", "14:00", 4, 2, "Luxury"]);
 });
@@ -397,4 +397,62 @@ test("malformed actions are rejected outright", async () => {
   ]){
     await assert.rejects(c.tap(bad), InputError, JSON.stringify(bad));
   }
+});
+
+/* ---- one spoken sentence, every detail kept -------------------------------- */
+
+test("'book a luxury room from today for two days for three adults' asks only the arrival time", async () => {
+  const c = conversation();
+  const out = await c.say("Book a luxury room from today for two days for three adults.");
+  assert.match(out.reply, /Got it — check-in Fri 16 Oct, check-out Sun 18 Oct, 3 adults and 1 Luxury room\./);
+  assert.match(out.reply, /What time do you expect to arrive\?/);
+  const st = c.decoded();
+  assert.deepEqual([st.checkIn, st.checkOut, st.guests, st.adults, st.rooms, st.roomType], ["2026-10-16", "2026-10-18", 3, 3, 1, "Luxury"]);
+
+  const next = await c.say("3 pm");
+  assert.equal(next.ui.panel.type, "rooms", "straight on to live availability");
+  assert.equal(next.ui.panel.nights, 2);
+  assert.equal(next.ui.panel.party, "3 adults");
+  assert.ok(next.ui.panel.available.every(r => r.type === "Luxury"));
+  assert.ok(!c.repo.calls.some(([k]) => k === "hold" || k === "confirm"), "nothing held or booked");
+});
+
+test("adults and children are kept apart, and a correction keeps the other half", async () => {
+  const c = conversation();
+  let out = await c.say("a normal room tomorrow for 2 nights for 1 adult and 1 child");
+  assert.match(out.reply, /1 adult and 1 child and 1 Normal room/);
+  out = await c.say("actually make it 2 adults");
+  assert.match(out.reply, /Got it — 2 adults and 1 child\./);
+  const st = c.decoded();
+  assert.deepEqual([st.guests, st.adults, st.children, st.checkIn, st.checkOut], [3, 2, 1, "2026-10-17", "2026-10-19"]);
+  out = await c.say("3 guests");
+  assert.match(out.reply, /Got it — 3 guests\./);
+  assert.equal(c.decoded().adults, undefined, "a plain head count replaces the split");
+});
+
+/* ---- one message, start to finish ------------------------------------------- */
+
+test("one message carries the whole booking: book, then confirm — nothing asked twice", async () => {
+  const c = conversation({ config: { ...CONFIG, bookingRequiresSignIn: true },
+                           user: { id: "11111111-2222-4333-8444-555555555555", name: "Account Holder", email: "holder@example.com" } });
+  let out = await c.say("Book a luxury room from tomorrow for two nights for 2 adults and 1 child, arriving at 3 pm. My name is Asha Nair, phone 98470 12345, email asha.nair@example.com");
+  assert.match(out.reply, /2 adults and 1 child and 1 Luxury room/);
+  assert.match(out.reply, /Booking contact: Asha Nair, \+919847012345, asha\.nair@example\.com\./);
+  assert.equal(out.ui.panel.type, "rooms");
+  assert.equal(c.repo.res.length, 0, "nothing held by the message itself");
+
+  out = await c.tap({ type: "book", roomIds: out.ui.panel.selected });
+  assert.equal(out.ui.panel.stage, "review", "straight to the summary: the guest's details are already known");
+  assert.equal(out.ui.form, undefined, "no form asking for them again");
+  assert.deepEqual(out.ui.panel.guest, { name: "Asha Nair", phone: "+919847012345", email: "asha.nair@example.com" });
+  assert.equal((out.reply.match(/until 11:45 AM/g) || []).length, 1, "the hold's end is said once");
+  assert.equal(c.repo.res[0].status, "held");
+
+  out = await c.tap(option(out, /^Confirm booking$/).action);
+  assert.equal(out.ui.panel.stage, "confirmed");
+  assert.equal(out.ui.panel.totalLabel, "₹9,000");
+  assert.equal(out.ui.panel.party, "2 adults and 1 child");
+  const row = c.repo.res[0];
+  assert.deepEqual([row.status, row.check_in, row.check_out, row.num_guests, row.guest_name, row.guest_phone, row.guest_email],
+    ["confirmed", "2026-10-17", "2026-10-19", 3, "Asha Nair", "+919847012345", "asha.nair@example.com"]);
 });

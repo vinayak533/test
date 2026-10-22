@@ -95,3 +95,15 @@ test("invalid dates are reported with a reason", () => {
   assert.equal(stay("from 20 oct to 15 dec"), "invalid:too_long");
   assert.equal(stay("1 jan 2030"), "invalid:too_far");
 });
+
+test("days as a length of stay, and as a start", () => {
+  assert.deepEqual(stay("from today for two days"), ["2026-10-16", "2026-10-18"]);
+  assert.deepEqual(stay("tomorrow for 3 days"), ["2026-10-17", "2026-10-20"]);
+  assert.deepEqual(stay("a 2-day stay from tomorrow"), ["2026-10-17", "2026-10-19"]);
+  assert.deepEqual(stay("tonight, for a day"), ["2026-10-16", "2026-10-17"]);
+  assert.deepEqual(stay("in 3 days"), ["2026-10-19", "2026-10-20"]);
+  assert.deepEqual(stay("2 days from now for two nights"), ["2026-10-18", "2026-10-20"]);
+  assert.deepEqual(stay("after two days, for 3 days"), ["2026-10-18", "2026-10-21"]);
+  assert.deepEqual(stay("3 days and 2 nights from tomorrow"), ["2026-10-17", "2026-10-19"], "nights win over days");
+  assert.equal(stay("is there a day pass?"), "missing:");
+});

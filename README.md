@@ -1,12 +1,13 @@
 # Kuttikkanam Hotel Agency — agency dashboard and booking ChatBot
 
-A hotel management agency platform, backed by Supabase. The agency manages
-three client hotels in Kuttikkanam, Kerala — **Misty Mountain**, **Royal
-Hotel** and **Taj Hotel**, ten rooms each — from one dashboard, while each
-hotel's rooms, rates, guests and bookings stay its own. Guests check real
-availability and book a room at any of the three through one shared ChatBot;
-the agency sees every client side by side, and a hotel's own manager sees only
-that hotel.
+A hotel management agency platform, backed by Supabase. It serves one
+hotel, **Misty Mountain** in Kuttikkanam, Kerala — ten rooms — where guests
+check real availability and book through the ChatBot, and staff run the
+front desk from the dashboard. The platform is multi-hotel underneath: Royal
+Hotel and Taj Hotel (006) are still in the database but switched off by
+`007_misty_mountain_only.sql`, so they appear nowhere and cannot be booked;
+setting `is_active` back to true brings one back, with the agency view, per-hotel
+managers and hotel pickers described below.
 
 The agency is the parent organisation (`agencies`) and every hotel is one of
 its clients (`hotels.agency_id`). Rooms, guests and reservations were already
@@ -155,6 +156,7 @@ answer says so and points at the reception number.
 | `004_security.sql` | RLS scoped to the hotels each user may manage, grants (including a hotel's editable contact details), the `guest_summaries` view, Realtime publication. |
 | `005_guest_accounts.sql` | Guest accounts: `room_board`, `my_bookings`, `cancel_my_booking`, and `inventory_pulse` (the change signal the guest area listens to). `reservations.user_id` (in `001`) links a booking to the account that made it. |
 | `006_seed_kuttikkanam_hotels.sql` | Royal Hotel (`royal_kuttikkanam`) and Taj Hotel (`taj_kuttikkanam`), rooms 1–10 each. Same re-run rules as `002`. Contact details are left empty for the admin to fill in. |
+| `007_misty_mountain_only.sql` | Switches Royal Hotel and Taj Hotel off (`is_active = false`): listed nowhere, never bookable, rooms and history kept. Re-running `006` never turns them back on. |
 
 Seeded inventory, ten rooms per hotel, each sleeping up to 3:
 

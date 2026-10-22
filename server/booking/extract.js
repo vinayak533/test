@@ -9,7 +9,7 @@
    extract(text, { today, step }) →
      { checkIn?, checkOut?, nights?, dates: [...], badDate?,
        arrival?, departure?, times: [...],
-       guests?, rooms?, roomType?, roomNumbers?: [...],
+       guests?, adults?, children?, rooms?, roomType?, roomNumbers?: [...],
        email?, phone?, badPhone?, name? }
    ============================================================================ */
 
@@ -66,14 +66,24 @@ const DEPARTURE_CUE = /\b(check(?:ing)?[\s-]?out|leav\w*|depart\w*)\b/;
 
 /* ---- people and rooms ----------------------------------------------------- */
 
-function readGuests(s){
-  let total = 0, found = false;
+/* The party: a head count, and the adults and children in it where the
+   guest said so ("three adults and a child") — kept apart so they can be
+   read back as said, and so "make it 2 adults" keeps the children. */
+function readParty(s){
   const adults = s.match(new RegExp(`\\b${NUM}\\s+(?:adults?|grown[\\s-]?ups?)\\b`));
   const kids   = s.match(new RegExp(`\\b${NUM}\\s+(?:kids?|child(?:ren)?|infants?|bab(?:y|ies)|toddlers?)\\b`));
-  if (adults){ total += toNum(adults[1]); found = true; }
-  if (kids){ total += toNum(kids[1]); found = true; }
-  if (found) return total;
+  if (adults || kids){
+    const out = {};
+    if (adults) out.adults = toNum(adults[1]);
+    if (kids) out.children = toNum(kids[1]);
+    out.guests = (out.adults || 0) + (out.children || 0);
+    return out;
+  }
+  const guests = readGuests(s);
+  return guests ? { guests } : null;
+}
 
+function readGuests(s){
   const plain = s.match(new RegExp(`\\b${NUM}\\s+(?:guests?|people|persons?|pax|travell?ers|members|of us|ppl)\\b`));
   if (plain) return toNum(plain[1]);
   const family = s.match(/\b(?:family|group|party) of (\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\b/);
@@ -157,6 +167,9 @@ function readPhone(s){
 const NAME_OK = /^[\p{L}][\p{L}\p{M}'’. -]{1,79}$/u;
 const QUESTION_START = /^(what|how|is|are|do|does|can|could|where|when|why|which|will|would|should|may|tell|show|any)\b/i;
 
+const NAME_CUE = /\b(?:my name is|my name's|name is|name:|under the name(?: of)?)\s+([\p{L}][\p{L}\p{M}'’.,-]*(?:\s+[\p{L}][\p{L}\p{M}'’.,-]*){0,5})/iu;
+const NAME_STOP = /^(?:and|phone|mobile|email|e-mail|number|contact|my|with|from|arriving|for|at|on|please|i|we)$/i;
+
 function cleanName(raw){
   let s = String(raw || "").replace(/\s+/g, " ").trim();
   s = s.replace(/^(?:hi|hello|hey)[,!. ]+/i, "")
@@ -201,6 +214,21 @@ function extract(text, { today, step = null } = {}){
   if (step === "guest" || /\b(phone|mobile|number|contact|whatsapp|call me)\b/.test(s)){
     const ph = readPhone(s);
     if (ph){ if (ph.phone) out.phone = ph.phone; else out.badPhone = true; s = s.replace(ph.raw, " "); }
+  }
+  // Before the guest step a name is read only where it is introduced as one
+  // ("my name is Asha Nair"), so a booking said in one breath keeps it.
+  if (step !== "guest"){
+    const m = said.match(NAME_CUE);
+    if (m){
+      const words = [];
+      for (const w of m[1].split(/\s+/)){
+        if (NAME_STOP.test(w.replace(/[.,;:!]+$/, ""))) break;
+        words.push(w);
+        if (/[.,;:!]$/.test(w)) break;
+      }
+      const n = cleanName(words.join(" "));
+      if (n) out.name = n;
+    }
   }
   if (step === "guest"){
     const rest = said.replace(email ? email[0] : "", " ")
@@ -272,8 +300,8 @@ function extract(text, { today, step = null } = {}){
 
   const rooms = readRooms(s);
   if (rooms) out.rooms = rooms;
-  const guests = readGuests(s);
-  if (guests) out.guests = guests;
+  const party = readParty(s);
+  if (party) Object.assign(out, party);
 
   // A bare number answers the question that was just asked.
   const bare = s.match(/^\s*(?:just\s+|only\s+)?(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:please|pls)?[.!]?\s*$/);

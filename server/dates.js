@@ -29,6 +29,7 @@ const THE = "(?:the\\s+)?";
 const TO = "\\s*(?:-|–|to|till|until|through)\\s*";
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const WORD_NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+const NUM_WORD = "(\\d{1,3}|a|an|one|two|three|four|five|six|seven|eight|nine|ten)";
 
 /* ---- civil-date arithmetic, all in UTC so DST never shifts a day ------- */
 
@@ -145,6 +146,13 @@ function rangeIn(today, d1, d2, m, y){
    phrase implies one ("this weekend" is Friday and Saturday night). */
 function relativeStart(s, today){
   if (/\bday after tomorrow\b/.test(s)) return { day: addDays(today, 2) };
+  // "in 3 days", "after two days", "3 days from now" — when the stay starts,
+  // not how long it lasts (nightsAsked leaves these alone).
+  const off = s.match(new RegExp(`\\b(?:in|after)\\s+${NUM_WORD}\\s+days?\\b|\\b${NUM_WORD}\\s+days?\\s+(?:from now|later|from today)\\b`));
+  if (off){
+    const n = WORD_NUM[off[1] || off[2]] || Number(off[1] || off[2]);
+    if (n >= 1 && n <= 540) return { day: addDays(today, n) };
+  }
   if (/\b(tonight|today|this (?:evening|night)|right now|now|currently|at the moment)\b/.test(s)) return { day: today };
   if (/\btomorrow\b/.test(s)) return { day: addDays(today, 1) };
 
@@ -172,6 +180,17 @@ function nightsAsked(s){
   if (m) return WORD_NUM[m[1]] || Number(m[1]);
   const w = s.match(/\b(a|one|two|1|2)\s+weeks?\b/);
   if (w) return 7 * (WORD_NUM[w[1]] || Number(w[1]));
+  // "for two days", "a 3-day stay": a hotel day is a night, so two days from
+  // today is check-out the day after tomorrow. Not "in 2 days" or "2 days
+  // from now" — those say when the stay starts (relativeStart).
+  const days = new RegExp(`\\b${NUM_WORD}[\\s-]+days?\\b(?!\\s+(?:from now|later|from today|ago|pass(?:es)?|tours?|tickets?|trips?|visits?|outings?)\\b)`, "g");
+  for (const m of s.matchAll(days)){
+    const before = s.slice(0, m.index);
+    if (/\b(?:in|after|within)\s+$/.test(before)) continue;
+    // "a day" is a stay only as "for a day"; "a day pass" is not.
+    if ((m[1] === "a" || m[1] === "an") && !/\bfor\s+$/.test(before)) continue;
+    return WORD_NUM[m[1]] || Number(m[1]);
+  }
   return null;
 }
 

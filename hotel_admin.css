@@ -93,7 +93,7 @@ body{ background: var(--mm-ground); color: var(--mm-ink); font-family: var(--san
    purple primary now, so every page keeps its emphasis without new markup. */
 .mm-btn--gold, .mm-btn--navy{ background: var(--mm-purple-600); color: #fff; }
 .mm-btn--gold:hover:not(:disabled), .mm-btn--navy:hover:not(:disabled){ background: var(--mm-purple-700); }
-.mm-btn--gold{ box-shadow: 0 8px 20px rgba(124,47,218,.24); }
+.mm-btn--gold{ box-shadow: 0 1px 2px rgba(20,20,20,.08); }
 .mm-btn--outline{ background: var(--mm-card); color: var(--mm-ink); border-color: var(--mm-field); }
 .mm-btn--outline:hover{ border-color: var(--mm-purple-300); color: var(--mm-purple-600); }
 .mm-btn--soft{ background: var(--mm-purple-50); color: var(--mm-purple-600); border-color: var(--mm-purple-300); border-radius: 999px; }
@@ -139,47 +139,39 @@ body{ background: var(--mm-ground); color: var(--mm-ink); font-family: var(--san
 }
 .mm-crest--sm{ width: 40px; height: 40px; border-radius: 12px; box-shadow: none; }
 /* The GXP logo carries its own black and purple, so it sits on white. */
-.mm-crest--logo{ background: #fff; border: 1px solid var(--mm-line); box-shadow: 0 8px 18px rgba(124,47,218,.12); }
+.mm-crest--logo{ background: #fff; border: 1px solid var(--mm-line); box-shadow: 0 1px 2px rgba(20,20,20,.04); }
 .mm-crest--sm.mm-crest--logo{ box-shadow: none; }
 
 /* ================================================================= GATE ==== */
 .mm-gate{ min-height: 100vh; display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); background: var(--mm-ground); }
+/* The landing: a plain white column — mark, name, one line about the
+   product, then the ChatBot — beside the sign-in card on the grey ground. */
 .mm-gate__brand{
-  position: relative; overflow: hidden;
-  background:
-    radial-gradient(900px 520px at 0% 0%, rgba(182,139,235,.22), transparent 60%),
-    radial-gradient(700px 420px at 100% 100%, rgba(204,255,209,.45), transparent 60%),
-    #FFFFFF;
+  position: relative; overflow: hidden; background: #FFFFFF;
   color: var(--mm-ink); padding: clamp(2rem, 5vw, 4.5rem);
-  display: flex; flex-direction: column; justify-content: center; gap: 1.2rem;
+  display: flex; flex-direction: column; justify-content: center; gap: 1rem;
   border-right: 1px solid var(--mm-line);
 }
 .mm-gate__brand > *{ position: relative; z-index: 1; max-width: 620px; }
-.mm-gate__title{ margin: 0; font-family: var(--sans); font-weight: 700; font-size: clamp(2.4rem, 4.6vw, 3.8rem); line-height: 1.05; letter-spacing: -.03em; color: var(--mm-ink); }
+.mm-gate__title{ margin: .4rem 0 0; font-family: var(--sans); font-weight: 700; font-size: clamp(2.2rem, 4.2vw, 3.4rem); line-height: 1.05; letter-spacing: -.035em; color: var(--mm-ink); }
 .mm-gate__title em{ color: var(--mm-purple-600); font-style: normal; }
-.mm-gate__lede{ margin: 0; font-size: 1.05rem; line-height: 1.6; color: var(--mm-ink-2); max-width: 46ch; }
-.mm-gate__facts{ display: flex; flex-wrap: wrap; gap: .75rem; margin: .4rem 0; }
-.mm-gate__facts div{
-  display: grid; gap: .15rem; padding: .7rem 1rem; min-width: 150px;
-  background: var(--mm-card); border: 1px solid var(--mm-line); border-radius: 16px;
-}
-.mm-gate__facts dt{ font-size: .78rem; font-weight: 600; color: var(--mm-ink-3); }
-.mm-gate__facts dd{ margin: 0; font-weight: 700; color: var(--mm-ink); }
+.mm-gate__lede{ margin: 0; font-size: 1.06rem; line-height: 1.6; color: var(--mm-ink-2); max-width: 44ch; }
 
 .mm-desk{
-  margin-top: .8rem; padding: 1.5rem; border-radius: var(--mm-r-lg);
-  background: var(--mm-card); border: 1px solid var(--mm-line); box-shadow: var(--mm-shadow);
+  margin-top: 1.4rem; padding: clamp(1.25rem, 3vw, 1.75rem); border-radius: var(--mm-r-lg);
+  background: var(--mm-card); border: 1px solid var(--mm-line);
 }
-.mm-desk__title{ margin: 0 0 .3rem; font-family: var(--sans); font-weight: 700; font-size: 1.35rem; letter-spacing: -.01em; color: var(--mm-ink); }
-.mm-desk__text{ margin: 0 0 1.1rem; color: var(--mm-ink-2); font-size: .95rem; }
-.mm-desk__label{ margin: 1.2rem 0 .6rem; font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mm-ink-3); }
+.mm-desk__title{ margin: 0 0 .35rem; font-family: var(--sans); font-weight: 700; font-size: 1.25rem; letter-spacing: -.015em; color: var(--mm-ink); }
+.mm-desk__text{ margin: 0 0 1.25rem; color: var(--mm-ink-2); font-size: .95rem; line-height: 1.6; }
+.mm-desk__label{ margin: 1.5rem 0 .65rem; font-size: .82rem; font-weight: 600; color: var(--mm-ink-3); }
 .mm-enq{ list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
 .mm-enq .enq__btn{
   font: inherit; font-size: .86rem; font-weight: 500; color: var(--mm-ink); cursor: pointer;
   padding: .5rem .95rem; min-height: 38px; border-radius: 999px;
   background: var(--mm-card); border: 1px solid var(--mm-field);
+  transition: background .15s ease, border-color .15s ease;
 }
-.mm-enq .enq__btn:hover{ border-color: var(--mm-purple-300); color: var(--mm-purple-600); background: var(--mm-purple-50); }
+.mm-enq .enq__btn:hover{ border-color: #C8C8CF; background: #F2F2F4; }
 
 .mm-gate__panel{ display: grid; place-items: center; padding: clamp(1.5rem, 5vw, 4rem); background: var(--mm-ground); }
 .mm-signin{
@@ -195,7 +187,7 @@ body{ background: var(--mm-ground); color: var(--mm-ink); font-family: var(--san
 .mm-auth{
   width: min(460px, 100%); display: grid; gap: 1rem;
   background: var(--mm-card); border: 1px solid var(--mm-line); border-radius: 24px;
-  padding: clamp(1.4rem, 4vw, 2.2rem); box-shadow: 0 12px 40px rgba(20,20,20,.06);
+  padding: clamp(1.4rem, 4vw, 2.2rem); box-shadow: 0 1px 3px rgba(20,20,20,.04), 0 8px 32px rgba(20,20,20,.05);
 }
 .mm-auth .mm-eyebrow, .mm-auth .mm-signin__title{ margin-bottom: 0; }
 .mm-auth .mm-signin{ width: 100%; background: none; border: 0; padding: 0; box-shadow: none; gap: .95rem; }

@@ -48,7 +48,8 @@ test("times: 12-hour, 24-hour, noon, vague words only when asked", () => {
 
 test("guests and rooms", () => {
   assert.deepEqual(x("4 guests, 2 rooms", "party"), { guests: 4, rooms: 2 });
-  assert.deepEqual(x("2 adults and 1 child", "party"), { guests: 3 });
+  assert.deepEqual(x("2 adults and 1 child", "party"), { guests: 3, adults: 2, children: 1 });
+  assert.deepEqual(x("for three adults", "party"), { guests: 3, adults: 3 });
   assert.equal(x("a couple", "party").guests, 2);
   assert.equal(x("just me", "party").guests, 1);
   assert.equal(x("family of five", "party").guests, 5);
@@ -98,4 +99,11 @@ test("names", () => {
   assert.equal(cleanName("Priya Sharma"), "Priya Sharma");
   assert.equal(cleanName("R2D2"), null);
   assert.equal(cleanName("what is the price?"), null);
+});
+
+test("a name introduced as one is read before the guest step", () => {
+  assert.equal(x("2 rooms tomorrow. My name is Asha Nair, phone 98470 12345").name, "Asha Nair");
+  assert.equal(x("my name is asha nair and my email is a@b.co").name, "Asha Nair");
+  assert.equal(x("book under the name Ravi Menon please").name, "Ravi Menon");
+  assert.equal(x("I am looking for a room tomorrow").name, undefined, "no cue, no name");
 });
