@@ -128,12 +128,12 @@ function fakeRepo({ reservations = [], rooms = ROOMS, hotels = [HOTEL], roomsByH
 }
 
 /* A conversation driver over handleChat: keeps the state token like the page does. */
-function conversation({ repo = fakeRepo(), jev = null, config = CONFIG, now = NOW, user = null, authError = false, hotelId } = {}){
+function conversation({ repo = fakeRepo(), jev = null, config = CONFIG, now = NOW, user = null, authError = false, hotelId, progress } = {}){
   const { handleChat } = require("../server/chat");
   const codec = createStateCodec("test-secret-test-secret", { now: () => now().getTime() });
   const log = memoryLogger();
   let state = null;
-  const deps = { config, repo, jev, log, codec, now, user, authError };
+  const deps = { config, repo, jev, log, codec, now, user, authError, progress };
   // The hotel the page has selected; it follows the replies, as the page does.
   let selected = hotelId;
   async function send(input){

@@ -1,7 +1,8 @@
 /* ============================================================================
    server/app.js — HTTP-agnostic request handling.
 
-     POST /api/chat     one guest turn (handleRequest)
+     POST /api/chat     one guest turn (handleRequest); with Accept:
+                        application/x-ndjson its steps stream first
      GET  /api/config   the public Supabase URL and anon key, for the admin
                         dashboard's sign-in (handleConfig)
      GET  /api/hotels   the active hotels' ids and names, for the page's
@@ -97,10 +98,17 @@ async function resolveUser(headers, repo, log){
   }
 }
 
+/* The steps a turn can report while it runs (see booking/flow.js report()).
+   The page shows each as it arrives — "Checking room availability…" — so
+   only steps that really run are ever named. */
+const STAGES = new Set(["understand", "rooms", "availability", "matching", "options", "hold", "confirm", "lookup"]);
+
 /**
- * handleRequest({ method, headers, bodyText, clientIp }) → { status, body, headers? }
+ * handleRequest({ method, headers, bodyText, clientIp, onProgress? }) → { status, body, headers? }
+ *   onProgress(stage) is called as the turn reaches each of STAGES, before
+ *   the result; a caller that cannot stream simply leaves it out.
  */
-async function handleRequest({ method, headers = {}, bodyText = "", clientIp = "unknown" }){
+async function handleRequest({ method, headers = {}, bodyText = "", clientIp = "unknown", onProgress }){
   const requestId = crypto.randomUUID();
   let svc;
   try { svc = services(); }
@@ -132,6 +140,7 @@ async function handleRequest({ method, headers = {}, bodyText = "", clientIp = "
     const out = await handleChat(
       { message: input.message, action: input.action, state: input.state, hotelId: input.hotelId, lang: sanitizeLang(input.lang) },
       { ...svc, log, user, authError,
+        progress: typeof onProgress === "function" ? stage => { if (STAGES.has(stage)) onProgress(stage); } : undefined,
         lookupLimited: () => lookupFails.over(clientIp),
         lookupFailed:  () => lookupFails.add(clientIp) }
     );
@@ -234,7 +243,7 @@ const transcribes = windowCounter(TRANSCRIBE_RATE);
  *   POST → { text } (audio/wav, 16 kHz mono 16-bit, at most 30 s)
  */
 async function handleTranscribe({ method, headers = {}, body = Buffer.alloc(0), clientIp = "unknown" }){
-  const { parseWav, MAX_SECONDS, MAX_WAV_BYTES } = require("./stt/wav");
+  const { parseWav, normalizeWav, MAX_SECONDS, MAX_WAV_BYTES } = require("./stt/wav");
   const stt = transcriber();
 
   if (method === "GET"){
@@ -258,9 +267,13 @@ async function handleTranscribe({ method, headers = {}, body = Buffer.alloc(0), 
 
   const log = createLogger({ svc: "stt", requestId: crypto.randomUUID() });
   const started = Date.now();
+  // A quiet microphone is brought up to a standard level first (wav.js).
+  // Only the level is logged, never the audio.
+  const { wav, peak, gain } = normalizeWav(body, info);
   try {
-    const text = await stt.transcribe(body, info.seconds);
-    log.info("stt.done", { ms: Date.now() - started, seconds: Number(info.seconds.toFixed(2)), chars: text.length });
+    const text = await stt.transcribe(wav, info.seconds);
+    log.info("stt.done", { ms: Date.now() - started, seconds: Number(info.seconds.toFixed(2)), chars: text.length,
+                           peakDb: peak > 0 ? Math.round(20 * Math.log10(peak)) : null, gain: Number(gain.toFixed(1)) });
     return { status: 200, body: { text } };
   } catch (e){
     const code = e.code === "stt_busy" || e.code === "stt_unavailable" ? e.code : "stt_failed";
@@ -279,4 +292,12 @@ function warmTranscriber(){
   return true;
 }
 
-module.exports = { handleRequest, handleConfig, handleHotels, handleTranscribe, warmTranscriber, setTranscriber, isPublicKey };
+/* ---- progress over one response ---------------------------------
+   A page that sends "Accept: application/x-ndjson" gets the turn as it
+   happens: one {"stage":"…"} line per step, then {"status","body"} with
+   exactly what the plain JSON response would have carried. Anything
+   refused before the turn starts (415, 429, …) never streams, so its
+   status and headers reach the page unchanged. */
+const wantsProgress = headers => /application\/x-ndjson/i.test(String(headers.accept || headers.Accept || ""));
+
+module.exports = { handleRequest, handleConfig, handleHotels, handleTranscribe, warmTranscriber, setTranscriber, isPublicKey, wantsProgress, STAGES };

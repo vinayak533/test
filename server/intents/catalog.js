@@ -51,6 +51,8 @@ const INTENTS = [
       `\\b(?:book|reserve)\\s+(?:me\\s+|us\\s+)?(?:a\\s+|an\\s+|the\\s+|one\\s+|two\\s+|three\\s+|\\d+\\s+)?(?:(?:normal|luxury|standard|deluxe|double|single|twin|family)\\s+)?(?:rooms?|stay|accommodation|nights?)\\b`,
       `\\bi(?:'d| would)? (?:like|want|wish) to (?:book|reserve|make a (?:booking|reservation))\\b(?!\\s+(?:a|an|the)?\\s*${NOT_A_ROOM})`,
       `\\bmake a (?:room )?(?:booking|reservation)\\b`,
+      // "I need a room at Royal Hotel for two nights", as people say it aloud.
+      `\\b(?:i|we) (?:need|want|would like|'d like|am looking for|are looking for|'m looking for|'re looking for) (?:a|an|one|two|three|\\d+) (?:(?:normal|luxury|standard|deluxe|double|single|twin|family) )?rooms?\\b(?! service)`,
       `\\b(?:how|where) (?:do|can) (?:i|we) (?:book|reserve)\\b(?!\\s+(?:a|an|the)?\\s*${NOT_A_ROOM})`,
       `\\b(?:can|could|may) (?:i|we) (?:book|reserve)\\b(?!\\s+(?:a|an|the)?\\s*${NOT_A_ROOM})`,
       `\\b(?:room )?booking for\\b`,

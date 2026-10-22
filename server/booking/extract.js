@@ -90,11 +90,14 @@ function readRooms(s){
   return m ? toNum(m[1]) : null;
 }
 
-/* "room 3", "rooms 3 and 5", "#7" — specific rooms from the list we showed. */
+/* "room 3", "rooms 3 and 5", "#7" — specific rooms from the list we showed.
+   Spoken, the number may come back as a word: "room seven". */
+const ROOM_NO = "(?:\\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)";
+const ROOM_NOS_RE = new RegExp(`\\b(?:rooms?|no\\.?|number|#)\\s*#?\\s*(${ROOM_NO}(?:\\s*(?:,|and|&|\\+)\\s*#?\\s*${ROOM_NO})*)\\b`);
 function readRoomNumbers(s){
-  const m = s.match(/\b(?:rooms?|no\.?|number|#)\s*#?\s*(\d{1,2}(?:\s*(?:,|and|&|\+)\s*#?\s*\d{1,2})*)\b/);
+  const m = s.match(ROOM_NOS_RE);
   if (!m) return null;
-  return [...new Set(m[1].match(/\d{1,2}/g).map(Number))];
+  return [...new Set(m[1].match(new RegExp(`\\b${ROOM_NO}\\b`, "g")).map(toNum))];
 }
 
 function readRoomType(s, step){
@@ -113,6 +116,18 @@ function readRoomType(s, step){
 /* ---- contact details ------------------------------------------------------ */
 
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/i;
+
+/* An address as speech-to-text writes it: "asha at example dot com",
+   "asha.nair at the rate gmail.com". Read only where an address is what
+   was asked for, so "arriving at 2" is never taken for one. */
+const SPOKEN_EMAIL_RE = /\b([a-z0-9][a-z0-9._-]*)\s+(?:at the rate(?: of)?|at)\s+([a-z0-9-]+(?:\s*(?:\.|\bdot\b)\s*[a-z0-9-]+)+)\b/i;
+function spokenEmail(s){
+  const m = s.match(SPOKEN_EMAIL_RE);
+  if (!m) return null;
+  const email = (m[1] + "@" + m[2].replace(/\s*(?:\bdot\b|\.)\s*/gi, ".")).toLowerCase();
+  const ok = email.match(EMAIL_RE);
+  return ok && ok[0] === email ? { index: m.index, length: m[0].length, email } : null;
+}
 
 /* India first: a bare 10-digit mobile starting 6–9 becomes +91. Anything
    with an explicit + keeps its own country code. */
@@ -167,14 +182,24 @@ function extract(text, { today, step = null } = {}){
   // Contact details first, and out of the way of everything else: an email
   // address or phone number is full of digits the date reader would misread.
   let s = lower;
+  let said = original;                    // the text the name is read from
   const email = original.match(EMAIL_RE);
   if (email){ out.email = email[0].toLowerCase(); s = s.replace(email[0].toLowerCase(), " "); }
+  else if (step === "guest" || /\be-?mail\b/.test(lower)){
+    const spoken = spokenEmail(lower);
+    if (spoken){
+      out.email = spoken.email;
+      const blank = t => t.slice(0, spoken.index) + " ".repeat(spoken.length) + t.slice(spoken.index + spoken.length);
+      s = blank(s);
+      if (said.length === lower.length) said = blank(said);
+    }
+  }
   if (step === "guest" || /\b(phone|mobile|number|contact|whatsapp|call me)\b/.test(s)){
     const ph = readPhone(s);
     if (ph){ if (ph.phone) out.phone = ph.phone; else out.badPhone = true; s = s.replace(ph.raw, " "); }
   }
   if (step === "guest"){
-    const rest = original.replace(email ? email[0] : "", " ")
+    const rest = said.replace(email ? email[0] : "", " ")
       .replace(/(\+?\d[\d\s\-().]{6,18}\d)/, " ")
       .replace(/\b(?:phone|mobile|email|e-mail|number|contact)\s*(?:is|:)?/gi, " ")
       .split(/[,;\n]/).map(x => x.trim()).filter(Boolean);

@@ -21,7 +21,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { handleRequest, handleConfig, handleHotels, handleTranscribe, warmTranscriber } = require("../server/app");
+const { handleRequest, handleConfig, handleHotels, handleTranscribe, warmTranscriber, wantsProgress } = require("../server/app");
 const { MAX_WAV_BYTES } = require("../server/stt/wav");
 
 const ROOT = path.resolve(__dirname, "..");
@@ -38,10 +38,21 @@ http.createServer(async (req, res) => {
     const chunks = [];
     let size = 0;
     for await (const c of req){ size += c.length; if (size > 65536) break; chunks.push(c); }
+    // The turn's steps stream as they happen when the page asks for them;
+    // the response starts with the first step (see wantsProgress).
+    let streaming = false;
+    const onProgress = wantsProgress(req.headers) ? stage => {
+      if (!streaming){
+        streaming = true;
+        res.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+      }
+      res.write(JSON.stringify({ stage }) + "\n");
+    } : undefined;
     const out = await handleRequest({
       method: req.method, headers: req.headers,
-      bodyText: Buffer.concat(chunks).toString("utf8"), clientIp: req.socket.remoteAddress
+      bodyText: Buffer.concat(chunks).toString("utf8"), clientIp: req.socket.remoteAddress, onProgress
     });
+    if (streaming) return res.end(JSON.stringify({ status: out.status, body: out.body }) + "\n");
     res.writeHead(out.status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...(out.headers || {}) });
     return res.end(JSON.stringify(out.body));
   }

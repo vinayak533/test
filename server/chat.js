@@ -40,11 +40,13 @@ const BOOKING_INTENTS = new Set(["check_room_availability", "make_reservation"])
 const CLARIFY_FLOOR = 0.35;
 
 /* "2 luxury rooms from 20 Oct to 22 Oct" names no intent word, but it is
-   plainly a booking request: a date together with rooms, guests or a type. */
+   plainly a booking request: a date (or a number of nights) together with
+   rooms, guests or a type. So is "I want to check out on October 27th". */
 function carriesBookingDetails(message, hotel, now){
   const x = extract(message, { today: todayIn(hotel.timezone || "Asia/Kolkata", now), step: null });
-  const when = x.checkIn || x.checkOut;
-  return !!(when && (x.rooms || x.guests || x.roomType || /\b(rooms?|stay|nights?)\b/i.test(message)));
+  const when = x.checkIn || x.checkOut || x.nights;
+  return !!(when && (x.rooms || x.guests || x.roomType
+    || /\b(rooms?|stay|nights?|check(?:ing)?[\s-]?(?:in|out))\b/i.test(message)));
 }
 
 /* The hotel a turn starts from: a booking in progress stays with its own
@@ -68,6 +70,9 @@ async function handleChat(input, deps){
   const message = action ? null : sanitizeMessage(input && input.message, config.maxMessageChars);
   const wanted = input && isHotelId(input.hotelId) ? input.hotelId : null;
   let ctx = null;
+  // A typed or spoken message is read before anything else happens; a tapped
+  // option needs no reading.
+  if (message) flow.report(deps, "understand");
 
   const encode = s => (s === undefined ? undefined : s ? codec.encode(s) : null);
   const about = () => (ctx && ctx.hotel ? { hotel: { id: ctx.hotel.id, name: ctx.hotel.name } } : {});
@@ -112,7 +117,8 @@ async function handleChat(input, deps){
   ctx = {
     hotel, hotels, repo, log, config, now,
     user: deps.user || null, authError: !!deps.authError,
-    lookupLimited: deps.lookupLimited, lookupFailed: deps.lookupFailed
+    lookupLimited: deps.lookupLimited, lookupFailed: deps.lookupFailed,
+    progress: deps.progress
   };
 
   /* Any database failure inside the booking flow ends the turn with "we
@@ -216,6 +222,7 @@ async function handleChat(input, deps){
   // Mid-booking the conversation is kept and can be picked up again.
   if (intent === "room_info" && confident){
     const midBooking = !!(st && st.flow === "booking");
+    flow.report(ctx, "rooms");
     return guarded(async () => ({
       kind: "answer",
       reply: R.roomInfo(ctx.hotel, await repo.getRooms(ctx.hotel.id)),

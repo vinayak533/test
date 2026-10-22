@@ -64,6 +64,7 @@ async function handleLookup(st, message, ctx){
   }
 
   let b;
+  if (typeof ctx.progress === "function") try { ctx.progress("lookup"); } catch { /* a courtesy only */ }
   try { b = await ctx.repo.findBooking(s.ref, contact); }
   catch (e){
     ctx.log.error("lookup.failed", { error: e.message });
