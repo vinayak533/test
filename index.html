@@ -1,6 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Misty Mountain — Hotel Dashboard &amp; Booking</title>
+<title>GXP — Hotel Dashboard &amp; Booking</title>
+<link rel="icon" href="gxp_logo.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&display=swap">
@@ -744,6 +745,24 @@ a{ color: inherit; }
   30%{ opacity: 1; transform: translateY(-3px) }
 }
 
+/* What the backend is doing right now — "Checking room availability…" —
+   beside the dots, one step at a time, as the server reports each step.
+   Nothing is named that has not actually started. */
+.think{ display: flex; align-items: center; gap: .65rem; min-height: 30px; }
+.think .dots{ padding: 0; }
+.think__label{
+  font-size: 13.5px; line-height: 1.4;
+  background: linear-gradient(90deg, var(--d-ink-2) 0 38%, var(--d-accent) 50%, var(--d-ink-2) 62% 100%);
+  background-size: 260% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: thinkShine 1.9s linear infinite;
+}
+.think__label:empty{ display: none; }
+.think__label.is-new{ animation: thinkIn .26s ease-out both, thinkShine 1.9s linear infinite; }
+@keyframes thinkIn{ from{ opacity: 0; transform: translateY(4px) } to{ opacity: 1; transform: none } }
+@keyframes thinkShine{ from{ background-position: 100% 0 } to{ background-position: 0 0 } }
+@media (prefers-reduced-motion: reduce){ .think__label{ background: none; color: var(--d-ink-2); } }
+
 .reveal{ animation: msgIn .26s ease-out both; }
 
 /* ============================ COMPOSER ============================ */
@@ -774,15 +793,65 @@ a{ color: inherit; }
   border: 0; border-radius: 50%; cursor: pointer;
   transition: background .16s ease, color .16s ease, opacity .16s ease;
 }
-.chat__mic{ background: none; color: var(--d-ink-2); }
+.chat__mic{
+  background: none; color: var(--d-ink-2);
+  /* Held to talk on a phone: no long-press menu, no text selection. */
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
 .chat__mic:hover{ background: var(--d-ground); color: var(--d-ink); }
 .chat__mic[hidden]{ display: none; }
-.chat__mic[aria-pressed="true"]{ background: #FDECF1; color: #C70039; animation: micPulse 1.4s ease-in-out infinite; }
+.chat__mic-stop, .chat__mic-label{ display: none; }
+/* Recording: the microphone becomes a red "■ Stop" button, so it is plain
+   how to finish. Held down, releasing it stops too. */
+.chat__mic[aria-pressed="true"]{
+  display: inline-flex; gap: .35rem; width: auto; padding: 0 .85rem; border-radius: 19px;
+  background: #C70039; color: #fff; font: 600 13px/1 inherit;
+  animation: micPulse 1.4s ease-in-out infinite;
+}
+.chat__mic[aria-pressed="true"]:hover{ background: #A8002F; color: #fff; }
+.chat__mic[aria-pressed="true"] .chat__mic-on{ display: none; }
+.chat__mic[aria-pressed="true"] .chat__mic-stop{ display: block; }
+.chat__mic[aria-pressed="true"] .chat__mic-label{ display: inline; }
 .chat__mic[aria-busy="true"]{ color: var(--d-accent); cursor: progress; animation: micWork 1s ease-in-out infinite; }
 @keyframes micWork{ 0%,100%{ opacity: .45 } 50%{ opacity: 1 } }
-.chat__voice{ margin: 0; padding: 0 .25rem; font-size: 12.5px; line-height: 1.4; color: var(--d-ink-2); }
+.chat__voice{
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  margin: 0; padding: 0 .25rem; font-size: 12.5px; line-height: 1.4; color: var(--d-ink-2);
+  animation: msgIn .2s ease-out both;
+}
 .chat__voice[hidden]{ display: none; }
 .chat__voice[data-tone="error"]{ color: #C70039; }
+/* Recording: a live dot, the input level and the time, so it is plain that
+   the microphone is on and hearing something. */
+.chat__voice[data-tone="recording"]{ color: var(--d-ink); }
+.chat__voice[data-tone="recording"]::before{
+  content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: #C70039; animation: recDot 1.1s ease-in-out infinite;
+}
+@keyframes recDot{ 0%,100%{ opacity: 1 } 50%{ opacity: .35 } }
+.chat__voice-meter{
+  position: relative; width: 46px; height: 4px; border-radius: 4px; flex: none;
+  background: #F3D4DE; overflow: hidden;
+}
+.chat__voice-meter i{
+  position: absolute; inset: 0; transform-origin: left center;
+  transform: scaleX(var(--lvl, 0)); background: #C70039; border-radius: inherit;
+  transition: transform .08s linear;
+}
+.chat__voice-time{ font-variant-numeric: tabular-nums; color: var(--d-ink-3); }
+/* Transcribing: a small spinner where the dot was. */
+.chat__voice[data-tone="working"]::before{
+  content: ""; width: 11px; height: 11px; border-radius: 50%; flex: none;
+  border: 2px solid #E4D6F8; border-top-color: var(--d-accent);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin{ to{ transform: rotate(360deg) } }
+/* The words have landed in the field: one soft glow says "check this". */
+.chat__field.is-voiced{ animation: voiced 1.4s ease-out 1; }
+@keyframes voiced{
+  0%{ box-shadow: 0 0 0 0 rgba(124,47,218,.35); border-color: var(--d-accent); }
+  100%{ box-shadow: 0 0 0 8px rgba(124,47,218,0); }
+}
 @keyframes micPulse{ 0%,100%{ box-shadow: 0 0 0 0 rgba(199,0,57,.25) } 50%{ box-shadow: 0 0 0 6px rgba(199,0,57,0) } }
 .chat__send{ background: var(--d-accent); color: #fff; }
 .chat__send:hover:not(:disabled){ background: var(--d-accent-2); }
@@ -1226,12 +1295,11 @@ a{ color: inherit; }
      is presentation, not protection. -->
 <div class="mm-gate" id="mmGate">
   <section class="mm-gate__brand" aria-labelledby="gateTitle">
-    <div class="mm-crest" aria-hidden="true">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2 20l7-11 4 6 3-4 6 9z"/><path d="M14.5 6.5a2 2 0 1 0 0-.01"/></svg>
+    <div class="mm-crest mm-crest--logo" aria-hidden="true">
+      <img src="gxp_logo.svg" alt="" width="40" height="40">
     </div>
-    <p class="mm-eyebrow">Kuttikkanam · Peermade · Kerala</p>
-    <h1 class="mm-gate__title" id="gateTitle">Misty <em>Mountain</em></h1>
-    <p class="mm-gate__lede">A working tea and cardamom estate in the Western Ghats, with ten rooms above the clouds.</p>
+    <h1 class="mm-gate__title" id="gateTitle">GXP</h1>
+    <p class="mm-gate__lede">Hotel bookings and management in one place — live room availability, bookings and the front desk.</p>
 
     <dl class="mm-gate__facts">
       <div><dt>Rooms</dt><dd>Normal &amp; Luxury</dd></div>
@@ -1260,7 +1328,7 @@ a{ color: inherit; }
   <section class="mm-gate__panel" aria-labelledby="authTitle" id="authPanel">
     <div class="mm-auth">
       <p class="mm-eyebrow mm-eyebrow--dark">Guests &amp; staff</p>
-      <h2 class="mm-signin__title" id="authTitle">Welcome to Misty Mountain</h2>
+      <h2 class="mm-signin__title" id="authTitle">Welcome to GXP</h2>
       <div class="mm-auth__tabs" role="tablist" aria-label="Sign in or create an account">
         <button type="button" role="tab" class="mm-auth__tab" id="tabSignin" aria-controls="mmSignin" aria-selected="true" data-auth-tab="signin">Sign in</button>
         <button type="button" role="tab" class="mm-auth__tab" id="tabSignup" aria-controls="mmSignup" aria-selected="false" tabindex="-1" data-auth-tab="signup">Create account</button>
@@ -1327,21 +1395,29 @@ a{ color: inherit; }
 <div class="mm-app" id="mmApp" hidden>
   <aside class="mm-side" id="mmSide" aria-label="Dashboard navigation">
     <div class="mm-side__brand">
-      <span class="mm-crest mm-crest--sm" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M2 20l7-11 4 6 3-4 6 9z"/></svg>
+      <span class="mm-crest mm-crest--sm mm-crest--logo" aria-hidden="true">
+        <img src="gxp_logo.svg" alt="" width="30" height="30">
       </span>
-      <span><b id="sideHotel">Misty Mountain</b><small>Hotel management</small></span>
+      <span><b id="sideBrand">GXP</b><small id="sideBrandSub">Hotel management</small></span>
     </div>
 
-    <!-- Which hotel every view is about. Filled from the hotels table;
-         hidden while there is only one. -->
+    <!-- The client hotel every Front desk view is about. Filled from the
+         hotels this account may manage; hidden while there is only one. -->
     <label class="mm-side__hotel" id="hotelPick" hidden>
-      <span>Property</span>
-      <select id="hotelSwitch" aria-label="Property"></select>
+      <span>Client hotel</span>
+      <select id="hotelSwitch" aria-label="Client hotel"></select>
     </label>
 
     <nav class="mm-nav">
-      <p class="mm-nav__label">Front desk</p>
+      <!-- Agency administrators only: every client side by side. -->
+      <p class="mm-nav__label" data-agency-only hidden>Agency</p>
+      <a href="#agency" class="mm-nav__item" data-view="agency" data-agency-only hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 20.5h17M5 20.5V9l5-3v14.5M10 20.5V4.5l9 4v12M13 10.5h3M13 14h3M13 17.5h3M7.5 12.5h.01M7.5 16h.01"/></svg>
+        <span>Overview</span>
+        <span class="mm-nav__count mm-nav__count--quiet" id="navClients"></span>
+      </a>
+
+      <p class="mm-nav__label" id="navDeskLabel">Front desk</p>
       <a href="#dashboard" class="mm-nav__item" data-view="dashboard">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.5 12 3.8l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"/></svg>
         <span>Dashboard</span>
@@ -1360,6 +1436,10 @@ a{ color: inherit; }
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></svg>
         <span>Guests</span>
       </a>
+      <a href="#profile" class="mm-nav__item" data-view="profile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10.5" r="2.2"/><path d="M5.8 16.5a3.4 3.4 0 0 1 6.4 0M14.5 9.5h3.5M14.5 13h3.5"/></svg>
+        <span>Hotel profile</span>
+      </a>
 
       <p class="mm-nav__label">Insights</p>
       <a href="#reports" class="mm-nav__item" data-view="reports">
@@ -1376,7 +1456,7 @@ a{ color: inherit; }
 
     <div class="mm-side__user">
       <span class="mm-avatar" id="userAvatar" aria-hidden="true">·</span>
-      <span class="mm-side__who"><b id="userEmail">—</b><small>Administrator</small></span>
+      <span class="mm-side__who"><b id="userEmail">—</b><small id="userRole">Administrator</small></span>
       <button type="button" class="mm-icon-btn mm-icon-btn--dark" id="signOutBtn" aria-label="Sign out" title="Sign out">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
       </button>
@@ -1390,7 +1470,7 @@ a{ color: inherit; }
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></svg>
       </button>
       <div class="mm-top__title">
-        <span class="mm-top__crumb">Front desk</span>
+        <span class="mm-top__crumb" id="topCrumb">Front desk</span>
         <svg class="mm-top__sep" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="mm-top__page" id="topPage">Dashboard</span>
       </div>
@@ -1408,6 +1488,35 @@ a{ color: inherit; }
 
     <main class="mm-content" id="main-content" tabindex="-1">
       <div class="mm-banner" id="loadBanner" role="status" hidden></div>
+
+      <!-- ========================= AGENCY OVERVIEW ========================= -->
+      <!-- Every client hotel side by side, from agency_overview() — computed
+           in the database from the rooms and reservations themselves, and
+           only for the hotels this account may manage. -->
+      <section class="mm-view" data-view-panel="agency" aria-labelledby="hAgency" hidden>
+        <div class="mm-view__head">
+          <div>
+            <p class="mm-eyebrow mm-eyebrow--dark" id="agencyLabel">Agency</p>
+            <h1 class="mm-view__title" id="hAgency">Agency overview</h1>
+          </div>
+          <div class="mm-view__actions">
+            <span class="mm-chip" id="agencyChip">Clients</span>
+            <button type="button" class="mm-btn mm-btn--outline mm-btn--sm" id="agencyRefresh">Refresh</button>
+          </div>
+        </div>
+
+        <div class="mm-kpis" id="agencyKpis" aria-live="polite"></div>
+
+        <div class="mm-clients" id="clientCards"></div>
+
+        <article class="mm-card">
+          <header class="mm-card__head">
+            <div><h2 class="mm-card__title">Clients compared</h2><p class="mm-card__sub">Tonight and this month, per hotel · updates live</p></div>
+          </header>
+          <div class="mm-table-wrap"><table class="mm-table mm-table--stack" id="clientTable"></table></div>
+          <p class="mm-card__note">Occupied: a confirmed or in-house stay tonight. Upcoming bookings: confirmed or in house, not yet checked out. Revenue: booked nights this calendar month at the rate they were booked.</p>
+        </article>
+      </section>
 
       <!-- ============================ DASHBOARD ============================ -->
       <section class="mm-view" data-view-panel="dashboard" aria-labelledby="hDashboard">
@@ -1560,6 +1669,42 @@ a{ color: inherit; }
           <p class="mm-count" id="guestCount" aria-live="polite"></p>
           <div class="mm-table-wrap"><table class="mm-table mm-table--guests" id="guestTable"></table></div>
         </article>
+      </section>
+
+      <!-- =========================== HOTEL PROFILE ========================== -->
+      <section class="mm-view" data-view-panel="profile" aria-labelledby="hProfile" hidden>
+        <div class="mm-view__head">
+          <div>
+            <p class="mm-eyebrow mm-eyebrow--dark" id="profileLabel">Client profile</p>
+            <h1 class="mm-view__title" id="hProfile">Hotel profile</h1>
+          </div>
+        </div>
+
+        <div class="mm-grid mm-grid--2-1">
+          <article class="mm-card">
+            <header class="mm-card__head">
+              <div><h2 class="mm-card__title">Contact details</h2><p class="mm-card__sub">What the ChatBot gives guests for this hotel</p></div>
+            </header>
+            <form class="mm-profile" id="profileForm" novalidate>
+              <label class="mm-field"><span>Phone</span><input type="tel" name="phone" maxlength="40" autocomplete="off" placeholder="+91 …"></label>
+              <label class="mm-field"><span>Email</span><input type="email" name="email" maxlength="254" autocomplete="off" placeholder="reservations@…"></label>
+              <label class="mm-field mm-profile__wide"><span>Address</span><input type="text" name="address" maxlength="200" autocomplete="off"></label>
+              <label class="mm-field mm-profile__wide"><span>Description</span><textarea name="description" maxlength="600" rows="3"></textarea></label>
+              <p class="mm-profile__err mm-profile__wide" id="profileError" role="alert"></p>
+              <div class="mm-actions mm-profile__wide">
+                <button type="submit" class="mm-btn mm-btn--navy" id="profileSave">Save profile</button>
+                <button type="reset" class="mm-btn mm-btn--outline">Undo changes</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="mm-card">
+            <header class="mm-card__head">
+              <div><h2 class="mm-card__title">Configuration</h2><p class="mm-card__sub">Set by the agency; the booking rules depend on it</p></div>
+            </header>
+            <div class="mm-profile__facts"><dl class="mm-dl" id="profileFacts"></dl></div>
+          </article>
+        </div>
       </section>
 
       <!-- ============================== REPORTS ============================= -->
@@ -1859,10 +2004,14 @@ a{ color: inherit; }
     <div class="chat__field">
       <input id="ask" type="text" autocomplete="off" data-i18n-ph="askPlaceholder" placeholder="Ask about rooms, food, the drive up…">
       <button class="chat__mic" id="mic" type="button" data-i18n-aria="micStart" aria-label="Speak your question" aria-pressed="false" hidden>
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
+        <svg class="chat__mic-on" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
           <rect x="7" y="2.5" width="6" height="10" rx="3" stroke-width="1.6"/>
           <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5" stroke-width="1.6" stroke-linecap="round"/>
         </svg>
+        <svg class="chat__mic-stop" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+          <rect x="1" y="1" width="10" height="10" rx="2" fill="currentColor"/>
+        </svg>
+        <span class="chat__mic-label" data-i18n="micStopShort">Stop</span>
       </button>
       <button class="chat__send" id="send" type="submit" data-i18n-aria="send" aria-label="Send" disabled>
         <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true" focusable="false">
@@ -1921,6 +2070,7 @@ a{ color: inherit; }
   "back": "Back",
   "micStart": "Speak your question",
   "micStop": "Stop listening",
+  "micStopShort": "Stop",
   "disclaimer": "The ChatBot can make mistakes. Review details before you confirm.",
   "today": "Today",
   "contactCardSub": "Call, WhatsApp or email the desk",
@@ -2046,6 +2196,7 @@ a{ color: inherit; }
   "back": "തിരികെ",
   "micStart": "നിങ്ങളുടെ ചോദ്യം പറയൂ",
   "micStop": "കേൾക്കുന്നത് നിർത്തുക",
+  "micStopShort": "നിർത്തുക",
   "disclaimer": "ചാറ്റ്ബോട്ടിന് തെറ്റുകൾ സംഭവിക്കാം. സ്ഥിരീകരിക്കുന്നതിന് മുമ്പ് വിവരങ്ങൾ പരിശോധിക്കുക.",
   "today": "ഇന്ന്",
   "contactCardSub": "വിളിക്കുക, വാട്സ്ആപ്പ് അല്ലെങ്കിൽ ഇമെയിൽ ചെയ്യുക",
@@ -2171,6 +2322,7 @@ a{ color: inherit; }
   "back": "वापस",
   "micStart": "अपना सवाल बोलें",
   "micStop": "सुनना बंद करें",
+  "micStopShort": "रोकें",
   "disclaimer": "चैटबॉट से गलती हो सकती है। पुष्टि करने से पहले विवरण जाँच लें।",
   "today": "आज",
   "contactCardSub": "कॉल, व्हाट्सऐप या ईमेल करें",
@@ -2296,6 +2448,7 @@ a{ color: inherit; }
   "back": "பின்செல்",
   "micStart": "உங்கள் கேள்வியைச் சொல்லுங்கள்",
   "micStop": "கேட்பதை நிறுத்து",
+  "micStopShort": "நிறுத்து",
   "disclaimer": "சாட்பாட் தவறு செய்யலாம். உறுதிசெய்வதற்கு முன் விவரங்களைச் சரிபார்க்கவும்.",
   "today": "இன்று",
   "contactCardSub": "அழைக்க, வாட்ஸ்அப் அல்லது மின்னஞ்சல் செய்ய",
@@ -3797,11 +3950,64 @@ function addGuest(text){
   stick(true);
 }
 
+/* The steps the backend reports while a turn runs (server/app.js STAGES).
+   Each is shown when — and only when — the server says it has started. */
+const STAGE_TEXT = {
+  understand:   ["stageUnderstand",   "Understanding your request…"],
+  rooms:        ["stageRooms",        "Reading room types and rates…"],
+  availability: ["stageAvailability", "Checking room availability…"],
+  matching:     ["stageMatching",     "Finding suitable rooms…"],
+  options:      ["stageOptions",      "Preparing available options…"],
+  hold:         ["stageHold",         "Holding your room…"],
+  confirm:      ["stageConfirm",      "Confirming your booking…"],
+  lookup:       ["stageLookup",       "Looking up your booking…"]
+};
+const STAGE_MIN_MS = 420;            // long enough to read; a fast step is still seen
+const STAGE_LATE_MS = 240;           // steps still queued once the answer is in
+
 function addThinking(){
   const turn = el('<div class="turn turn--bot"><span class="avatar cp-ava">' + BOT + '</span>'
-    + '<div class="bubble"><div class="dots"><i></i><i></i><i></i></div></div></div>');
+    + '<div class="bubble"><div class="think" role="status" aria-live="polite">'
+    + '<div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>'
+    + '<span class="think__label"></span></div></div></div>');
   log.appendChild(turn);
   stick(true);
+
+  // Steps arrive faster than they can be read (matching and options follow
+  // availability within a millisecond), so each is held on screen for
+  // STAGE_MIN_MS before the next. settled() is called once the answer is
+  // in: the last two steps still waiting are shown briefly, never more, so
+  // the pacing does not hold the answer back.
+  const label = turn.querySelector(".think__label");
+  const queue = [];
+  let shownAt = 0, timer = 0, waiters = [], dwell = STAGE_MIN_MS;
+  const show = stage => {
+    const s = STAGE_TEXT[stage];
+    label.textContent = t(s[0], s[1]);
+    label.classList.remove("is-new"); void label.offsetWidth; label.classList.add("is-new");
+    shownAt = performance.now();
+    stick();
+  };
+  const pump = () => {
+    timer = 0;
+    const wait = shownAt ? dwell - (performance.now() - shownAt) : 0;
+    if (wait > 0 && (queue.length || waiters.length)){ timer = setTimeout(pump, wait); return; }
+    if (!queue.length){ waiters.splice(0).forEach(w => w()); return; }
+    show(queue.shift());
+    timer = setTimeout(pump, dwell);
+  };
+  turn.stage = stage => {
+    if (!STAGE_TEXT[stage] || queue[queue.length - 1] === stage) return;
+    queue.push(stage);
+    if (!timer) pump();
+  };
+  turn.settled = () => new Promise(resolve => {
+    dwell = STAGE_LATE_MS;
+    queue.splice(0, Math.max(0, queue.length - 2));
+    waiters.push(resolve);
+    clearTimeout(timer);
+    pump();
+  });
   return turn;
 }
 
@@ -3997,11 +4203,15 @@ async function loadHotels(){
   } catch { /* the site's own hotel only, as before */ }
 }
 
-async function askBackend(payload){
+/* onStage(stage) is told each step the backend reports as it starts
+   ("availability", "hold" …). The backend streams them as NDJSON — one
+   {"stage"} line per step, then {"status","body"} — when asked to; a
+   backend that does not answers plain JSON, and only the dots show. */
+async function askBackend(payload, onStage){
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
   try {
-    const headers = { "Content-Type": "application/json" };
+    const headers = { "Content-Type": "application/json", Accept: "application/x-ndjson, application/json" };
     let token = null;
     try { token = window.MMAuth ? await window.MMAuth.token() : null; } catch { token = null; }
     if (token) headers.Authorization = "Bearer " + token;
@@ -4012,13 +4222,48 @@ async function askBackend(payload){
       signal: ctrl.signal,
       credentials: "same-origin"
     });
-    const body = res.headers.get("content-type")?.includes("application/json") ? await res.json() : null;
+    const type = res.headers.get("content-type") || "";
+    if (type.includes("application/x-ndjson")){
+      const final = await readSteps(res, onStage);
+      if (!final) return { ok: false, status: 0, body: null };
+      const ok = final.status >= 200 && final.status < 300 && !!final.body && typeof final.body === "object";
+      return { ok, status: final.status, body: final.body || null };
+    }
+    const body = type.includes("application/json") ? await res.json() : null;
     return { ok: res.ok && !!body, status: res.status, body };
   } catch (e){
     return { ok: false, status: 0, body: null };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/* Reads the step stream; returns the closing {status, body}, or null if the
+   stream ended without one (a dropped connection). */
+async function readSteps(res, onStage){
+  const reader = res.body && res.body.getReader ? res.body.getReader() : null;
+  const lines = [];
+  let final = null;
+  const take = line => {
+    if (!line.trim()) return;
+    let m;
+    try { m = JSON.parse(line); } catch { return; }
+    if (m && typeof m.stage === "string"){ try { onStage && onStage(m.stage); } catch {} }
+    else if (m && typeof m.status === "number") final = m;
+  };
+  if (!reader){ (await res.text()).split("\n").forEach(take); return final; }
+  const dec = new TextDecoder();
+  let buf = "";
+  for (;;){
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const parts = buf.split("\n");
+    buf = parts.pop();
+    parts.forEach(take);
+  }
+  take(buf + dec.decode());
+  return final;
 }
 
 const liveDown = () => ({
@@ -4226,7 +4471,9 @@ function sendAction(action, label){
   const think = addThinking();
   const mine = session;
   const started = performance.now();
-  askBackend({ action }).then(r => {
+  askBackend({ action }, think.stage).then(async r => {
+    if (mine !== session) return;
+    await think.settled();
     if (mine !== session) return;
     const answer = fromBackend(r, null) || Object.assign(liveDown(), {
       panel: bkOptions([{ label: t("bkRetry", "Try again"), action, tone: "primary" }])
@@ -4325,8 +4572,10 @@ function send(text){
   const mine = session;
   const started = performance.now();
 
-  askBackend({ message: q }).then(r => {
+  askBackend({ message: q }, think.stage).then(async r => {
     if (mine !== session) return;                 // cleared while waiting: drop it
+    await think.settled();                        // the last step shown stays readable
+    if (mine !== session) return;
     let answer = fromBackend(r, q);
     if (!answer){
       // The knowledge base describes the site's own hotel only; for another
@@ -4606,22 +4855,66 @@ let transcribing = null;             // the AbortController of a transcription i
 /* English only: the Whisper path, the only one that shows these, runs only
    in English. */
 const VOICE_MSG = {
-  listening: "Listening… tap the microphone again when you’re done.",
+  listening: "Listening… tap Stop when you’re done, or hold the microphone and let go.",
   working:   "Transcribing…",
   review:    "Check the text, edit it if you need to, then press send.",
+  cancelled: "Recording cancelled.",
   silent:    "I didn’t hear anything. Check your microphone and try again.",
   short:     "That was too short to make out. Please try again.",
   unclear:   "Sorry, I couldn’t make that out. Please try again, or type your question.",
   denied:    "Microphone access is blocked. Allow it in your browser’s site settings, or type your question.",
   noMic:     "No microphone was found. You can type your question instead.",
   busy:      "Voice input is busy right now. Please try again in a moment.",
+  insecure:  "Voice input needs a secure page (https, or localhost on this computer). You can type your question instead.",
+  network:   "This browser’s speech recognition couldn’t be reached. Please try again, or type your question.",
+  noEngine:  "Voice input isn’t available in this browser. You can type your question instead.",
   failed:    "Couldn’t transcribe that. Please try again, or type your question."
 };
 
+/* tone: "info", "error", "recording" (a live dot, the input level and the
+   time) or "working" (a spinner). The level and time are aria-hidden: they
+   change many times a second and the note is a live region. */
 function voiceSay(msg, tone){
   voiceNote.textContent = msg || "";
   voiceNote.dataset.tone = tone || "info";
   voiceNote.hidden = !msg;
+  if (msg && tone === "recording"){
+    voiceNote.insertAdjacentHTML("beforeend",
+      '<span class="chat__voice-meter" aria-hidden="true"><i></i></span><span class="chat__voice-time" aria-hidden="true">0:00</span>');
+  }
+}
+
+/* While recording: the input level and the time on the meter in the note,
+   from the same microphone stream (no second permission prompt). Stops
+   itself once that recording is over. */
+function watchLevel(mine){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let ctx;
+  try {
+    ctx = new AC();
+    // Created after the permission prompt, outside the tap, so it may start
+    // suspended — and a suspended analyser reads silence.
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    const an = ctx.createAnalyser();
+    an.fftSize = 512;
+    ctx.createMediaStreamSource(mine.stream).connect(an);
+    const buf = new Float32Array(an.fftSize);
+    const started = performance.now();
+    let sec = -1;
+    const frame = () => {
+      if (recording !== mine){ ctx.close().catch(() => {}); return; }
+      an.getFloatTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+      const meter = voiceNote.querySelector(".chat__voice-meter i");
+      if (meter) meter.style.setProperty("--lvl", Math.min(1, Math.sqrt(sum / buf.length) * 5).toFixed(2));
+      const s = Math.floor((performance.now() - started) / 1000);
+      const time = voiceNote.querySelector(".chat__voice-time");
+      if (time && s !== sec){ sec = s; time.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") + " / 0:" + STT_MAX_MS / 1000; }
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  } catch { if (ctx) ctx.close().catch(() => {}); }   // the meter is a nicety; recording goes on without it
 }
 function micState(on){
   micBtn.setAttribute("aria-pressed", on ? "true" : "false");
@@ -4676,20 +4969,32 @@ function startHearing(){
   rec.lang = SPEECH_LANG[LANG] || "en-IN";
   rec.interimResults = true;
   rec.maxAlternatives = 1;
-  let said = "";
+  let said = "", failed = null;
   rec.onresult = e => {
     said = [...e.results].map(r => r[0].transcript).join(" ").trim();
     ask.value = said;
     sendBtn.disabled = busy || !said;
   };
+  // Every way this can end says so: a recognition that fails silently looks
+  // exactly like a microphone that does nothing.
+  rec.onerror = e => {
+    const code = e && e.error;
+    failed = code === "not-allowed" || code === "service-not-allowed" ? VOICE_MSG.denied
+           : code === "audio-capture" ? VOICE_MSG.noMic
+           : code === "no-speech" ? VOICE_MSG.silent
+           : code === "network" ? VOICE_MSG.network
+           : code === "aborted" ? "" : VOICE_MSG.failed;
+  };
   rec.onend = () => {
     hearing = null;
     micState(false);
-    if (said) ask.focus();               // left in the field to check and send
+    if (said){ voiceSay(VOICE_MSG.review); ask.focus(); }   // left in the field to check and send
+    else voiceSay(failed === null ? VOICE_MSG.silent : failed, "error");
   };
   hearing = rec;
   micState(true);
-  try { rec.start(); } catch { hearing = null; micState(false); }
+  try { rec.start(); voiceSay(VOICE_MSG.listening, "recording"); }
+  catch { hearing = null; micState(false); voiceSay(VOICE_MSG.failed, "error"); }
 }
 
 /* Whisper: record until the guest taps again (or 30 s), then transcribe. */
@@ -4731,7 +5036,8 @@ async function startRecording(){
   };
   mine.timer = setTimeout(finishRecording, STT_MAX_MS);
   rec.start();
-  voiceSay(VOICE_MSG.listening);
+  voiceSay(VOICE_MSG.listening, "recording");
+  watchLevel(mine);
 }
 function finishRecording(){
   const r = recording;
@@ -4787,14 +5093,16 @@ function wavOf(pcm){
 async function transcribe(blob){
   const mine = transcribing = new AbortController();
   micWorking(true);
-  voiceSay(VOICE_MSG.working);
+  voiceSay(VOICE_MSG.working, "working");
   const timer = setTimeout(() => mine.abort(), STT_TIMEOUT_MS);
   let msg = VOICE_MSG.failed, tone = "error";
   try {
     const pcm = await toPcm16k(blob);
     let peak = 0;
     for (let i = 0; i < pcm.length; i++){ const a = Math.abs(pcm[i]); if (a > peak) peak = a; }
-    if (!pcm.length || peak < 0.01) msg = VOICE_MSG.silent;  // nothing above -40 dBFS: no point asking the model
+    // Nothing above -50 dBFS: no point asking the model. Quieter speech than
+    // that is still sent — the server brings it up to a standard level.
+    if (!pcm.length || peak < 0.003) msg = VOICE_MSG.silent;
     else if (pcm.length < STT_RATE * 0.3) msg = VOICE_MSG.short;
     else {
       const res = await fetch(STT_URL, {
@@ -4805,10 +5113,13 @@ async function transcribe(blob){
       const said = res.ok && body && typeof body.text === "string" ? body.text.trim() : null;
       if (said){
         if (transcribing === mine){
+          // Into the field to read, correct and send — never sent from here.
           ask.value = ask.value.trim() ? ask.value.trim() + " " + said : said;
           sendBtn.disabled = busy || !ask.value.trim();
           ask.focus();
           ask.setSelectionRange(ask.value.length, ask.value.length);
+          const field = ask.closest(".chat__field");
+          field.classList.remove("is-voiced"); void field.offsetWidth; field.classList.add("is-voiced");
         }
         msg = VOICE_MSG.review; tone = "info";
       } else if (said === "") msg = VOICE_MSG.unclear;
@@ -4827,13 +5138,53 @@ async function transcribe(blob){
   }
 }
 
-micBtn.addEventListener("click", () => {
+/* Two ways to use the microphone, on a laptop or a phone alike:
+     tap   — tap to start, tap Stop to finish;
+     hold  — press and hold while speaking, let go to finish.
+   A press held longer than HOLD_MS that started a recording ends it on
+   release; a shorter one leaves it running for a second tap. A release
+   while the browser is still asking for the microphone ends nothing. */
+const HOLD_MS = 600;
+let press = null;                    // { at, started } for the current press
+
+micBtn.addEventListener("pointerdown", e => {
+  if (e.button !== 0 || micBtn.disabled) return;
+  e.preventDefault();                // keeps a phone from selecting or opening a menu
+  try { micBtn.setPointerCapture(e.pointerId); } catch {}
+  const idle = !recording && !transcribing && !hearing;
+  press = { at: performance.now(), started: idle };
+  micPress();
+});
+const release = () => {
+  const p = press;
+  press = null;
+  if (!p || !p.started || performance.now() - p.at < HOLD_MS) return;
+  if (recording && recording.rec) finishRecording();
+  else if (hearing) hearing.stop();
+};
+micBtn.addEventListener("pointerup", release);
+micBtn.addEventListener("pointercancel", release);
+micBtn.addEventListener("contextmenu", e => e.preventDefault());
+// Keyboard: Enter or Space toggles, as a tap does. (Pointer presses are
+// handled above; their click is ignored.)
+micBtn.addEventListener("click", e => { if (e.detail === 0) micPress(); });
+
+async function micPress(){
   if (recording){ finishRecording(); return; }
   if (transcribing) return;
   if (hearing){ hearing.stop(); return; }
+  // Browsers only give a page the microphone over https or on localhost.
+  if (!window.isSecureContext){ voiceSay(VOICE_MSG.insecure, "error"); return; }
+  // The server may have been starting, or restarted, since the page loaded.
+  if (!useWhisper() && CAN_RECORD && LANG === "en"){
+    micWorking(true);
+    await checkWhisper();
+    micWorking(false);
+  }
   if (useWhisper()) startRecording();
   else if (Speech) startHearing();
-});
+  else voiceSay(VOICE_MSG.noEngine, "error");
+}
 form.addEventListener("submit", () => { if (!recording && !transcribing) voiceSay(""); });
 showMic();
 checkWhisper();
@@ -4921,7 +5272,13 @@ document.getElementById("deskLink").addEventListener("click", e => {
 // Escape closes; Tab stays inside the panel while it is open
 document.addEventListener("keydown", e => {
   if (dock.hidden) return;
-  if (e.key === "Escape"){ e.preventDefault(); closeDock(); return; }
+  if (e.key === "Escape"){
+    e.preventDefault();
+    // Recording or transcribing: Escape cancels that and keeps the panel.
+    if (recording || transcribing){ stopVoice(); voiceSay(VOICE_MSG.cancelled); return; }
+    closeDock();
+    return;
+  }
   if (e.key !== "Tab") return;
   const f = [...dock.querySelectorAll("button, input, select, a[href], [tabindex]:not([tabindex='-1'])")]
     .filter(n => !n.disabled && n.offsetParent !== null);

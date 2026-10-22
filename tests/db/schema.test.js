@@ -66,9 +66,9 @@ test("relationships: rooms → hotels, reservations → rooms/guests/hotels", ()
   assert.equal(ex.rowCount, 1, "exclusion constraint against double-booking exists");
 }));
 
-test("row level security is on for every table, with admin-only policies", () => withPg(async c => {
+test("row level security is on for every table, with staff-of-this-hotel policies", () => withPg(async c => {
   const r = await c.query(`select relname, relrowsecurity from pg_class where relnamespace='public'::regnamespace and relkind='r' order by 1`);
-  for (const t of ["guests", "hotels", "reservations", "rooms", "inventory_pulse"]){
+  for (const t of ["agencies", "guests", "hotel_staff", "hotels", "reservations", "rooms", "inventory_pulse"]){
     assert.equal(r.rows.find(x => x.relname === t).relrowsecurity, true, t);
   }
   const p = await c.query("select tablename, policyname, cmd, roles::text, qual from pg_policies where schemaname='public'");
@@ -77,7 +77,13 @@ test("row level security is on for every table, with admin-only policies", () =>
   // booking data) is readable by any signed-in user, never writable.
   const pulse = p.rows.filter(x => x.tablename === "inventory_pulse");
   assert.deepEqual(pulse.map(x => [x.cmd, x.roles, x.qual]), [["SELECT", "{authenticated}", "true"]]);
-  p.rows.filter(x => x.tablename !== "inventory_pulse").forEach(x => assert.match(x.qual, /is_admin\(\)/, x.policyname));
+  // A staff list: an agency administrator reads it all, anyone else their own rows.
+  const staff = p.rows.filter(x => x.tablename === "hotel_staff");
+  assert.equal(staff.length, 1);
+  assert.match(staff[0].qual, /is_admin\(\).*auth\.uid\(\)/s);
+  // Everything else is scoped to the hotels the caller manages.
+  p.rows.filter(x => !["inventory_pulse", "hotel_staff"].includes(x.tablename))
+    .forEach(x => assert.match(x.qual, /staff_hotel_ids\(\)/, x.policyname));
 }));
 
 test("the public anon key can read nothing and call nothing", async () => {

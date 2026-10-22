@@ -138,6 +138,9 @@ body{ background: var(--mm-ground); color: var(--mm-ink); font-family: var(--san
   box-shadow: 0 8px 18px rgba(124,47,218,.25);
 }
 .mm-crest--sm{ width: 40px; height: 40px; border-radius: 12px; box-shadow: none; }
+/* The GXP logo carries its own black and purple, so it sits on white. */
+.mm-crest--logo{ background: #fff; border: 1px solid var(--mm-line); box-shadow: 0 8px 18px rgba(124,47,218,.12); }
+.mm-crest--sm.mm-crest--logo{ box-shadow: none; }
 
 /* ================================================================= GATE ==== */
 .mm-gate{ min-height: 100vh; display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); background: var(--mm-ground); }
@@ -639,6 +642,51 @@ body{ background: var(--mm-ground); color: var(--mm-ink); font-family: var(--san
 .mm-typerate form{ display: flex; gap: .5rem; align-items: flex-end; }
 .mm-typerate .mm-field{ flex: 1; }
 
+/* agency: one card per client hotel, then the clients compared */
+.mm-nav [hidden]{ display: none !important; }
+.mm-clients{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+.mm-client{
+  display: grid; gap: 1.1rem; align-content: start; min-width: 0; padding: 1.4rem 1.5rem;
+  background: var(--mm-card); border: 1px solid transparent; border-radius: var(--mm-r-lg); box-shadow: var(--mm-shadow);
+}
+.mm-client.is-current{ border-color: var(--mm-purple-300); }
+.mm-client__head{ display: flex; align-items: flex-start; gap: .85rem; min-width: 0; }
+.mm-client__mark{ display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 12px; background: var(--mm-purple-100); color: var(--mm-purple-600); font-weight: 700; letter-spacing: .02em; }
+.mm-client__title{ flex: 1; min-width: 0; }
+.mm-client__name{ margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: -.01em; color: var(--mm-ink); }
+.mm-client__sub{ margin: .15rem 0 0; font-size: .84rem; color: var(--mm-ink-3); }
+.mm-client__tag{ margin-left: auto; flex: none; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mm-purple-600); background: var(--mm-purple-50); padding: .28rem .6rem; border-radius: 999px; }
+.mm-client__occ{ display: grid; gap: .5rem; }
+.mm-client__occ-top{ display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; font-size: .88rem; color: var(--mm-ink-2); }
+.mm-client__occ-top b{ font-size: 1.6rem; font-weight: 600; color: var(--mm-ink); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.mm-client__bar{ display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--st-available-dot); }
+.mm-client__bar i{ display: block; height: 100%; }
+.mm-client__bar .is-occ{ background: var(--st-occupied-dot); }
+.mm-client__bar .is-held{ background: var(--st-held-dot); }
+.mm-client__key{ display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin: 0; padding: 0; list-style: none; font-size: .78rem; color: var(--mm-ink-3); }
+.mm-client__key li{ display: inline-flex; align-items: center; gap: .35rem; }
+.mm-client__stats{ display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .6rem; margin: 0; }
+.mm-client__stats div{ padding: .6rem .7rem; border-radius: 12px; background: var(--mm-ground); min-width: 0; }
+.mm-client__stats dt{ font-size: .74rem; color: var(--mm-ink-3); }
+.mm-client__stats dd{ margin: .15rem 0 0; font-size: 1.15rem; font-weight: 600; color: var(--mm-ink); font-variant-numeric: tabular-nums; }
+.mm-client__foot{ display: flex; flex-wrap: wrap; justify-content: space-between; gap: .3rem 1rem; font-size: .84rem; color: var(--mm-ink-3); }
+.mm-client__foot b{ color: var(--mm-ink); font-weight: 600; }
+.mm-client__actions{ display: flex; flex-wrap: wrap; gap: .5rem; }
+.mm-client__actions .mm-btn{ flex: 1 1 auto; }
+.mm-table tr.is-total td{ font-weight: 700; background: var(--mm-purple-50); }
+
+/* hotel profile */
+.mm-profile{ display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; padding: 0 1.5rem 1.5rem; }
+.mm-profile__wide{ grid-column: 1 / -1; }
+.mm-profile textarea{
+  font: inherit; font-size: .94rem; font-weight: 500; color: var(--mm-ink); width: 100%; min-height: 88px; resize: vertical;
+  padding: .55rem .8rem; border-radius: var(--mm-r); border: 1px solid var(--mm-field); background: var(--mm-card);
+}
+.mm-profile textarea:focus{ border-color: var(--mm-purple-600); outline: none; box-shadow: var(--mm-ring); }
+.mm-profile__err{ margin: 0; color: var(--st-cancel); font-size: .86rem; }
+.mm-profile__err:empty{ display: none; }
+.mm-profile__facts{ padding: 0 1.5rem 1.5rem; }
+
 /* type split (reports) */
 .mm-split{ display: grid; gap: 1rem; padding: 0 1.5rem 1.5rem; }
 .mm-split__row{ display: grid; grid-template-columns: 110px minmax(0,1fr) 140px; gap: .9rem; align-items: center; font-size: .9rem; }
@@ -732,6 +780,10 @@ body{ background: var(--mm-ground); color: var(--mm-ink); font-family: var(--san
   .mm-split__row{ grid-template-columns: 80px minmax(0,1fr); }
   .mm-split__val{ grid-column: 2; text-align: left; }
   .mm-drawer{ inset: 0; width: auto; border-radius: 0; }
+  .mm-clients{ grid-template-columns: minmax(0,1fr); gap: 1rem; }
+  .mm-client{ padding: 1.1rem; }
+  .mm-profile{ grid-template-columns: minmax(0,1fr); padding: 0 1.1rem 1.1rem; }
+  .mm-profile__facts{ padding: 0 1.1rem 1.1rem; }
 
   /* Tables become stacked cards: no sideways scrolling on a phone. */
   .mm-table--stack{ border-spacing: 0; }

@@ -2,15 +2,21 @@
 -- 004_security.sql — who may read and write what.
 --
 --   anon (the public key)    nothing: no table, no view, no function
---   authenticated, not admin nothing (RLS returns zero rows; functions refuse)
---   authenticated admin      read all four tables; edit a room's type, price,
---                            capacity, name and active flag; change a
---                            booking's status through admin_update_booking_status
+--   authenticated, no staff  nothing (RLS returns zero rows; functions refuse)
+--   staff of some hotels     read the four tables for those hotels only; edit
+--                            their rooms' type, price, capacity, name and
+--                            active flag, and their hotel's contact details;
+--                            change a booking's status through
+--                            admin_update_booking_status; agency_overview
 --   service_role (server)    the guest-facing functions in 003
 --
--- An admin is a Supabase Auth user whose app_metadata.hotel_role is 'admin'.
--- app_metadata is writable only with the service-role key, so nobody can
--- promote themselves; scripts/create_admin.js is how one is made.
+-- Which hotels: public.staff_hotel_ids() (003). An agency administrator
+-- (app_metadata.hotel_role = 'admin') has every hotel; a hotel manager has
+-- the hotels listed for them in hotel_staff. Both are writable only with the
+-- service-role key, so nobody can promote themselves; scripts/create_admin.js
+-- is how either is made. The scoping is in the database, so a manager asking
+-- for another client's rows directly — not through the page — still gets
+-- nothing.
 -- ============================================================================
 
 -- ------------------------------------------------------------- RLS on ----
@@ -18,33 +24,76 @@ alter table public.hotels       enable row level security;
 alter table public.rooms        enable row level security;
 alter table public.guests       enable row level security;
 alter table public.reservations enable row level security;
+alter table public.agencies     enable row level security;
+alter table public.hotel_staff  enable row level security;
 
 -- ------------------------------------------------------------- grants ----
 revoke all on public.hotels, public.rooms, public.guests, public.reservations from anon, authenticated;
 grant select on public.hotels, public.rooms, public.guests, public.reservations to authenticated;
 grant update (room_type, price_per_night, max_guests, is_active, name) on public.rooms to authenticated;
+-- A hotel's profile: contact details and description. Not its name or
+-- aliases (the seeds own those, and the ChatBot matches guests' words to
+-- them), nor its policy times, which the booking rules depend on.
+grant update (description, address, phone, email) on public.hotels to authenticated;
 grant select, insert, update, delete on public.hotels, public.rooms, public.guests, public.reservations to service_role;
 
+revoke all on public.agencies, public.hotel_staff from anon, authenticated;
+grant select on public.agencies, public.hotel_staff to authenticated;
+grant select, insert, update, delete on public.agencies, public.hotel_staff to service_role;
+
+-- Contact details are free text; keep them to something a guest can use,
+-- whoever writes them.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'hotels_profile_lengths') then
+    alter table public.hotels add constraint hotels_profile_lengths check (
+      coalesce(char_length(description), 0) <= 600 and coalesce(char_length(address), 0) <= 200 and
+      coalesce(char_length(phone), 0) <= 40 and coalesce(char_length(email), 0) <= 254);
+  end if;
+end $$;
+
 -- ----------------------------------------------------------- policies ----
+-- `(select …)` has Postgres work the hotel list out once per query, not
+-- once per row.
 drop policy if exists hotels_admin_read on public.hotels;
 create policy hotels_admin_read on public.hotels
-  for select to authenticated using (public.is_admin());
+  for select to authenticated using (id = any((select public.staff_hotel_ids())::text[]));
+
+drop policy if exists hotels_admin_update on public.hotels;
+create policy hotels_admin_update on public.hotels
+  for update to authenticated
+  using (id = any((select public.staff_hotel_ids())::text[]))
+  with check (id = any((select public.staff_hotel_ids())::text[]));
 
 drop policy if exists rooms_admin_read on public.rooms;
 create policy rooms_admin_read on public.rooms
-  for select to authenticated using (public.is_admin());
+  for select to authenticated using (hotel_id = any((select public.staff_hotel_ids())::text[]));
 
 drop policy if exists rooms_admin_update on public.rooms;
 create policy rooms_admin_update on public.rooms
-  for update to authenticated using (public.is_admin()) with check (public.is_admin());
+  for update to authenticated
+  using (hotel_id = any((select public.staff_hotel_ids())::text[]))
+  with check (hotel_id = any((select public.staff_hotel_ids())::text[]));
 
 drop policy if exists guests_admin_read on public.guests;
 create policy guests_admin_read on public.guests
-  for select to authenticated using (public.is_admin());
+  for select to authenticated using (hotel_id = any((select public.staff_hotel_ids())::text[]));
 
 drop policy if exists reservations_admin_read on public.reservations;
 create policy reservations_admin_read on public.reservations
-  for select to authenticated using (public.is_admin());
+  for select to authenticated using (hotel_id = any((select public.staff_hotel_ids())::text[]));
+
+-- The agency: visible to anyone who manages one of its hotels.
+drop policy if exists agencies_staff_read on public.agencies;
+create policy agencies_staff_read on public.agencies
+  for select to authenticated using (
+    exists (select 1 from public.hotels h
+             where h.agency_id = agencies.id and h.id = any((select public.staff_hotel_ids())::text[])));
+
+-- Staff lists: an agency administrator sees them all, a manager their own.
+drop policy if exists hotel_staff_read on public.hotel_staff;
+create policy hotel_staff_read on public.hotel_staff
+  for select to authenticated using ((select public.is_admin()) or user_id = (select auth.uid()));
 
 -- ------------------------------------------------------------ guest view ---
 -- Profile plus booking history totals. security_invoker makes the view obey
@@ -83,19 +132,25 @@ grant execute on function public.release_hold(text, text)                       
 grant execute on function public.confirm_booking(text, text, text, text, text, time, time, uuid) to service_role;
 grant execute on function public.find_booking(text, text)                             to service_role;
 
--- Admin functions check is_admin() themselves; anon still cannot reach them.
+-- Admin functions check staff_hotel_ids() themselves; anon still cannot reach them.
 revoke execute on function public.is_admin()                                          from public, anon;
+revoke execute on function public.staff_hotel_ids()                                   from public, anon;
+revoke execute on function public.can_manage_hotel(text)                              from public, anon;
+revoke execute on function public.agency_overview()                                   from public, anon;
 revoke execute on function public.admin_availability(text, date, date)                from public, anon;
 revoke execute on function public.admin_update_booking_status(text, text, text)       from public, anon;
 revoke execute on function public.admin_report(text, date, date)                      from public, anon;
 grant execute on function public.is_admin()                                           to authenticated, service_role;
+grant execute on function public.staff_hotel_ids()                                    to authenticated, service_role;
+grant execute on function public.can_manage_hotel(text)                               to authenticated, service_role;
+grant execute on function public.agency_overview()                                    to authenticated;
 grant execute on function public.admin_availability(text, date, date)                 to authenticated;
 grant execute on function public.admin_update_booking_status(text, text, text)        to authenticated;
 grant execute on function public.admin_report(text, date, date)                       to authenticated;
 
 -- ----------------------------------------------------------- realtime ----
 -- The dashboard listens for new bookings and room edits. Realtime applies
--- the same RLS, so only admins receive the rows.
+-- the same RLS, so staff receive only their own hotels' rows.
 do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then

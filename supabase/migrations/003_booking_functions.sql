@@ -385,14 +385,39 @@ begin
 end $$;
 
 -- ================================================================= admin ====
--- Authorisation comes from the signed-in user's app_metadata, which only the
--- service role can set (scripts/create_admin.js). A guest cannot grant it to
--- themselves.
+-- Two kinds of staff, both set only with the service-role key
+-- (scripts/create_admin.js), so nobody can grant themselves either:
+--
+--   agency administrator   app_metadata.hotel_role = 'admin'; every hotel
+--   hotel manager          a row in hotel_staff; that hotel only
+--
+-- staff_hotel_ids() is the one list every policy and admin function checks,
+-- so a hotel manager can never read or change another client's data however
+-- the request is made — the page's own hotel picker only chooses a screen.
 create or replace function public.is_admin()
 returns boolean language sql stable
 set search_path = ''
 as $$
   select coalesce((auth.jwt() -> 'app_metadata' ->> 'hotel_role') = 'admin', false)
+$$;
+
+-- SECURITY DEFINER so policies can call it without the caller needing to
+-- read hotel_staff (which they may, but only their own rows).
+create or replace function public.staff_hotel_ids()
+returns text[] language sql stable security definer
+set search_path = ''
+as $$
+  select case
+    when public.is_admin() then coalesce((select array_agg(id order by id) from public.hotels), '{}')
+    else coalesce((select array_agg(hotel_id order by hotel_id) from public.hotel_staff where user_id = auth.uid()), '{}')
+  end
+$$;
+
+create or replace function public.can_manage_hotel(p_hotel_id text)
+returns boolean language sql stable
+set search_path = ''
+as $$
+  select coalesce(p_hotel_id = any(public.staff_hotel_ids()), false)
 $$;
 
 create or replace function public.admin_availability(p_hotel_id text, p_check_in date, p_check_out date)
@@ -402,7 +427,7 @@ language plpgsql stable security definer
 set search_path = ''
 as $$
 begin
-  if not public.is_admin() then raise exception 'forbidden' using errcode = '42501'; end if;
+  if not public.can_manage_hotel(p_hotel_id) then raise exception 'forbidden' using errcode = '42501'; end if;
   return query select * from public.get_availability(p_hotel_id, p_check_in, p_check_out);
 end $$;
 
@@ -416,9 +441,11 @@ as $$
 declare
   v_from  text[];
   v_today date;
+  v_hotel text;
+  v_mine  text[] := public.staff_hotel_ids();
   n       integer;
 begin
-  if not public.is_admin() then raise exception 'forbidden' using errcode = '42501'; end if;
+  if cardinality(v_mine) = 0 then raise exception 'forbidden' using errcode = '42501'; end if;
 
   v_from := case p_status
     when 'checked_in'  then array['confirmed']
@@ -430,9 +457,11 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'invalid_status');
   end if;
 
-  select (now() at time zone h.timezone)::date into v_today
+  -- Another client's booking reads as not found, not forbidden, so a hotel
+  -- manager cannot even learn that a reference exists elsewhere.
+  select h.id, (now() at time zone h.timezone)::date into v_hotel, v_today
     from public.reservations x join public.hotels h on h.id = x.hotel_id
-   where x.booking_ref = p_booking_ref limit 1;
+   where x.booking_ref = p_booking_ref and x.hotel_id = any(v_mine) limit 1;
   if v_today is null then
     return jsonb_build_object('ok', false, 'reason', 'not_found');
   end if;
@@ -442,6 +471,7 @@ begin
          cancelled_at  = case when p_status = 'cancelled' then now() else cancelled_at end,
          cancel_reason = case when p_status = 'cancelled' then left(nullif(btrim(p_reason), ''), 300) else cancel_reason end
    where booking_ref = p_booking_ref
+     and hotel_id = v_hotel
      and status = any(v_from)
      and (p_status not in ('checked_in', 'no_show') or check_in <= v_today);
   get diagnostics n = row_count;
@@ -464,7 +494,7 @@ declare
   v_rooms  integer;
   result   jsonb;
 begin
-  if not public.is_admin() then raise exception 'forbidden' using errcode = '42501'; end if;
+  if not public.can_manage_hotel(p_hotel_id) then raise exception 'forbidden' using errcode = '42501'; end if;
   if p_from is null or p_to is null or p_to < p_from or p_to - p_from > 366 then
     raise exception 'invalid_range' using errcode = '22023';
   end if;
@@ -511,5 +541,116 @@ begin
     'cancellations', (select count(*) from bookings
                        where status = 'cancelled' and (cancelled_at at time zone v_tz)::date between p_from and p_to)
   ) into result;
+  return result;
+end $$;
+
+-- ======================================================== agency overview ===
+-- One row of live figures per client hotel the caller may manage, for the
+-- agency dashboard: an agency administrator gets every active hotel, a hotel
+-- manager only their own. Computed here from the rooms and reservations
+-- themselves, with the same rules as the hotel dashboard:
+--
+--   occupied   an active room with a confirmed or in-house stay tonight
+--   held       an active room with a live hold tonight (and no stay)
+--   available  active − occupied − held
+--   bookings   counted per booking reference, never per room row
+--   revenue    booked nights of this calendar month at the rate booked
+--
+-- "Today" is each hotel's own business date (its timezone).
+create or replace function public.agency_overview()
+returns jsonb language plpgsql stable security definer
+set search_path = ''
+as $$
+declare
+  v_mine text[] := public.staff_hotel_ids();
+  result jsonb;
+begin
+  if cardinality(v_mine) = 0 then raise exception 'forbidden' using errcode = '42501'; end if;
+
+  with h as (
+    select h.id, h.name, h.agency_id, h.address, h.phone, h.email, h.check_in_time, h.check_out_time,
+           (now() at time zone h.timezone)::date as today
+      from public.hotels h
+     where h.id = any(v_mine) and h.is_active
+  ),
+  rm as (
+    select r.hotel_id,
+           count(*)                                                        as total,
+           count(*) filter (where r.is_active)                             as active,
+           count(*) filter (where r.is_active and r.room_type = 'Normal')  as normal,
+           count(*) filter (where r.is_active and r.room_type = 'Luxury')  as luxury,
+           min(r.price_per_night) filter (where r.is_active)               as min_rate,
+           max(r.price_per_night) filter (where r.is_active)               as max_rate
+      from public.rooms r join h on h.id = r.hotel_id
+     group by r.hotel_id
+  ),
+  night as (
+    select r.hotel_id,
+           count(*) filter (where t.state = 'occupied') as occupied,
+           count(*) filter (where t.state = 'held')     as held
+      from public.rooms r
+      join h on h.id = r.hotel_id
+      cross join lateral (
+        select case
+          when exists (select 1 from public.reservations x
+                        where x.room_id = r.id and x.status in ('confirmed', 'checked_in')
+                          and x.check_in <= h.today and x.check_out > h.today) then 'occupied'
+          when exists (select 1 from public.reservations x
+                        where x.room_id = r.id and x.status = 'held' and x.hold_expires_at > now()
+                          and x.check_in <= h.today and x.check_out > h.today) then 'held'
+        end as state
+      ) t
+     where r.is_active
+     group by r.hotel_id
+  ),
+  bk as (
+    select x.hotel_id,
+           count(distinct x.booking_ref) filter (where x.check_in = h.today and x.status in ('confirmed', 'checked_in'))  as arrivals,
+           count(distinct x.booking_ref) filter (where x.check_in = h.today and x.status = 'confirmed')                   as arrivals_pending,
+           count(distinct x.booking_ref) filter (where x.check_out = h.today and x.status in ('confirmed', 'checked_in', 'checked_out')) as departures,
+           count(distinct x.booking_ref) filter (where x.check_out = h.today and x.status = 'checked_in')                as departures_pending,
+           count(distinct x.booking_ref) filter (where x.check_in between h.today and h.today + 6
+                                                   and x.status in ('confirmed', 'checked_in'))                          as checkins_7d,
+           count(distinct x.booking_ref) filter (where x.check_out >= h.today and x.status in ('confirmed', 'checked_in')) as upcoming,
+           count(distinct x.booking_ref) filter (where x.status = 'checked_in')                                          as in_house,
+           count(distinct x.booking_ref) filter (where x.status not in ('held', 'expired'))                              as bookings,
+           count(distinct x.guest_id)    filter (where x.status not in ('held', 'expired'))                              as guests
+      from public.reservations x join h on h.id = x.hotel_id
+     group by x.hotel_id
+  ),
+  rev as (
+    select x.hotel_id, sum(x.price_per_night) as revenue, count(*) as nights
+      from public.reservations x
+      join h on h.id = x.hotel_id
+      cross join lateral generate_series(greatest(x.check_in, date_trunc('month', h.today)::date),
+                                         least(x.check_out - 1, (date_trunc('month', h.today) + interval '1 month - 1 day')::date),
+                                         interval '1 day') d
+     where x.status in ('confirmed', 'checked_in', 'checked_out')
+     group by x.hotel_id
+  )
+  select jsonb_build_object(
+    'agency', (select jsonb_build_object('id', a.id, 'name', a.name) from public.agencies a
+                where a.id in (select agency_id from h) order by a.id limit 1),
+    'hotels', coalesce(jsonb_agg(jsonb_build_object(
+      'id', h.id, 'name', h.name, 'address', h.address, 'phone', h.phone, 'email', h.email,
+      'today', h.today, 'check_in_time', h.check_in_time, 'check_out_time', h.check_out_time,
+      'rooms_total', coalesce(rm.total, 0), 'rooms_active', coalesce(rm.active, 0),
+      'normal', coalesce(rm.normal, 0), 'luxury', coalesce(rm.luxury, 0),
+      'min_rate', rm.min_rate, 'max_rate', rm.max_rate,
+      'occupied', coalesce(night.occupied, 0), 'held', coalesce(night.held, 0),
+      'available', coalesce(rm.active, 0) - coalesce(night.occupied, 0) - coalesce(night.held, 0),
+      'arrivals', coalesce(bk.arrivals, 0), 'arrivals_pending', coalesce(bk.arrivals_pending, 0),
+      'departures', coalesce(bk.departures, 0), 'departures_pending', coalesce(bk.departures_pending, 0),
+      'checkins_7d', coalesce(bk.checkins_7d, 0), 'upcoming', coalesce(bk.upcoming, 0),
+      'in_house', coalesce(bk.in_house, 0), 'bookings', coalesce(bk.bookings, 0), 'guests', coalesce(bk.guests, 0),
+      'month_revenue', coalesce(rev.revenue, 0), 'month_nights', coalesce(rev.nights, 0)
+    ) order by h.name), '[]'::jsonb)
+  ) into result
+  from h
+  left join rm    on rm.hotel_id = h.id
+  left join night on night.hotel_id = h.id
+  left join bk    on bk.hotel_id = h.id
+  left join rev   on rev.hotel_id = h.id;
+
   return result;
 end $$;

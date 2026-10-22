@@ -1,9 +1,17 @@
-# Misty Mountain — hotel dashboard and booking ChatBot
+# Kuttikkanam Hotel Agency — agency dashboard and booking ChatBot
 
-A hotel management dashboard for Misty Mountain, with a guest-facing booking
-ChatBot, both backed by Supabase. Guests check real availability and book a
-room through the ChatBot; staff sign in to manage rooms, rates, reservations
-and guests, and to read revenue and occupancy reports.
+A hotel management agency platform, backed by Supabase. The agency manages
+three client hotels in Kuttikkanam, Kerala — **Misty Mountain**, **Royal
+Hotel** and **Taj Hotel**, ten rooms each — from one dashboard, while each
+hotel's rooms, rates, guests and bookings stay its own. Guests check real
+availability and book a room at any of the three through one shared ChatBot;
+the agency sees every client side by side, and a hotel's own manager sees only
+that hotel.
+
+The agency is the parent organisation (`agencies`) and every hotel is one of
+its clients (`hotels.agency_id`). Rooms, guests and reservations were already
+keyed by `hotel_id`; who may see which hotel is decided in the database
+(`staff_hotel_ids()`), so adding a fourth client is a seed file, not a rebuild.
 
 ## Files
 
@@ -30,7 +38,8 @@ and guests, and to read revenue and occupancy reports.
 ```bash
 npm install
 npm run db:migrate          # schema, seed, functions, RLS — safe to re-run
-npm run admin:create -- you@example.com   # once: a dashboard login (prints a temporary password)
+npm run admin:create -- you@example.com   # once: an agency administrator login (prints a temporary password)
+npm run admin:create -- desk@example.com --hotel royal_kuttikkanam   # optional: a manager for one hotel only
 npm run whisper:setup       # once: the English voice model, inside this folder (see "Voice input")
 npm run serve               # http://localhost:8792 — page, /api/chat, /api/config, /api/hotels, /api/transcribe
 ```
@@ -140,10 +149,10 @@ answer says so and points at the reception number.
 
 | File | What it does |
 |---|---|
-| `001_schema.sql` | `hotels`, `rooms`, `guests`, `reservations`, constraints, indexes. Upgrades the earlier prototype tables in place (removing only their demo rows, by exact key) and stops rather than delete anything else. |
+| `001_schema.sql` | `agencies` (with the agency's own row), `hotels` (each with `agency_id`), `hotel_staff`, `rooms`, `guests`, `reservations`, constraints, indexes. Upgrades the earlier prototype tables in place (removing only their demo rows, by exact key) and stops rather than delete anything else. Existing hotels are attached to the agency when `agency_id` is first added. |
 | `002_seed_misty_mountain.sql` | Misty Mountain and its rooms 1–10. Upserts on natural keys, so re-running never duplicates; rates, types and capacity are written only when a room is first created, so dashboard edits survive a re-run. |
-| `003_booking_functions.sql` | `get_availability`, `hold_rooms`, `confirm_booking`, `release_hold`, `find_booking`, and the admin functions `admin_availability`, `admin_update_booking_status`, `admin_report`. |
-| `004_security.sql` | RLS, grants, the `guest_summaries` view, Realtime publication. |
+| `003_booking_functions.sql` | `get_availability`, `hold_rooms`, `confirm_booking`, `release_hold`, `find_booking`; the staff checks `staff_hotel_ids()` and `can_manage_hotel()`; the dashboard functions `admin_availability`, `admin_update_booking_status`, `admin_report`, and `agency_overview` (every client's figures in one call). |
+| `004_security.sql` | RLS scoped to the hotels each user may manage, grants (including a hotel's editable contact details), the `guest_summaries` view, Realtime publication. |
 | `005_guest_accounts.sql` | Guest accounts: `room_board`, `my_bookings`, `cancel_my_booking`, and `inventory_pulse` (the change signal the guest area listens to). `reservations.user_id` (in `001`) links a booking to the account that made it. |
 | `006_seed_kuttikkanam_hotels.sql` | Royal Hotel (`royal_kuttikkanam`) and Taj Hotel (`taj_kuttikkanam`), rooms 1–10 each. Same re-run rules as `002`. Contact details are left empty for the admin to fill in. |
 
@@ -278,20 +287,30 @@ the rules for that message.
 
 ### The dashboard
 
-Staff sign in with Supabase Auth on the welcome screen, like guests. Only users whose
-`app_metadata.hotel_role` is `admin` get the dashboard (everyone else gets the guest area); that field can only be written with
-the service-role key, which is what `npm run admin:create -- email` does
-(`-- email --revoke` removes it). A user must sign in again after their rights
-change. The session lives in `sessionStorage`, so it ends with the tab, and every
-guest detail is wiped from the page on sign-out.
+Staff sign in with Supabase Auth on the welcome screen, like guests. Two kinds
+of staff, both set only with the service-role key by `npm run admin:create`;
+everyone else gets the guest area:
+
+| Who | How | Sees |
+|---|---|---|
+| Agency administrator | `admin:create -- email` → `app_metadata.hotel_role = "admin"` | The agency overview and every client hotel |
+| Hotel manager | `admin:create -- email --hotel <hotel id>` → a row in `hotel_staff` and `hotel_role = "manager"` | Their hotel(s) only. No agency overview, no picker unless they manage more than one |
+
+`--revoke` removes either (`--hotel <id> --revoke` removes one hotel). A change
+of role needs a fresh sign-in; taking a hotel away from a manager takes effect
+on their next request, because the database reads `hotel_staff` every time. The
+session lives in `sessionStorage`, so it ends with the tab, and every guest
+detail is wiped from the page on sign-out.
 
 | Page | What it does |
 |---|---|
-| Property | The sidebar's picker chooses which hotel every page below is about (all active hotels). Switching re-reads everything for that hotel and re-subscribes Realtime to it; the choice is kept for the tab. |
+| Agency → Overview | Administrators only; where they land. Agency-wide total rooms, occupied / available / held tonight, occupancy, arrivals today, check-ins in the next 7 days, upcoming bookings and this month's room revenue; a card per client with its own figures and quick links (Open dashboard, Reservations, Rooms, Reports); and the clients compared in one table. All from `agency_overview()`, computed in the database from the rooms and reservations with the same rules as the hotel dashboard. Live: Realtime on `inventory_pulse` (any client's change), plus once a minute. |
+| Client hotel | The sidebar's picker chooses which hotel every Front desk page is about (the active hotels this account may manage — the database returns no others). Switching re-reads everything for that hotel and re-subscribes Realtime to it; the choice is kept for the tab. |
 | Dashboard | Tonight: total / available / occupied rooms and occupancy rate, arrivals and departures, month-to-date room revenue; a status board for all ten rooms for tonight or any night you pick (a ChatBot booking turns its room to *Booked* as soon as it is confirmed); next-7-day arrivals and departures; 14-night occupancy chart; latest bookings. Updates live through Supabase Realtime (and refreshes every minute regardless). |
 | Rooms | Availability check for any dates (the ChatBot's own calculation); one rate for all rooms of a type; per-room type, rate, capacity and bookable switch. Existing bookings keep their booked rate. |
 | Reservations | Search (reference, guest, email, phone, room), filter by status, type and dates; a detail panel with check-in, check-out, no-show and cancel (with a reason). Status only moves forward. |
 | Guests | Profiles with booking count, total spend, last and next stay, and full booking history. |
+| Hotel profile | The hotel's phone, email, address and description — what the ChatBot gives guests for that hotel (it says "call the hotel on …" once a phone is set) — editable; and its configuration (agency, id, rooms, check-in/out, hold time, longest stay), read-only because the booking rules depend on it. The name stays with the seed, because the ChatBot matches guests' words to it. |
 | Reports | Room revenue, room-nights sold, occupancy, ADR and RevPAR for any period up to a year, by night and by room type; CSV export and a table view. Computed in the database from actual reservations. |
 
 ### Guest accounts
@@ -338,9 +357,16 @@ with a ★. A booked room is hatched and labelled *Booked*, never just coloured.
 | Who | Can |
 |---|---|
 | The public anon key | nothing — no table, view or function (`tests/db/schema.test.js` checks over HTTP) |
-| A signed-in guest (non-admin) | no table rows (RLS) and no admin functions; `room_board` (statuses, no guest details), their own bookings through `my_bookings`, cancelling their own through `cancel_my_booking`, and reading `inventory_pulse` (a timestamp) |
-| An admin | read the four tables; edit a room's type, rate, capacity, name and bookable flag (column-level grant); change a booking's status only through `admin_update_booking_status` |
+| A signed-in guest (no staff role) | no table rows (RLS) and no admin functions; `room_board` (statuses, no guest details), their own bookings through `my_bookings`, cancelling their own through `cancel_my_booking`, and reading `inventory_pulse` (a timestamp) |
+| Staff (agency administrator or hotel manager) | for the hotels in `staff_hotel_ids()` only: read the four tables; edit a room's type, rate, capacity, name and bookable flag and the hotel's contact details (column-level grants); change a booking's status only through `admin_update_booking_status`; `admin_report`, `admin_availability`, `agency_overview` |
 | The server (service role) | the guest-facing booking functions |
+
+Every policy and staff function checks `staff_hotel_ids()`, so the isolation
+holds for any request, not just the page's: a Royal Hotel manager asking the
+database directly for Misty Mountain's rooms, guests or bookings gets none, a
+report for another hotel is `forbidden`, another hotel's booking reference reads
+as `not_found`, and an update to another hotel's room touches nothing
+(`tests/db/agency.test.js`).
 
 Secrets live in `.env` locally (git-ignored) and in Netlify environment variables
 in production. The page holds none: `GET /api/config` serves only the project URL
@@ -355,7 +381,8 @@ typed. `netlify.toml` 404s `/.env*`, `/server/`, `/supabase/`, `/scripts/`,
 
 ```bash
 npm test          # unit: extraction, state signing, the booking flow, routing, HTTP guards, Jev client
-npm run test:db   # live Supabase: schema, seed, RLS, availability, holds, concurrency, admin, look-ups, end-to-end
+npm run test:db   # live Supabase: schema, seed, RLS, availability, holds, concurrency, admin, look-ups, end-to-end,
+                  # the agency overview and hotel managers kept to their own hotel
 npm run smoke     # pre-deploy checks on the page itself
 npm run test:stt  # the real Whisper model: loads once, non-speech comes back empty, bursts are refused
 ```
@@ -512,7 +539,8 @@ node smoke_test.js
 ```
 
 28 checks, no network, exits non-zero on any failure so it can gate a
-deploy. Beyond the dashboard's five pages, the pinned and integrity-checked
+deploy. Beyond the dashboard's pages (the agency overview and six hotel pages,
+with the agency-only links starting hidden), the pinned and integrity-checked
 Supabase library, and a scan proving no key or connection string is in the
 page or `hotel_admin.js`, it covers: the data files load and expose their globals; every dataset
 (`UI`, `REPLY`, `MEDIA`, `PLACES`, `DATA`, `TERMS`) covers all four languages;

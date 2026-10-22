@@ -378,14 +378,18 @@ check("answers carry no unbalanced markup", () => {
 
 const ADMIN_JS = fs.readFileSync("hotel_admin.js", "utf8");
 
-check("the dashboard has its five pages and the sign-in gate", () => {
+check("the dashboard has its agency overview, six hotel pages and the sign-in gate", () => {
   const p = [];
-  for (const v of ["dashboard", "rooms", "reservations", "guests", "reports"]){
+  for (const v of ["agency", "dashboard", "rooms", "reservations", "guests", "profile", "reports"]){
     if (!HTML.includes('data-view-panel="' + v + '"')) p.push("page " + v + " is gone");
     if (!HTML.includes('data-view="' + v + '"')) p.push("nav link to " + v + " is gone");
   }
-  ["mmGate", "mmApp", "mmSignin", "kpis", "roomBoard", "roomsTable", "resTable", "guestTable", "reportKpis", "drawer"]
+  ["mmGate", "mmApp", "mmSignin", "kpis", "roomBoard", "roomsTable", "resTable", "guestTable", "reportKpis", "drawer",
+   "agencyKpis", "clientCards", "clientTable", "hotelSwitch", "profileForm", "profileFacts"]
     .forEach(id => { if (!HTML.includes('id="' + id + '"')) p.push("#" + id + " is gone"); });
+  // Agency-wide links start hidden: a hotel manager must never see them flash up.
+  (HTML.match(/<[^>]*data-agency-only[^>]*>/g) || []).forEach(t => { if (!/\shidden[\s>]/.test(t)) p.push("an agency-only element does not start hidden"); });
+  if (!/agency_overview/.test(ADMIN_JS)) p.push("the agency overview no longer reads agency_overview()");
   if (!HTML.includes('class="mm-app" id="mmApp" hidden')) p.push("the admin app must start hidden until sign-in");
   return p;
 });

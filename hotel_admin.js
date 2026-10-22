@@ -1,25 +1,36 @@
 /* ============================================================================
-   hotel_admin.js — Misty Mountain sign-in, sign-up and the hotel
-   management dashboard.
+   hotel_admin.js — sign-in, sign-up and the hotel management agency
+   dashboard: the agency's client hotels (Misty Mountain, Royal Hotel, Taj
+   Hotel) managed from one place, each with its own rooms, guests and
+   bookings.
 
    Everyone signs in here with Supabase Auth (email + password). Guests can
    create an account (full name, email, password); with email confirmation
    on in the Supabase project they verify it first. Who lands where:
 
-     app_metadata.hotel_role = "admin"   the dashboard below
-     anyone else                         the guest area (hotel_guest.js)
+     app_metadata.hotel_role = "admin"     agency administrator: the agency
+                                           overview, then any client hotel
+     app_metadata.hotel_role = "manager"   hotel manager: the dashboard for
+                                           the hotels listed in hotel_staff
+     anyone else                           the guest area (hotel_guest.js)
 
-   Both read the database with the signed-in user's own token, so Row Level
-   Security and the database functions decide what comes back
-   (supabase/migrations/004_security.sql, 005_guest_accounts.sql); the role
-   check here picks a screen, it does not protect anything. app_metadata can
-   only be set with the service-role key, so nobody signs up as staff.
+   Everything reads the database with the signed-in user's own token, so Row
+   Level Security and the database functions decide what comes back
+   (supabase/migrations/004_security.sql, 005_guest_accounts.sql) — a
+   manager's picker lists only their hotels because the database returns no
+   others. The role check here picks a screen, it does not protect anything.
+   app_metadata and hotel_staff can only be written with the service-role
+   key, so nobody signs up as staff.
 
    window.MMAuth gives the ChatBot the current access token (sent to
    /api/chat so a booking is tied to the account) and lets it open the
    sign-in form when a signed-out guest tries to book.
 
    What it does
+     Agency        every client side by side: rooms, tonight's occupancy,
+                   arrivals, upcoming check-ins and bookings, this month's
+                   revenue — from agency_overview(), live via inventory_pulse;
+                   each client card opens that hotel's pages
      Dashboard     tonight's rooms, KPIs, arrivals/departures, 14-night
                    occupancy, latest bookings — live via Supabase Realtime
      Rooms         availability check, rate per type, per-room type / rate /
@@ -27,11 +38,13 @@
      Reservations  search, filter, detail, check-in / check-out / no-show /
                    cancel (admin_update_booking_status)
      Guests        profiles with booking history (guest_summaries view)
+     Hotel profile contact details the ChatBot gives guests (editable), and
+                   the hotel's configuration (read-only)
      Reports       revenue, room-nights, occupancy, ADR, RevPAR from
                    admin_report, by night and by room type; CSV export
 
-   Every view is about one hotel at a time, chosen with the Property picker
-   (all active hotels in the hotels table). Switching re-reads everything
+   Every view but Agency is about one client hotel at a time, chosen with the
+   Client hotel picker (the active hotels this account may manage). Switching re-reads everything
    for that hotel and re-subscribes Realtime to it; a load still in flight
    for the previous hotel is discarded, never shown under the new one. The
    choice is kept for the tab in sessionStorage.
@@ -49,8 +62,10 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-  const VIEWS = ["dashboard", "rooms", "reservations", "guests", "reports"];
-  const TITLES = { dashboard: "Dashboard", rooms: "Rooms", reservations: "Reservations", guests: "Guests", reports: "Reports" };
+  const BRAND = "GXP";   // the application's name, shown in place of the agency's own
+  const VIEWS = ["agency", "dashboard", "rooms", "reservations", "guests", "profile", "reports"];
+  const TITLES = { agency: "Agency overview", dashboard: "Dashboard", rooms: "Rooms", reservations: "Reservations", guests: "Guests",
+                   profile: "Hotel profile", reports: "Reports" };
   const LIVE = new Set(["confirmed", "checked_in"]);                   // holds a room for the night
   const SOLD = new Set(["confirmed", "checked_in", "checked_out"]);    // counts as revenue
   const STATUS_LABEL = { held: "Held", expired: "Expired hold", confirmed: "Confirmed", checked_in: "Checked in",
@@ -81,9 +96,10 @@
   const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
 
   const S = {
-    client: null, user: null, mode: null, resumeChat: false, hotelId: "misty_mountain", hotel: null, hotels: [], boardDate: "", again: false,
+    client: null, user: null, mode: null, role: null, resumeChat: false, hotelId: "misty_mountain", hotel: null, hotels: [], boardDate: "", again: false,
     rooms: [], roomById: new Map(), res: [], guests: [],
     view: "dashboard", moves: "arrivals", resPage: 0, report: null,
+    agency: null, agencyChannel: null, agencyTimer: 0, agencyLoading: false, profileDirty: false,
     channel: null, poll: 0, reloadTimer: 0, toasted: new Set(), loading: false, opener: null
   };
 
@@ -135,7 +151,11 @@
 
   /* ==================================================================== AUTH */
 
-  const isAdmin = user => !!(user && user.app_metadata && user.app_metadata.hotel_role === "admin");
+  /* "admin" (the agency), "manager" (some hotels) or null (a guest). */
+  const staffRole = user => {
+    const r = user && user.app_metadata && user.app_metadata.hotel_role;
+    return r === "admin" || r === "manager" ? r : null;
+  };
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   const NAME_RE = /^[\p{L}][\p{L}\p{M}' .-]{1,119}$/u;
   const PW_RULES = {
@@ -226,7 +246,7 @@
   function enterAs(session){
     if (!session || !session.user || S.user) return;
     notice("");
-    if (isAdmin(session.user)) enter(session);
+    if (staffRole(session.user)) enter(session);
     else enterGuest(session);
     if (S.resumeChat && window.MMChat){
       S.resumeChat = false;
@@ -373,15 +393,18 @@
   function enter(session){
     S.user = session.user;
     S.mode = "admin";
+    S.role = staffRole(S.user);
     $("#mmGate").hidden = true;
     $("#mmApp").hidden = false;
     const email = S.user.email || "";
     $("#userEmail").textContent = email;
     $("#userAvatar").textContent = (email[0] || "·");
+    $("#userRole").textContent = S.role === "admin" ? "Agency administrator" : "Hotel manager";
+    $$("[data-agency-only]").forEach(n => { n.hidden = S.role !== "admin"; });
     route();
-    loadHotels().then(() => { loadAll(); subscribe(); });
+    loadHotels().then(() => { loadAll(); subscribe(); loadAgency(); subscribeAgency(); });
     clearInterval(S.poll);
-    S.poll = setInterval(() => loadAll(true), 60000);
+    S.poll = setInterval(() => { loadAll(true); loadAgency(); }, 60000);
   }
 
   /* ---- which hotel ------------------------------------------------------ */
@@ -390,9 +413,10 @@
   function rememberHotel(id){ try { sessionStorage.setItem(PICK_KEY, id); } catch {} }
   function rememberedHotel(){ try { return sessionStorage.getItem(PICK_KEY); } catch { return null; } }
 
+  /* The hotels this account may manage: RLS returns no others. */
   async function loadHotels(){
-    const { data, error } = await S.client.from("hotels").select("id, name").eq("is_active", true).order("name");
-    if (error || !data || !data.length) return;           // loadAll reports a real failure
+    const { data, error } = await S.client.from("hotels").select("id, name, agency_id").eq("is_active", true).order("name");
+    if (error || !data || !data.length){ updateChrome(); return; }   // loadAll reports a real failure
     S.hotels = data;
     const saved = rememberedHotel();
     if (saved && data.some(h => h.id === saved)) S.hotelId = saved;
@@ -400,25 +424,47 @@
     $("#hotelSwitch").innerHTML = data.map(h => `<option value="${esc(h.id)}">${esc(h.name)}</option>`).join("");
     $("#hotelSwitch").value = S.hotelId;
     $("#hotelPick").hidden = data.length < 2;
+    updateChrome();
+  }
+
+  /* Brand, breadcrumb and title: GXP on the overview, the client hotel
+     everywhere else. A manager's brand is their hotel. */
+  function updateChrome(){
+    const hotelName = (S.hotel && S.hotel.name) || (S.hotels.find(h => h.id === S.hotelId) || {}).name || "";
+    if (S.role === "admin"){
+      $("#sideBrand").textContent = BRAND;
+      $("#sideBrandSub").textContent = "Hotel management";
+    } else {
+      $("#sideBrand").textContent = hotelName || BRAND;
+      $("#sideBrandSub").textContent = "Managed by " + BRAND;
+    }
+    $("#navDeskLabel").textContent = hotelName && S.hotels.length > 1 ? "Front desk · " + hotelName : "Front desk";
+    $("#topCrumb").textContent = S.view === "agency" ? BRAND : (hotelName || "Front desk");
+    document.title = TITLES[S.view] + " — " + (S.view === "agency" ? BRAND : (hotelName || BRAND));
   }
 
   function switchHotel(id){
     if (!id || id === S.hotelId || !S.hotels.some(h => h.id === id)) return;
     S.hotelId = id;
     rememberHotel(id);
+    $("#hotelSwitch").value = id;
     closeDrawer();
     // Nothing of the previous hotel may stay on screen under the new name.
-    S.hotel = null; S.rooms = []; S.roomById = new Map(); S.res = []; S.guests = []; S.report = null;
-    ["#kpis", "#roomBoard", "#moves", "#occChart", "#recentTable", "#roomsTable", "#typeRates", "#resTable",
-     "#guestTable", "#reportKpis", "#revChart", "#repOccChart", "#typeSplit", "#availResult", "#resCount", "#guestCount", "#resPager"]
-      .forEach(s => { const n = $(s); if (n) n.innerHTML = ""; });
-    const name = (S.hotels.find(h => h.id === id) || {}).name || "";
-    $("#sideHotel").textContent = name;
+    S.hotel = null; S.rooms = []; S.roomById = new Map(); S.res = []; S.guests = []; S.report = null; S.profileDirty = false;
+    HOTEL_PANES.forEach(s => { const n = $(s); if (n) n.innerHTML = ""; });
+    clearProfile();
+    updateChrome();
     navOpen(false);
     loadAll();
     subscribe();
     if (S.view === "reports") loadReport();
+    if (S.agency) renderAgency();                          // the "Selected" mark moves
   }
+
+  /* Everything drawn from one hotel's data. */
+  const HOTEL_PANES = ["#kpis", "#roomBoard", "#moves", "#occChart", "#recentTable", "#roomsTable", "#typeRates", "#resTable",
+    "#guestTable", "#reportKpis", "#revChart", "#repOccChart", "#typeSplit", "#availResult", "#resCount", "#guestCount", "#resPager", "#profileFacts"];
+  const AGENCY_PANES = ["#agencyKpis", "#clientCards", "#clientTable"];
 
   function enterGuest(session){
     S.user = session.user;
@@ -431,11 +477,14 @@
   function leave(){
     const was = S.mode;
     clearInterval(S.poll);
+    clearTimeout(S.agencyTimer);
     if (S.channel && S.client){ S.client.removeChannel(S.channel); S.channel = null; }
-    S.user = null; S.mode = null; S.hotel = null; S.hotels = []; S.rooms = []; S.res = []; S.guests = []; S.report = null; S.roomById = new Map();
-    ["#kpis", "#roomBoard", "#moves", "#occChart", "#recentTable", "#roomsTable", "#typeRates", "#resTable",
-     "#guestTable", "#reportKpis", "#revChart", "#repOccChart", "#typeSplit", "#availResult", "#resCount", "#guestCount", "#resPager"]
-      .forEach(s => { const n = $(s); if (n) n.innerHTML = ""; });
+    if (S.agencyChannel && S.client){ S.client.removeChannel(S.agencyChannel); S.agencyChannel = null; }
+    S.user = null; S.mode = null; S.role = null; S.hotel = null; S.hotels = []; S.rooms = []; S.res = []; S.guests = []; S.report = null; S.roomById = new Map();
+    S.agency = null; S.profileDirty = false;
+    HOTEL_PANES.concat(AGENCY_PANES).forEach(s => { const n = $(s); if (n) n.innerHTML = ""; });
+    clearProfile();
+    $$("[data-agency-only]").forEach(n => { n.hidden = true; });
     closeDrawer();
     if (window.MMGuest) window.MMGuest.leave();
     if (was && window.MMChat) window.MMChat.reset();
@@ -474,7 +523,7 @@
     if (!quiet && !S.rooms.length) renderSkeletons();
     try {
       const [h, r, x, g] = await Promise.all([
-        S.client.from("hotels").select("id, name, timezone, address, check_in_time, check_out_time, hold_minutes").eq("id", S.hotelId),
+        S.client.from("hotels").select("id, name, agency_id, timezone, currency, description, address, phone, email, check_in_time, check_out_time, hold_minutes, max_stay_nights").eq("id", S.hotelId),
         S.client.from("rooms").select("id, room_number, room_type, name, price_per_night, max_guests, is_active, updated_at").eq("hotel_id", S.hotelId).order("room_number"),
         S.client.from("reservations").select("id, booking_ref, room_id, guest_id, guest_name, guest_email, guest_phone, check_in, check_out, arrival_time, departure_time, num_guests, room_type, price_per_night, nights, total_price, status, source, hold_expires_at, confirmed_at, cancelled_at, cancel_reason, created_at").eq("hotel_id", S.hotelId).order("created_at", { ascending: false }).limit(5000),
         S.client.from("guest_summaries").select("*").eq("hotel_id", S.hotelId).order("full_name")
@@ -509,6 +558,45 @@
   function scheduleReload(){
     clearTimeout(S.reloadTimer);
     S.reloadTimer = setTimeout(() => { loadAll(true); if (S.view === "reports") loadReport(); }, 500);
+    scheduleAgency();
+  }
+
+  /* ---- the agency overview ---------------------------------------------- */
+
+  async function loadAgency(){
+    if (!S.client || !S.user || S.role !== "admin") return;    // managers have no agency view
+    if (S.agencyLoading){ scheduleAgency(); return; }
+    S.agencyLoading = true;
+    try {
+      const { data, error } = await S.client.rpc("agency_overview");
+      if (!S.user) return;                                  // signed out while loading
+      if (error) throw new Error(error.message || "query failed");
+      S.agency = data;
+      renderAgency();
+      if (S.view === "agency") banner("");
+    } catch (e){
+      if (S.view === "agency") banner("Couldn't load the agency overview from Supabase: " + e.message + ". The figures shown may be out of date.", true);
+    } finally {
+      S.agencyLoading = false;
+    }
+  }
+
+  function scheduleAgency(){
+    clearTimeout(S.agencyTimer);
+    S.agencyTimer = setTimeout(loadAgency, 700);
+  }
+
+  /* Any client's rooms or bookings changed. inventory_pulse carries only a
+     hotel id and a time, so this needs nothing beyond what RLS allows. */
+  function subscribeAgency(){
+    if (S.role !== "admin") return;
+    if (S.agencyChannel) S.client.removeChannel(S.agencyChannel);
+    S.agencyChannel = S.client.channel("mm-agency")
+      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_pulse" }, payload => {
+        const id = (payload.new || payload.old || {}).hotel_id;
+        if (!id || S.hotels.some(h => h.id === id)) scheduleAgency();
+      })
+      .subscribe();
   }
 
   /* The ChatBot in this page just held, booked or released a room. */
@@ -559,18 +647,26 @@
 
   /* ================================================================ ROUTING */
 
+  /* Agency administrators start on the agency overview; a hotel manager has
+     no agency view and starts on their hotel's dashboard. */
   function route(){
     if (S.mode !== "admin") return;
-    const v = (location.hash || "#dashboard").slice(1);
-    S.view = VIEWS.includes(v) ? v : "dashboard";
+    const home = S.role === "admin" ? "agency" : "dashboard";
+    let v = (location.hash || "#" + home).slice(1);
+    if (!VIEWS.includes(v) || (v === "agency" && S.role !== "admin")){
+      v = home;
+      if (location.hash) history.replaceState(null, "", "#" + home);
+    }
+    S.view = v;
     $$("[data-view-panel]").forEach(p => { p.hidden = p.dataset.viewPanel !== S.view; });
     $$(".mm-nav__item").forEach(a => {
       if (a.dataset.view === S.view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
     $("#topPage").textContent = TITLES[S.view];
-    document.title = TITLES[S.view] + " — " + ((S.hotel && S.hotel.name) || "Misty Mountain");
+    updateChrome();
     navOpen(false);
     if (S.view === "reports" && S.user && S.hotel) loadReport();
+    if (S.view === "agency" && S.user){ renderAgency(); loadAgency(); }
   }
 
   function navOpen(on){
@@ -588,7 +684,7 @@
 
   function renderAll(){
     if (!S.hotel) return;
-    $("#sideHotel").textContent = S.hotel.name;
+    updateChrome();
     $("#policyChip").textContent = `Check-in ${fmtTime(S.hotel.check_in_time)} · Check-out ${fmtTime(S.hotel.check_out_time)}`;
     const first = String((S.user && S.user.user_metadata && S.user.user_metadata.full_name) || "").trim().split(/\s+/)[0];
     $("#hDashboard").textContent = greeting() + (first ? ", " + first : "");
@@ -601,6 +697,7 @@
     renderRooms();
     renderReservations();
     renderGuests();
+    renderProfile();
   }
 
   /* ---- dashboard ------------------------------------------------------- */
@@ -782,6 +879,145 @@
   }
 
   const badge = s => `<span class="mm-badge mm-badge--${esc(s)}">${esc(STATUS_LABEL[s] || s)}</span>`;
+
+  /* ---- agency ---------------------------------------------------------- */
+
+  function renderAgency(){
+    const o = S.agency;
+    if (!o || !Array.isArray(o.hotels)){
+      $("#agencyKpis").innerHTML = Array.from({ length: 4 }, () =>
+        '<div class="mm-kpi"><span class="mm-skel" style="width:60%"></span><span class="mm-skel" style="height:2rem;width:40%"></span><span class="mm-skel" style="width:80%"></span></div>').join("");
+      return;
+    }
+    const H = o.hotels;
+    const sum = k => H.reduce((s, h) => s + Number(h[k] || 0), 0);
+    const rooms = sum("rooms_total"), active = sum("rooms_active"), occ = sum("occupied"), held = sum("held");
+    const month = H[0] ? dateObj(H[0].today).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" }) : "";
+    const occPct = pct(occ, active);
+
+    $("#agencyLabel").textContent = BRAND + (H[0] ? " · Business date " + fmtDate(H[0].today) : "");
+    $("#agencyChip").textContent = `${plural(H.length, "client hotel")} · ${plural(rooms, "room")}`;
+    $("#navClients").textContent = H.length || "";
+
+    $("#agencyKpis").innerHTML = [
+      kpiTile("Total rooms", rooms, esc(H.map(h => `${h.name} ${h.rooms_total}`).join(" · ")), "bed"),
+      kpiTile("Occupied tonight", occ, `of ${active} active rooms, all clients`, "guests"),
+      kpiTile("Available tonight", sum("available"), held ? `${held} held by guests booking now` : "Ready to sell", "door"),
+      kpiTile("Agency occupancy", occPct + "%", "Tonight", "gauge", `<span class="mm-kpi__bar" role="presentation"><i style="width:${occPct}%"></i></span>`),
+      kpiTile("Arrivals today", sum("arrivals"), sum("arrivals_pending") + " still to check in", "luggage"),
+      kpiTile("Upcoming check-ins", sum("checkins_7d"), "Next 7 days, all clients", "calendar"),
+      kpiTile("Upcoming bookings", sum("upcoming"), sum("in_house") + " in house now", "tag"),
+      kpiTile("Room revenue · " + month, inr(sum("month_revenue")), "Booked nights this month, all clients", "rupee")
+    ].join("");
+
+    const actions = id => [["dashboard", "Open dashboard", "navy"], ["reservations", "Reservations", "outline"], ["rooms", "Rooms", "outline"], ["reports", "Reports", "outline"]]
+      .map(([view, label, kind]) => `<button type="button" class="mm-btn mm-btn--${kind} mm-btn--sm" data-client="${esc(id)}" data-client-go="${view}">${label}</button>`).join("");
+    const rate = h => h.min_rate == null ? "No active rooms" : (Number(h.min_rate) === Number(h.max_rate) ? inr(h.min_rate) : inr(h.min_rate) + "–" + inr(h.max_rate)) + " / night";
+    $("#clientCards").innerHTML = H.map(h => {
+      const p = pct(h.occupied, h.rooms_active), hp = pct(h.held, h.rooms_active);
+      const town = String(h.address || "").split(",")[0].trim();
+      return `<article class="mm-client${h.id === S.hotelId ? " is-current" : ""}" aria-labelledby="client-${esc(h.id)}">
+        <div class="mm-client__head"><span class="mm-client__mark" aria-hidden="true">${esc(initials(h.name))}</span>
+          <div class="mm-client__title"><h2 class="mm-client__name" id="client-${esc(h.id)}">${esc(h.name)}</h2>
+          <p class="mm-client__sub">${esc([town, plural(h.rooms_total, "room"), h.phone].filter(Boolean).join(" · "))}</p></div>
+          ${h.id === S.hotelId ? '<span class="mm-client__tag">Selected</span>' : ""}</div>
+        <div class="mm-client__occ">
+          <div class="mm-client__occ-top"><span><b>${p}%</b> occupied tonight</span><span>${h.occupied} of ${h.rooms_active} rooms</span></div>
+          <div class="mm-client__bar" role="img" aria-label="${h.occupied} occupied, ${h.held} held, ${h.available} available tonight"><i class="is-occ" style="width:${p}%"></i><i class="is-held" style="width:${hp}%"></i></div>
+          <ul class="mm-client__key"><li><i class="st st--occupied"></i>${h.occupied} occupied</li><li><i class="st st--held"></i>${h.held} held</li><li><i class="st st--available"></i>${h.available} available</li></ul>
+        </div>
+        <dl class="mm-client__stats">
+          <div><dt>Arrivals today</dt><dd>${h.arrivals}</dd></div>
+          <div><dt>Departures today</dt><dd>${h.departures}</dd></div>
+          <div><dt>In house</dt><dd>${h.in_house}</dd></div>
+          <div><dt>Check-ins · 7 days</dt><dd>${h.checkins_7d}</dd></div>
+          <div><dt>Upcoming bookings</dt><dd>${h.upcoming}</dd></div>
+          <div><dt>Guests</dt><dd>${h.guests}</dd></div>
+        </dl>
+        <div class="mm-client__foot"><span>${h.normal} Normal · ${h.luxury} Luxury · ${esc(rate(h))}</span><span>${esc(month)} <b>${inr(h.month_revenue)}</b></span></div>
+        <div class="mm-client__actions">${actions(h.id)}</div>
+      </article>`;
+    }).join("") || '<p class="mm-empty">No client hotels are visible to this account.</p>';
+
+    const row = (h, total) => `<tr${total ? ' class="is-total"' : ""}>
+        <td data-label="Hotel">${total ? "<b>All clients</b>" : `<button type="button" class="mm-rowbtn" data-client="${esc(h.id)}" data-client-go="dashboard"><b>${esc(h.name)}</b></button>`}</td>
+        <td data-label="Rooms" class="num">${h.rooms_total}</td>
+        <td data-label="Occupied" class="num">${h.occupied}</td>
+        <td data-label="Available" class="num">${h.available}</td>
+        <td data-label="Occupancy" class="num">${pct(h.occupied, h.rooms_active)}%</td>
+        <td data-label="Arrivals today" class="num">${h.arrivals}</td>
+        <td data-label="Check-ins · 7 days" class="num">${h.checkins_7d}</td>
+        <td data-label="Upcoming bookings" class="num">${h.upcoming}</td>
+        <td data-label="Revenue · ${esc(month)}" class="num">${inr(h.month_revenue)}</td></tr>`;
+    const totals = { rooms_total: rooms, rooms_active: active, occupied: occ, available: sum("available"), arrivals: sum("arrivals"),
+                     checkins_7d: sum("checkins_7d"), upcoming: sum("upcoming"), month_revenue: sum("month_revenue") };
+    $("#clientTable").innerHTML = `<thead><tr><th>Hotel</th><th class="num">Rooms</th><th class="num">Occupied</th><th class="num">Available</th><th class="num">Occupancy</th>
+        <th class="num">Arrivals today</th><th class="num">Check-ins · 7 days</th><th class="num">Upcoming bookings</th><th class="num">Revenue · ${esc(month)}</th></tr></thead><tbody>`
+      + H.map(h => row(h)).join("") + (H.length > 1 ? row(totals, true) : "") + "</tbody>";
+  }
+
+  /* Open one client's page: pick the hotel, then go. */
+  function openClient(id, view){
+    if (!S.hotels.some(h => h.id === id)) return;
+    if (id !== S.hotelId) switchHotel(id);
+    if (location.hash === "#" + view) route(); else location.hash = "#" + view;
+  }
+
+  /* ---- hotel profile --------------------------------------------------- */
+
+  const PROFILE_FIELDS = ["phone", "email", "address", "description"];
+  const PHONE_RE = /^\+?[0-9 ()-]{6,40}$/;
+
+  /* Wipe the form, saved values included, so a reset can't bring back the
+     previous hotel's (or the previous user's) details. */
+  function clearProfile(){
+    const f = $("#profileForm").elements;
+    PROFILE_FIELDS.forEach(k => { f[k].value = ""; f[k].defaultValue = ""; });
+    $("#profileError").textContent = "";
+    S.profileDirty = false;
+  }
+
+  function renderProfile(){
+    const h = S.hotel;
+    if (!h) return;
+    $("#profileLabel").textContent = h.name + " · client profile";
+    const f = $("#profileForm").elements;
+    // A refresh must never wipe out what someone is typing.
+    if (!S.profileDirty) PROFILE_FIELDS.forEach(k => { f[k].value = h[k] || ""; f[k].defaultValue = h[k] || ""; });
+    const types = {};
+    S.rooms.forEach(r => { if (r.is_active) types[r.room_type] = (types[r.room_type] || 0) + 1; });
+    const facts = [
+      ["Agency", BRAND],
+      ["Hotel", h.name],
+      ["Hotel ID", h.id],
+      ["Rooms", `${S.rooms.length} · ${Object.entries(types).map(([t, n]) => `${n} ${t}`).join(" · ") || "none active"}`],
+      ["Check-in from", fmtTime(h.check_in_time)],
+      ["Check-out by", fmtTime(h.check_out_time)],
+      ["Room hold", `${h.hold_minutes} minutes while a guest books`],
+      ["Longest stay", plural(h.max_stay_nights, "night")],
+      ["Currency · time zone", `${h.currency} · ${h.timezone}`]
+    ];
+    $("#profileFacts").innerHTML = facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+  }
+
+  async function saveProfile(e){
+    e.preventDefault();
+    const f = e.target.elements;
+    const v = Object.fromEntries(PROFILE_FIELDS.map(k => [k, f[k].value.trim().replace(/\s+/g, " ") || null]));
+    const err = msg => { $("#profileError").textContent = msg || ""; return !msg; };
+    if (v.phone && !PHONE_RE.test(v.phone)) return err("The phone number can use digits, spaces, +, ( ) and - only.");
+    if (v.email){ v.email = v.email.toLowerCase(); if (!EMAIL_RE.test(v.email)) return err("That email address doesn't look right."); }
+    err("");
+    const hid = S.hotelId, btn = $("#profileSave");
+    btn.disabled = true; btn.textContent = "Saving…";
+    const { data, error } = await S.client.from("hotels").update(v).eq("id", hid).select("id");
+    btn.disabled = false; btn.textContent = "Save profile";
+    if (error || !data || !data.length) return err("Couldn't save: " + (error ? error.message : "this account can't change this hotel."));
+    S.profileDirty = false;
+    toast(`${(S.hotel && S.hotel.name) || "Hotel"} profile saved.`, "ok");
+    loadAll(true);
+    scheduleAgency();
+  }
 
   /* ---- rooms ----------------------------------------------------------- */
 
@@ -1183,6 +1419,14 @@
     $("#menuBtn").addEventListener("click", () => navOpen(!$("#mmApp").classList.contains("is-nav-open")));
     $("#mmScrim").addEventListener("click", () => navOpen(false));
     $("#refreshBtn").addEventListener("click", () => loadAll());
+    $("#agencyRefresh").addEventListener("click", () => loadAgency());
+    ["#clientCards", "#clientTable"].forEach(s => $(s).addEventListener("click", e => {
+      const b = e.target.closest("[data-client-go]");
+      if (b) openClient(b.dataset.client, b.dataset.clientGo);
+    }));
+    $("#profileForm").addEventListener("submit", saveProfile);
+    $("#profileForm").addEventListener("input", () => { S.profileDirty = true; });
+    $("#profileForm").addEventListener("reset", () => { S.profileDirty = false; $("#profileError").textContent = ""; });
     $$(".mm-seg__btn[data-move]").forEach(b => b.addEventListener("click", () => { S.moves = b.dataset.move; renderMoves(); }));
 
     $("#globalSearch").addEventListener("submit", e => {

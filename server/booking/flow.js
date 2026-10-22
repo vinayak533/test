@@ -35,7 +35,26 @@ const RESTART_RE = /^\s*(start (?:again|over)|restart|reset|begin again|new book
 const CANCEL_RE  = /^\s*(cancel(?: (?:this|the|my))?(?: booking| request| reservation)?|stop|never ?mind|forget it|quit|exit)\s*[.!]?\s*$/i;
 const CONFIRM_RE = /^\s*(yes|yep|yeah|confirm|confirmed|book it|book now|go ahead|proceed|please confirm|confirm (?:the |my )?(?:booking|reservation)|that'?s (?:right|correct)|correct|ok(?:ay)?,? (?:confirm|book))\b/i;
 const DECLINE_RE = /^\s*(no|nope|not yet|wait|hold on)\b/i;
-const BOOK_IT_RE = /^\s*(book(?: it| this(?: room)?| these(?: rooms)?| them| now)?|yes|ok(?:ay)?|sure|go ahead|those|that one|these)\s*[.!]?\s*$/i;
+// Spoken answers come back punctuated and run together ("Yes, book it.").
+const BOOK_IT_RE = /^\s*(?:(?:yes|yeah|yep|ok(?:ay)?|sure)[,.!]?\s+)?(?:please\s+)?(book(?: it| this(?: room)?| these(?: rooms)?| them| that(?: one)?| now)?|yes|yeah|ok(?:ay)?|sure|go ahead|those|that one|these|(?:i'?ll|we'?ll) take (?:it|that(?: one)?|them|those))(?:,?\s+please)?\s*[.!]?\s*$/i;
+
+/* "Can I change my check-in date?", "I need to change the number of
+   guests" — a request to change something already answered, without the
+   new value. Returns what to ask again, or null. A message that carries the
+   new value ("change check-in to 24 Oct") is read as that value instead. */
+const CHANGE_RE = /\b(?:change|changing|modify|update|edit|correct|fix|move|switch|different|wrong)\b/;
+function changeRequest(lower){
+  if (!CHANGE_RE.test(lower)) return null;
+  if (/\b(?:arriv\w*|eta)\b.*\btime\b|\btime\b.*\barriv\w*/.test(lower)) return "arrival";
+  if (/\bcheck(?:ing)?[\s-]?in\b|\barriv\w*/.test(lower)) return "checkIn";
+  if (/\bcheck(?:ing)?[\s-]?out\b|\bdepart\w*|\bleav\w*/.test(lower)) return "checkOut";
+  if (/\b(?:dates?|nights?|stay)\b/.test(lower)) return "dates";
+  if (/\b(?:guests?|people|persons?|adults?|party|number of rooms|how many rooms)\b/.test(lower)) return "party";
+  if (/\broom ?types?\b|\btype of room\b|\b(?:normal|luxury)\b/.test(lower)) return "roomType";
+  if (/\brooms?\b/.test(lower)) return "rooms";
+  if (/\b(?:name|e-?mail|phone|mobile|number|details|contact)\b/.test(lower)) return "guest";
+  return null;
+}
 
 /* ---- state ---------------------------------------------------------------- */
 
@@ -57,6 +76,14 @@ function nextStep(st){
 }
 
 /* ---- context -------------------------------------------------------------- */
+
+/* Tells the page which step this turn has reached ("availability", "hold"
+   …), as it is reached, so what the guest watches is what is happening. A
+   page that is not listening, or a broken connection, never stops a turn. */
+function report(ctx, stage){
+  if (typeof ctx.progress !== "function") return;
+  try { ctx.progress(stage); } catch { /* progress is a courtesy */ }
+}
 
 function clock(ctx){
   const tz = ctx.hotel.timezone || "Asia/Kolkata";
@@ -118,7 +145,8 @@ const SLOT_LABEL = {
   guests: st => F.plural(st.guests, "guest"),
   rooms: st => F.plural(st.rooms, "room"),
   roomType: st => st.roomType === "any" ? "any room type" : `${st.roomType} rooms`,
-  departure: st => `leaving by ${F.time12(st.departure)}`
+  departure: st => `leaving by ${F.time12(st.departure)}`,
+  nights: st => F.plural(st.nights, "night")
 };
 
 /* Applies whatever the guest gave us, in a fixed order, each through its own
@@ -150,9 +178,18 @@ async function apply(st, upd, ctx){
     }
   }
 
-  // -- check-out (as a date, or as a number of nights from check-in)
+  // -- check-out (as a date, or as a number of nights from check-in). "Two
+  // nights" said before any date is kept until check-in is known.
   let out = upd.checkOut;
-  if (out === undefined && upd.nights && st.checkIn) out = addDays(st.checkIn, upd.nights);
+  const nights = upd.nights || (upd.checkIn !== undefined && !st.checkOut ? st.nights : undefined);
+  if (out === undefined && nights && st.checkIn) out = addDays(st.checkIn, nights);
+  else if (out === undefined && upd.nights && !st.checkIn){
+    if (Number.isInteger(upd.nights) && upd.nights >= 1 && upd.nights <= maxNights){
+      st.nights = upd.nights;
+      applied.push("nights");
+    } else fail(`I can book stays of up to ${maxNights} nights at a time. How many nights would you like to stay?`);
+  }
+  if (out !== undefined) delete st.nights;
   if (out !== undefined && out !== st.checkOut){
     if (!iso(...String(out).split("-").map(Number))) fail("I couldn't read that check-out date. Could you choose one below?");
     else if (out <= today) fail("Check-out has to be a future date. What date would you like to check out?");
@@ -427,6 +464,7 @@ function describeRooms(rooms){
 async function showRooms(st, ctx, prefix = ""){
   st.asked = "select";
   let avail;
+  report(ctx, "availability");
   try {
     avail = await ctx.repo.getAvailability(st.hotelId, st.checkIn, st.checkOut);
   } catch (e){
@@ -438,6 +476,7 @@ async function showRooms(st, ctx, prefix = ""){
     return lookupFailed(st, { type: "resume" });
   }
 
+  report(ctx, "matching");
   const nights = diffDays(st.checkIn, st.checkOut);
   const free = avail.filter(r => r.is_available);
   const want = st.roomType === "any" ? free : free.filter(r => r.room_type === st.roomType);
@@ -449,6 +488,7 @@ async function showRooms(st, ctx, prefix = ""){
   ctx.log.info("booking.availability", { checkIn: st.checkIn, checkOut: st.checkOut, type: st.roomType, free: free.length, matching: want.length, total: avail.length });
 
   if (capOk){
+    report(ctx, "options");
     const picked = preselect(want, st.rooms, st.guests);
     st.offer = picked.map(r => r.room_id);
     const count = want.length;
@@ -566,7 +606,10 @@ async function book(st, pick, ctx){
   const gate = needSignIn(st, ctx, pick.ids ? { type: "book", roomIds: pick.ids } : { type: "resume" });
   if (gate) return gate;
 
+  // Availability is read again here, not taken from what was shown: another
+  // guest may have booked since.
   let avail;
+  report(ctx, "availability");
   try { avail = await ctx.repo.getAvailability(st.hotelId, st.checkIn, st.checkOut); }
   catch (e){
     ctx.log.error("booking.availability_failed", { error: e.message });
@@ -603,6 +646,7 @@ async function book(st, pick, ctx){
 
   const token = newHoldToken();
   let res;
+  report(ctx, "hold");
   try {
     res = await ctx.repo.holdRooms({
       hotelId: st.hotelId,
@@ -679,6 +723,7 @@ async function confirm(st, ctx){
   const gate = needSignIn(st, ctx, { type: "confirm" });
   if (gate) return gate;
   let res;
+  report(ctx, "confirm");
   try {
     res = await ctx.repo.confirmBooking({
       ref: st.hold.ref, tokenHash: hashToken(st.hold.token),
@@ -773,9 +818,13 @@ async function respond(st, ctx, { applied, notes, error }, { intro = false } = {
     r.reply = QUESTION_STEPS.has(nextStep(st)) ? prefix : [prefix, r.reply].join(" ");
     return r;
   }
-  const ORDER = ["checkIn", "arrival", "checkOut", "guests", "rooms", "roomType"];
+  const ORDER = ["checkIn", "arrival", "checkOut", "nights", "guests", "rooms", "roomType"];
   const shown = applied.filter(k => k !== "departure").sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
-  if (shown.length >= 2){
+  // A changed answer is always read back, even on its own, so a misheard
+  // date is seen before anything is held.
+  const changed = st.changing && shown.includes(st.changing);
+  delete st.changing;
+  if (shown.length >= 2 || changed){
     prefix = `Got it — ${F.list(shown.map(k => SLOT_LABEL[k](st)))}.`;
     if (intro) prefix = `I'd be happy to help you book at ${ctx.hotel.name}. ${prefix}`;
   } else {
@@ -812,7 +861,9 @@ async function handleText(st, message, ctx){
     if (BOOK_IT_RE.test(lower) && st.offer && st.offer.length === st.rooms) return book(st, { ids: st.offer }, ctx);
   }
 
-  if (step === "guest" || (st.hold && (x.email || x.phone))){
+  // "Change my phone number" is a request, not a name.
+  const asksChange = !x.email && !x.phone && !!changeRequest(lower);
+  if ((step === "guest" && !asksChange) || (st.hold && (x.email || x.phone))){
     const fields = {};
     if (x.name) fields.name = x.name;
     if (x.phone) fields.phone = x.phone;
@@ -838,7 +889,24 @@ async function handleText(st, message, ctx){
   }
 
   const upd = pickSlots(x);
-  if (!Object.keys(upd).length) return null;
+  if (!Object.keys(upd).length){
+    const what = changeRequest(lower);
+    if (!what) return null;
+    // One date or the arrival time on its own: forget just that and ask it
+    // again; the rest of the booking stays. Anything else is the same as
+    // tapping the matching "Change …" option.
+    if (what === "checkIn" || what === "checkOut" || what === "arrival"){
+      if (what !== "arrival") await dropHold(st, ctx);
+      delete st[what];
+      if (what === "checkIn") delete st.nights;
+      st.changing = what;              // the new answer is read back (respond)
+      return ask(st, ctx, "No problem.");
+    }
+    if (what === "rooms" && !st.hold && !st.offer) return ask(st, ctx, "No problem.");
+    const r = await handleAction(st, { type: "edit", what }, ctx);
+    r.reply = "No problem. " + r.reply;
+    return r;
+  }
   const res = await apply(st, upd, ctx);
   if (!res.applied.length && !res.error && !res.notes.length) return null;
   return respond(st, ctx, res);
@@ -965,7 +1033,7 @@ async function handleAction(st, action, ctx){
     case "confirm":
       return confirm(st, ctx);
     case "edit":
-      if (a.what === "dates"){ await dropHold(st, ctx); delete st.checkIn; delete st.checkOut; delete st.arrival; delete st.departure; }
+      if (a.what === "dates"){ await dropHold(st, ctx); delete st.checkIn; delete st.checkOut; delete st.nights; delete st.arrival; delete st.departure; }
       if (a.what === "party"){ await dropHold(st, ctx); delete st.guests; delete st.rooms; }
       if (a.what === "roomType"){ await dropHold(st, ctx); delete st.roomType; }
       if (a.what === "rooms"){ await dropHold(st, ctx); }
@@ -975,4 +1043,4 @@ async function handleAction(st, action, ctx){
   throw new ActionError("invalid_action");
 }
 
-module.exports = { start, handleText, handleAction, readAction, nextStep, ActionError, preselect };
+module.exports = { start, handleText, handleAction, readAction, nextStep, ActionError, preselect, report };
