@@ -2,7 +2,7 @@
 
 /* A spoken booking, end to end against the real database: the words as
    Whisper writes them, sent through POST /api/chat with the progress stream
-   on, at Royal Hotel and Taj Hotel. Checks that the reservation really is
+   on, at Misty Mountain. Checks that the reservation really is
    in the reservations table — confirmed, at the right hotel, room and price
    — and that a second guest cannot then take the same room.
 
@@ -30,7 +30,7 @@ const refs = [];
 test.after(async () => {
   await withPg(async c => {
     await c.query("begin");
-    await c.query("delete from public.reservations where booking_ref = any($1) or (check_in >= '2027-06-01' and check_in < '2027-07-01' and status = 'held' and hotel_id in ('royal_kuttikkanam','taj_kuttikkanam'))", [refs]);
+    await c.query("delete from public.reservations where booking_ref = any($1) or (check_in >= '2027-06-01' and check_in < '2027-07-01' and status = 'held' and hotel_id = 'misty_mountain')", [refs]);
     await c.query("delete from public.guests g where email like $1 and not exists (select 1 from public.reservations x where x.guest_id = g.id)", ["%" + EMAIL_DOMAIN]);
     await c.query("commit");
   });
@@ -58,7 +58,7 @@ const row = ref => withPg(c => c.query(
      from public.reservations x join public.rooms r on r.id = x.room_id join public.guests g on g.id = x.guest_id
     where x.booking_ref = $1`, [ref])).then(r => r.rows);
 
-for (const [hotel, id, nightly] of [["Royal Hotel", "royal_kuttikkanam", 5500], ["Taj Hotel", "taj_kuttikkanam", 7500]]){
+for (const [hotel, id, nightly] of [["Misty Mountain", "misty_mountain", 4500]]){
   test(`spoken booking at ${hotel}: really saved, confirmed, at that hotel — and the room is then taken`, async () => {
     const g = guest();
     let out = await g.say(`I want to book a room at ${hotel}.`);
@@ -111,11 +111,36 @@ for (const [hotel, id, nightly] of [["Royal Hotel", "royal_kuttikkanam", 5500], 
 
 test("a signed-out guest is asked to sign in, and nothing is held", async () => {
   const g = guest(false);
-  await g.say("Book a room at Royal Hotel from June 25th, 2027 to June 26th, 2027 for one adult.");
+  await g.say("Book a room at Misty Mountain from June 25th, 2027 to June 26th, 2027 for one adult.");
   await g.say("3 PM");
   await g.say("Normal.");
   const out = await g.say("Yes, book it.");
   assert.equal(out.error, "sign_in_required");
-  const n = await withPg(c => c.query("select count(*)::int n from public.reservations where hotel_id = 'royal_kuttikkanam' and check_in = '2027-06-25'"));
+  const n = await withPg(c => c.query("select count(*)::int n from public.reservations where hotel_id = 'misty_mountain' and check_in = '2027-06-25'"));
   assert.equal(n.rows[0].n, 0);
+});
+
+test("one spoken message carries the whole booking: book it, confirm it — saved with every detail", async () => {
+  const g = guest();
+  let out = await g.say("Book a luxury room from June 14th, 2027 for two nights for two adults and one child, arriving at 3 PM. "
+    + "My name is Voice Tester, phone 98470 12345, email voice at test dot invalid.");
+  assert.equal(out.hotel.id, "misty_mountain");
+  assert.match(out.reply, /2 adults and 1 child and 1 Luxury room/, out.reply);
+  assert.match(out.reply, /Booking contact: Voice Tester, \+919847012345, voice@test\.invalid\./, out.reply);
+  assert.equal(out.ui.panel.type, "rooms", out.reply);
+
+  out = await g.say("Yes, book it.");
+  assert.equal(out.ui.panel.stage, "review", "straight to the summary — nothing asked again");
+  assert.equal(out.ui.panel.party, "2 adults and 1 child");
+  const room = out.ui.panel.rooms[0].number;
+
+  out = await g.say("Yes, confirm the booking.");
+  assert.equal(out.ui.panel.stage, "confirmed", out.reply);
+  assert.equal(out.ui.panel.totalLabel, "₹9,000");
+  const ref = out.data.bookingRef;
+  refs.push(ref);
+  assert.deepEqual(await row(ref), [{
+    hotel_id: "misty_mountain", status: "confirmed", room_number: room, ci: "2027-06-14", co: "2027-06-16",
+    total: "9000.00", email: `voice${EMAIL_DOMAIN}`
+  }]);
 });

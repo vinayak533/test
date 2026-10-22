@@ -45,7 +45,7 @@ const SERVER_BIN = path.join(RUNTIME_DIR, "bin", process.platform === "win32" ? 
    spelling, not text that is ever added to the result. Written as a guest
    would say it, in sentence case: Whisper copies the prompt's style, and a
    capitalised word list came back as "Book a Luxury Room". */
-const DEFAULT_PROMPT = "Misty Mountain, Royal Hotel and Taj Hotel in Kuttikkanam. "
+const DEFAULT_PROMPT = "Misty Mountain in Kuttikkanam. "
   + "I'd like to check availability and book a normal or luxury room, with check-in and check-out dates.";
 
 const START_TIMEOUT_MS = 60_000;

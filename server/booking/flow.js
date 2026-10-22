@@ -138,11 +138,17 @@ async function dropHold(st, ctx){
 
 /* ---- applying answers ----------------------------------------------------- */
 
+/* "2 adults and 1 child" where the guest said who is coming, else "3 guests". */
+function partyLabel(st){
+  if (st.adults === undefined) return F.plural(st.guests, "guest");
+  return F.list([F.plural(st.adults, "adult"), ...(st.children ? [F.plural(st.children, "child", "children")] : [])]);
+}
+
 const SLOT_LABEL = {
   checkIn: st => `check-in ${F.shortDay(st.checkIn)}`,
   arrival: st => st.arrival === "flexible" ? "arrival time to be confirmed" : `arriving around ${F.time12(st.arrival)}`,
   checkOut: st => `check-out ${F.shortDay(st.checkOut)}`,
-  guests: st => F.plural(st.guests, "guest"),
+  guests: st => partyLabel(st),
   rooms: st => F.plural(st.rooms, "room"),
   roomType: st => st.roomType === "any" ? "any room type" : `${st.roomType} rooms`,
   departure: st => `leaving by ${F.time12(st.departure)}`,
@@ -233,6 +239,15 @@ async function apply(st, upd, ctx){
     }
   }
 
+  // -- who is coming: "make it 3 adults" keeps the child already mentioned,
+  // so the head count is the new adults plus the children we knew of.
+  let adults, children;
+  if (upd.adults !== undefined || upd.children !== undefined){
+    adults = upd.adults !== undefined ? upd.adults : st.adults;
+    children = upd.children !== undefined ? upd.children : (st.children || 0);
+    if (adults !== undefined) upd = { ...upd, guests: adults + children };
+  }
+
   // -- guests and rooms
   if (upd.guests !== undefined || upd.rooms !== undefined || (upd.roomType !== undefined && st.guests && st.rooms)){
     const cat = await catalog(ctx);
@@ -261,7 +276,12 @@ async function apply(st, upd, ctx){
           fail(`Each ${type && type !== "any" ? type + " " : ""}room sleeps up to ${cap} guests, so ${F.plural(st.guests, "guest")} will need at least ${F.plural(need, "room")}. How many rooms would you like?`);
         }
       }
-      if (upd.guests !== undefined && st.guests === upd.guests) applied.push("guests");
+      if (upd.guests !== undefined && st.guests === upd.guests){
+        applied.push("guests");
+        // A plain head count ("4 guests", a tapped option) replaces the split.
+        if (adults !== undefined){ st.adults = adults; st.children = children; }
+        else { delete st.adults; delete st.children; }
+      }
       if (upd.rooms !== undefined && st.rooms === upd.rooms) applied.push("rooms");
     }
     if ([st.guests, st.rooms].join() !== before) await dropHold(st, ctx);
@@ -423,7 +443,8 @@ function stayFields(st){
     checkInLabel: F.formatDay(st.checkIn), checkOutLabel: F.formatDay(st.checkOut),
     nights: diffDays(st.checkIn, st.checkOut),
     arrival: F.time12(st.arrival), departure: F.time12(st.departure),
-    guests: st.guests
+    guests: st.guests,
+    party: partyLabel(st)
   };
 }
 
@@ -688,8 +709,11 @@ async function book(st, pick, ctx){
   const label = st.hold.rooms.length === 1
     ? `Room ${st.hold.rooms[0].number} (${st.hold.rooms[0].type}) is`
     : `Rooms ${F.list(st.hold.rooms.map(r => r.number))} are`;
+  // With the guest's details already given, the summary that follows says
+  // how long the hold lasts; saying it here too would say it twice.
+  const until = guestComplete(st) ? "" : ` until ${holdUntil(st, ctx)} while you complete the booking`;
   return ask(st, ctx,
-    `${label} held for you until ${holdUntil(st, ctx)} while you complete the booking — ${F.plural(b.nights, "night")}, ${F.inr(st.hold.total)} in total. It isn't booked until you confirm.`);
+    `${label} held for you${until} — ${F.plural(b.nights, "night")}, ${F.inr(st.hold.total)} in total. It isn't booked until you confirm.`);
 }
 
 /* ---- guest details -------------------------------------------------------- */
@@ -712,6 +736,23 @@ function applyGuest(st, fields){
   }
   delete st.reviewed;
   return errors;
+}
+
+/* Contact details given before any room is held ("…my name is Asha Nair,
+   phone 98470 12345") are kept for the guest step, read back, and never
+   asked for again. They go through the same checks as the form. */
+function keepGuest(st, x, notes){
+  const fields = {};
+  if (x.name) fields.name = x.name;
+  if (x.phone) fields.phone = x.phone;
+  if (x.email) fields.email = x.email;
+  if (x.badPhone) fields.phone = "invalid";
+  if (!Object.keys(fields).length) return;
+  const errors = applyGuest(st, fields);
+  const g = st.guest;
+  const have = [g.name, g.phone, g.email].filter(Boolean);
+  if (have.length) notes.push(`Booking contact: ${have.join(", ")}.`);
+  notes.push(...errors);
 }
 
 /* ---- confirming ----------------------------------------------------------- */
@@ -794,12 +835,13 @@ async function start(message, ctx){
   const upd = pickSlots(x);
   if (x.badDate) return ask(st, ctx, "I couldn't read that date.", { intro: true });
   const res = await apply(st, upd, ctx);
+  keepGuest(st, x, res.notes);
   return respond(st, ctx, res, { intro: true });
 }
 
 function pickSlots(x){
   const upd = {};
-  for (const k of ["checkIn", "checkOut", "nights", "arrival", "departure", "guests", "rooms", "roomType"]){
+  for (const k of ["checkIn", "checkOut", "nights", "arrival", "departure", "guests", "adults", "children", "rooms", "roomType"]){
     if (x[k] !== undefined) upd[k] = x[k];
   }
   return upd;
@@ -830,7 +872,11 @@ async function respond(st, ctx, { applied, notes, error }, { intro = false } = {
   const ahead = shown.length === 1 && ASKED[st.asked] && !ASKED[st.asked].includes(shown[0]);
   delete st.changing;
   if (shown.length >= 2 || changed || ahead){
-    prefix = `Got it — ${F.list(shown.map(k => SLOT_LABEL[k](st)))}.`;
+    // "1 Luxury room", not "1 room and Luxury rooms".
+    const oneRoomLine = shown.includes("rooms") && shown.includes("roomType") && st.roomType !== "any";
+    const labels = shown.filter(k => !(oneRoomLine && k === "roomType"))
+      .map(k => oneRoomLine && k === "rooms" ? F.plural(st.rooms, `${st.roomType} room`) : SLOT_LABEL[k](st));
+    prefix = `Got it — ${F.list(labels)}.`;
     if (intro) prefix = `I'd be happy to help you book at ${ctx.hotel.name}. ${prefix}`;
   } else {
     prefix = "";
@@ -893,8 +939,12 @@ async function handleText(st, message, ctx){
     };
   }
 
+  const early = [];
+  if (!st.hold && step !== "guest") keepGuest(st, x, early);
+
   const upd = pickSlots(x);
   if (!Object.keys(upd).length){
+    if (early.length) return ask(st, ctx, early.join(" "));
     const what = changeRequest(lower);
     if (!what) return null;
     // One date or the arrival time on its own: forget just that and ask it
@@ -913,6 +963,7 @@ async function handleText(st, message, ctx){
     return r;
   }
   const res = await apply(st, upd, ctx);
+  res.notes.push(...early);
   if (!res.applied.length && !res.error && !res.notes.length) return null;
   return respond(st, ctx, res);
 }
@@ -1039,7 +1090,7 @@ async function handleAction(st, action, ctx){
       return confirm(st, ctx);
     case "edit":
       if (a.what === "dates"){ await dropHold(st, ctx); delete st.checkIn; delete st.checkOut; delete st.nights; delete st.arrival; delete st.departure; }
-      if (a.what === "party"){ await dropHold(st, ctx); delete st.guests; delete st.rooms; }
+      if (a.what === "party"){ await dropHold(st, ctx); delete st.guests; delete st.adults; delete st.children; delete st.rooms; }
       if (a.what === "roomType"){ await dropHold(st, ctx); delete st.roomType; }
       if (a.what === "rooms"){ await dropHold(st, ctx); }
       if (a.what === "guest"){ delete st.reviewed; st.guestDraft = st.guest; st.guest = {}; }

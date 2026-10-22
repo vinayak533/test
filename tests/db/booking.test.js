@@ -208,7 +208,7 @@ test("the ChatBot, end to end over HTTP, against the real database", async () =>
     return r.body;
   };
   let out = await turn({ message: "Which hotels are available?" });
-  assert.match(out.reply, /^The hotels available on this platform are Misty Mountain, Royal Hotel and Taj Hotel\./);
+  assert.match(out.reply, /^Misty Mountain is currently the only hotel available on this platform\./);
   out = await turn({ message: "How many rooms are available?" });
   assert.match(out.reply, /What date would you like to check in\?/);
   out = await turn({ message: "June 17, 2027" });

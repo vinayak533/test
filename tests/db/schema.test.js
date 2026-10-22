@@ -8,12 +8,12 @@ const fs = require("fs");
 const path = require("path");
 const { HOTEL, withPg, asUser } = require("./_db");
 
-test("three hotels: Misty Mountain, Royal Hotel and Taj Hotel, INR, check-in 2 PM / check-out noon", () => withPg(async c => {
-  const r = await c.query("select id, name, currency, to_char(check_in_time,'HH24:MI') cin, to_char(check_out_time,'HH24:MI') cout from public.hotels order by id");
+test("Misty Mountain is the one active hotel; Royal and Taj are kept, switched off (007)", () => withPg(async c => {
+  const r = await c.query("select id, name, currency, is_active, to_char(check_in_time,'HH24:MI') cin, to_char(check_out_time,'HH24:MI') cout from public.hotels order by id");
   assert.deepEqual(r.rows, [
-    { id: HOTEL, name: "Misty Mountain", currency: "INR", cin: "14:00", cout: "12:00" },
-    { id: "royal_kuttikkanam", name: "Royal Hotel", currency: "INR", cin: "14:00", cout: "12:00" },
-    { id: "taj_kuttikkanam", name: "Taj Hotel", currency: "INR", cin: "14:00", cout: "12:00" }
+    { id: HOTEL, name: "Misty Mountain", currency: "INR", is_active: true, cin: "14:00", cout: "12:00" },
+    { id: "royal_kuttikkanam", name: "Royal Hotel", currency: "INR", is_active: false, cin: "14:00", cout: "12:00" },
+    { id: "taj_kuttikkanam", name: "Taj Hotel", currency: "INR", is_active: false, cin: "14:00", cout: "12:00" }
   ]);
 }));
 
