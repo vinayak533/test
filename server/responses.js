@@ -48,6 +48,46 @@ const R = {
 
   confirmIntent: () => "Would you like me to check room availability?",
 
+  /* ---- the front desk (server/chat.js handleDesk) ---- */
+  deskOtherHotel: (hotel, other) =>
+    `This desk is working on ${hotel.name}. To check ${other.name}, switch hotel in the menu — nothing here has changed.`,
+
+  deskHelp: (hotel, midSearch) => (midSearch
+    ? "I didn't catch a date, guest count or room type in that."
+    : `I check rooms, rates and availability at ${hotel.name}. Try “Luxury room for 3 adults tonight for 2 nights” or “rooms from 25 to 28 Oct”.`),
+
+  deskLookup: ref => (ref
+    ? `To open booking ${ref}, search for it in Reservations.`
+    : "To find an existing booking, search Reservations by reference, guest name or phone."),
+
+  /* "Normal ₹2,500 a night (6 rooms) · Luxury ₹4,500 …", optionally one type. */
+  deskRates: (hotel, rooms, only) => {
+    if (!rooms.length) return `No rooms at ${hotel.name} are open for booking at the moment.`;
+    const order = ["Normal", "Luxury"];
+    const types = [...new Set(rooms.map(r => r.room_type))].filter(t => !only || only === "any" || t === only)
+      .sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    if (!types.length) return `${hotel.name} has no ${only} rooms.`;
+    const parts = types.map(t => {
+      const of = rooms.filter(r => r.room_type === t);
+      const lo = Math.min(...of.map(r => r.price_per_night)), hi = Math.max(...of.map(r => r.price_per_night));
+      return `${t} ${hi > lo ? `${F.inr(lo)}–${F.inr(hi)}` : F.inr(lo)} a night (${F.plural(of.length, "room")}, up to ${Math.max(...of.map(r => r.max_guests))} guests each)`;
+    });
+    return `${hotel.name}: ${list(parts)}. Give me dates to check what's free.`;
+  },
+
+  ratesPanel: (hotel, rooms) => {
+    const order = ["Normal", "Luxury"];
+    return {
+      type: "rates", hotel: hotel.name,
+      checkInTime: F.time12(hotel.check_in_time), checkOutTime: F.time12(hotel.check_out_time),
+      types: [...new Set(rooms.map(r => r.room_type))].sort((a, b) => order.indexOf(a) - order.indexOf(b)).map(t => {
+        const of = rooms.filter(r => r.room_type === t);
+        const lo = Math.min(...of.map(r => r.price_per_night));
+        return { type: t, count: of.length, price: lo, priceLabel: F.inr(lo), maxGuests: Math.max(...of.map(r => r.max_guests)) };
+      })
+    };
+  },
+
   /* How many rooms, of which types, at what rates — from the rooms table
      (active rooms only), never from memory. */
   roomInfo: (hotel, rooms) => {

@@ -2,7 +2,8 @@
    server/app.js — HTTP-agnostic request handling.
 
      POST /api/chat     one guest turn (handleRequest); with Accept:
-                        application/x-ndjson its steps stream first
+                        application/x-ndjson its steps stream first.
+                        mode: "desk" is the staff front-desk assistant
      GET  /api/config   the public Supabase URL and anon key, for the admin
                         dashboard's sign-in (handleConfig)
      GET  /api/hotels   the active hotels' ids and names, for the page's
@@ -133,12 +134,14 @@ async function handleRequest({ method, headers = {}, bodyText = "", clientIp = "
   if (!input || typeof input !== "object" || Array.isArray(input)) return { status: 400, body: { error: "invalid_body" } };
   if (input.state != null && typeof input.state !== "string") return { status: 400, body: { error: "invalid_state" } };
   if (input.hotelId != null && !isHotelId(input.hotelId)) return { status: 400, body: { error: "invalid_hotel" } };
+  // "desk": the staff front-desk assistant (server/chat.js handleDesk).
+  if (input.mode != null && input.mode !== "desk") return { status: 400, body: { error: "invalid_mode" } };
 
   const started = Date.now();
   try {
     const { user, authError } = await resolveUser(headers, svc.repo, log);
     const out = await handleChat(
-      { message: input.message, action: input.action, state: input.state, hotelId: input.hotelId, lang: sanitizeLang(input.lang) },
+      { message: input.message, action: input.action, state: input.state, hotelId: input.hotelId, lang: sanitizeLang(input.lang), mode: input.mode },
       { ...svc, log, user, authError,
         progress: typeof onProgress === "function" ? stage => { if (STAGES.has(stage)) onProgress(stage); } : undefined,
         lookupLimited: () => lookupFails.over(clientIp),

@@ -17,6 +17,15 @@
      reply  plain text, from fixed templates
      ui     { options: [{ label, action }], date?, form?, panel?, hint? }
      state  the next conversation state (signed by the caller), or null
+
+   The front desk (st.desk, staff only — see server/chat.js handleDesk) uses
+   the same flow for a receptionist on the phone with a caller. It asks only
+   what availability cannot be shown without: a check-in date. One night is
+   assumed until a stay length is given, rooms follow from the guest count,
+   no guest count shows every free room, and the arrival time is never
+   asked. The party is asked only once rooms are chosen to book. A booking is
+   confirmed only by the Confirm booking button, never by typed or spoken
+   text, and is not linked to the receptionist's own account.
    ============================================================================ */
 
 "use strict";
@@ -58,11 +67,18 @@ function changeRequest(lower){
 
 /* ---- state ---------------------------------------------------------------- */
 
-function fresh(hotel){ return { v: 1, flow: "booking", hotelId: hotel.id }; }
+function fresh(hotel, desk = false){ return { v: 1, flow: "booking", hotelId: hotel.id, ...(desk ? { desk: true } : {}) }; }
 
 function guestComplete(st){ return !!(st.guest && st.guest.name && st.guest.phone && st.guest.email); }
 
 function nextStep(st){
+  if (st.desk){
+    if (!st.checkIn) return "checkIn";
+    if (!st.checkOut) return "checkOut";
+    if (!st.hold) return st.pick && !st.guests ? "guests" : "select";
+    if (!guestComplete(st)) return "guest";
+    return "review";
+  }
   if (!st.checkIn) return "checkIn";
   if (!st.arrival) return "arrivalTime";
   if (!st.checkOut) return "checkOut";
@@ -166,6 +182,12 @@ async function apply(st, upd, ctx){
   const fail = msg => { if (!error) error = msg; };
   const hotel = ctx.hotel;
 
+  // -- desk: a room count worked out from the party is recomputed from the
+  // new party or type, not held against it.
+  if (st.desk && st.roomsAuto && ["guests", "adults", "children", "rooms", "roomType"].some(k => upd[k] !== undefined)){
+    delete st.rooms; delete st.roomsAuto;
+  }
+
   // -- check-in
   if (upd.checkIn !== undefined && upd.checkIn !== st.checkIn){
     const d = upd.checkIn;
@@ -174,6 +196,8 @@ async function apply(st, upd, ctx){
     else if (diffDays(today, d) > maxDaysAhead) fail("Our calendar doesn't open that far ahead yet. Could you choose a date within the next 18 months?");
     else {
       await dropHold(st, ctx);
+      // An assumed one-night stay moves with the new date.
+      if (st.assumedNights){ delete st.checkOut; delete st.assumedNights; }
       st.checkIn = d;
       applied.push("checkIn");
       if (st.checkOut && (st.checkOut <= d || diffDays(d, st.checkOut) > maxNights)){
@@ -204,9 +228,10 @@ async function apply(st, upd, ctx){
     else {
       await dropHold(st, ctx);
       st.checkOut = out;
+      delete st.assumedNights;
       if (!st.departure) st.departure = hotel.check_out_time;
       applied.push("checkOut");
-      notes.push(`Check-out is by ${F.time12(hotel.check_out_time)} on ${F.shortDay(out)}, as per hotel policy.`);
+      if (!st.desk) notes.push(`Check-out is by ${F.time12(hotel.check_out_time)} on ${F.shortDay(out)}, as per hotel policy.`);
     }
   }
 
@@ -305,7 +330,41 @@ async function apply(st, upd, ctx){
     }
   }
 
+  // -- desk: rooms picked before the party was known are for those dates and
+  // that type only.
+  if (st.pick && applied.some(k => k === "checkIn" || k === "checkOut" || k === "roomType" || k === "rooms")){
+    delete st.pick; delete st.pickNumbers;
+  }
+
   return { applied, notes, error };
+}
+
+/* The desk shows availability as soon as there is a check-in date: one
+   night is assumed (and said) until a stay length is given. */
+function deskDefaults(st, ctx){
+  if (!st.desk || !st.checkIn || st.checkOut) return;
+  st.checkOut = addDays(st.checkIn, 1);
+  st.assumedNights = true;
+  delete st.nights;
+  if (!st.departure) st.departure = ctx.hotel.check_out_time;
+}
+
+/* What the desk has understood so far, for the request bar above the
+   results. Only what the conversation holds; nothing is inferred here. */
+function deskSummary(st){
+  if (!st || !st.desk || st.flow !== "booking") return null;
+  return {
+    checkIn: st.checkIn || null, checkOut: st.checkOut || null,
+    checkInLabel: st.checkIn ? F.shortDay(st.checkIn) : null, checkOutLabel: st.checkOut ? F.shortDay(st.checkOut) : null,
+    nights: st.checkIn && st.checkOut ? diffDays(st.checkIn, st.checkOut) : (st.nights || null),
+    assumedNights: !!st.assumedNights,
+    guests: st.guests || null, party: st.guests ? partyLabel(st) : null,
+    rooms: st.rooms || null, roomsAuto: !!st.roomsAuto,
+    roomType: st.roomType || null,
+    arrival: st.arrival && st.arrival !== "flexible" ? F.time12(st.arrival) : null,
+    held: st.hold ? { ref: st.hold.ref, rooms: st.hold.rooms.map(r => r.number), total: st.hold.total, totalLabel: F.inr(st.hold.total) } : null,
+    step: nextStep(st)
+  };
 }
 
 /* ---- questions ------------------------------------------------------------ */
@@ -315,6 +374,7 @@ const restartOpt = { label: "Start over", action: { type: "restart" }, tone: "qu
 function setOpt(label, slot, value){ return { label, action: { type: "set", slot, value } }; }
 
 async function ask(st, ctx, prefix = "", { intro = false } = {}){
+  deskDefaults(st, ctx);
   const step = nextStep(st);
   const { today, now } = clock(ctx);
   const { maxNights, maxDaysAhead } = limits(ctx);
@@ -332,7 +392,8 @@ async function ask(st, ctx, prefix = "", { intro = false } = {}){
       let toFri = ((5 - new Date(today + "T00:00:00Z").getUTCDay()) + 7) % 7;
       if (toFri <= 2) toFri += 7;
       opts.push(setOpt(F.shortDay(addDays(today, toFri)), "checkIn", addDays(today, toFri)));
-      const q = intro
+      const q = st.desk ? "Which check-in date?"
+        : intro
         ? `I'd be happy to check room availability at ${hotel.name}. What date would you like to check in?`
         : "What date would you like to check in?";
       return say(q, {
@@ -366,6 +427,15 @@ async function ask(st, ctx, prefix = "", { intro = false } = {}){
       const cat = await catalog(ctx);
       const cap = capFor(cat, st.roomType);
       let opts = [], q, hint;
+      if (st.desk && st.pick){
+        // Rooms already ticked: how many people they are for, then they are held.
+        const n = st.pick.length;
+        for (let g = n; g <= n * cap; g++) opts.push(setOpt(F.plural(g, "guest"), "guests", g));
+        opts.push({ label: "Back to rooms", action: { type: "edit", what: "rooms" }, tone: "quiet" });
+        return say(`How many guests in ${n === 1 ? "room" : "rooms"} ${F.list(st.pickNumbers || [])}?`, {
+          options: opts, hint: "Tap a number, or type e.g. “2 adults and 1 child”"
+        });
+      }
       if (step === "party"){
         const pairs = [[1, 1], [2, 1], [3, 1], [4, 2], [5, 2], [6, 2], [8, 3]];
         opts = pairs.filter(([g, r]) => g <= r * cap && r <= cat.activeRooms)
@@ -400,14 +470,17 @@ async function ask(st, ctx, prefix = "", { intro = false } = {}){
       return showRooms(st, ctx, prefix);
     case "guest": {
       const g = { ...(st.guestDraft || {}), ...(st.guest || {}) };
-      // A signed-in guest starts from their own account's name and email.
-      if (ctx.user){ g.name = g.name || ctx.user.name || ""; g.email = g.email || ctx.user.email || ""; }
+      // A signed-in guest starts from their own account's name and email. At
+      // the desk the account is the receptionist's, never the caller's.
+      if (ctx.user && !st.desk){ g.name = g.name || ctx.user.name || ""; g.email = g.email || ctx.user.email || ""; }
       const missing = ["name", "phone", "email"].filter(k => !(st.guest || {})[k]);
       const q = missing.length === 3
-        ? "To complete the booking, I'll need the lead guest's full name, mobile number and email address."
+        ? (st.desk ? "Take the caller's full name, mobile number and email address."
+                   : "To complete the booking, I'll need the lead guest's full name, mobile number and email address.")
         : `I still need the guest's ${F.list(missing.map(k => ({ name: "full name", phone: "mobile number", email: "email address" })[k]))}.`;
       return say(q, {
-        form: { type: "guest", name: g.name || "", phone: g.phone || "", email: g.email || "" },
+        form: { type: "guest", name: g.name || "", phone: g.phone || "", email: g.email || "",
+                ...(st.desk ? { arrival: st.arrival && st.arrival !== "flexible" ? st.arrival : "" } : {}) },
         panel: holdPanel(st, ctx, "hold"),
         options: [{ label: "Change rooms", action: { type: "edit", what: "rooms" }, tone: "quiet" }, restartOpt],
         hint: "Fill in the form, or type — e.g. “Asha Nair, 98470 12345, asha@example.com”"
@@ -417,6 +490,18 @@ async function ask(st, ctx, prefix = "", { intro = false } = {}){
     default: {
       st.reviewed = true;
       const until = holdUntil(st, ctx);
+      if (st.desk){
+        return say(`Read the summary back to the caller, then tap Confirm booking${until ? ` — held until ${until}` : ""}.`, {
+          panel: holdPanel(st, ctx, "review"),
+          options: [
+            { label: "Confirm booking", action: { type: "confirm" }, tone: "primary" },
+            { label: "Edit guest details", action: { type: "edit", what: "guest" } },
+            { label: "Change rooms", action: { type: "edit", what: "rooms" } },
+            { label: "Cancel booking", action: { type: "cancel" }, tone: "quiet" }
+          ],
+          hint: "Only the Confirm booking button books the room"
+        });
+      }
       return say(`Here's your booking summary. Please check the details and tap Confirm booking to complete your reservation${until ? ` — the room${st.hold.rooms.length > 1 ? "s are" : " is"} held for you until ${until}` : ""}.`, {
         panel: holdPanel(st, ctx, "review"),
         options: [
@@ -500,46 +585,69 @@ async function showRooms(st, ctx, prefix = ""){
   report(ctx, "matching");
   const nights = diffDays(st.checkIn, st.checkOut);
   const free = avail.filter(r => r.is_available);
-  const want = st.roomType === "any" ? free : free.filter(r => r.room_type === st.roomType);
-  const typeWord = st.roomType === "any" ? "" : st.roomType + " ";
+  // The desk may search with no type, rooms or party yet; the guest flow
+  // always has all three by now.
+  const type = st.roomType || "any";
+  const want = type === "any" ? free : free.filter(r => r.room_type === type);
+  const typeWord = type === "any" ? "" : type + " ";
   const when = `${F.formatDay(st.checkIn)} to ${F.formatDay(st.checkOut)} (${F.plural(nights, "night")})`;
   const beds = rooms => rooms.reduce((s, r) => s + r.max_guests, 0);
-  const capOk = want.length >= st.rooms && beds(preselect(want, st.rooms, st.guests)) >= st.guests;
+  if (st.desk && st.guests && !st.rooms){
+    const cap = Math.max(1, ...avail.filter(r => type === "any" || r.room_type === type).map(r => r.max_guests));
+    st.rooms = Math.ceil(st.guests / cap);
+    st.roomsAuto = true;
+  }
+  const need = st.rooms || 1;
+  const party = st.guests || need;
+  const capOk = want.length >= need && beds(preselect(want, need, party)) >= party;
+  // At the desk: every room's state for the night strip, and which of them
+  // are what the caller asked for.
+  const deskRooms = () => avail.map(r => ({ number: r.room_number, type: r.room_type, free: r.is_available,
+                                            match: r.is_available && (type === "any" || r.room_type === type) }));
 
-  ctx.log.info("booking.availability", { checkIn: st.checkIn, checkOut: st.checkOut, type: st.roomType, free: free.length, matching: want.length, total: avail.length });
+  ctx.log.info("booking.availability", { checkIn: st.checkIn, checkOut: st.checkOut, type, free: free.length, matching: want.length, total: avail.length });
 
   if (capOk){
     report(ctx, "options");
-    const picked = preselect(want, st.rooms, st.guests);
+    // At the desk nothing is ticked until there is a party to suggest for.
+    const picked = st.desk && !st.guests && !st.rooms ? [] : preselect(want, need, party);
     st.offer = picked.map(r => r.room_id);
     const count = want.length;
-    const reply = [prefix,
-      `Good news! ${count} ${typeWord}room${count === 1 ? " is" : "s are"} available at ${ctx.hotel.name} for ${when}: ${F.list(describeRooms(want))}.`,
-      st.rooms === 1 ? "Choose a room and tap Book This Room." : `Choose ${st.rooms} rooms and tap Book These Rooms.`
-    ].filter(Boolean).join(" ");
+    const reply = st.desk
+      ? [prefix,
+         `${count} ${typeWord}room${count === 1 ? "" : "s"} free for ${when}: ${F.list(describeRooms(want))}.`,
+         st.assumedNights ? "One night assumed — say e.g. “3 nights” to change it." : "",
+         st.guests ? `${F.plural(need, "room")} ${need === 1 ? "suits" : "suit"} ${partyLabel(st)}.` : ""
+        ].filter(Boolean).join(" ")
+      : [prefix,
+         `Good news! ${count} ${typeWord}room${count === 1 ? " is" : "s are"} available at ${ctx.hotel.name} for ${when}: ${F.list(describeRooms(want))}.`,
+         st.rooms === 1 ? "Choose a room and tap Book This Room." : `Choose ${st.rooms} rooms and tap Book These Rooms.`
+        ].filter(Boolean).join(" ");
     return {
       kind: "answer", reply, state: st,
-      data: { type: "availability", availableRooms: count, checkIn: st.checkIn, checkOut: st.checkOut, roomType: st.roomType },
+      data: { type: "availability", availableRooms: count, checkIn: st.checkIn, checkOut: st.checkOut, roomType: type },
       ui: {
         panel: {
           type: "rooms",
           hotel: ctx.hotel.name,
           ...stayFields(st),
-          need: st.rooms,
-          roomType: st.roomType,
+          need: st.desk ? (st.rooms || 0) : st.rooms,
+          roomType: type,
           available: want.map(r => ({ id: r.room_id, number: r.room_number, type: r.room_type, price: r.price_per_night,
                                       priceLabel: F.inr(r.price_per_night), maxGuests: r.max_guests,
                                       stayTotal: r.price_per_night * nights, stayTotalLabel: F.inr(r.price_per_night * nights) })),
           selected: picked.map(r => r.room_id),
           freeCount: free.length,
-          totalRooms: avail.length
+          totalRooms: avail.length,
+          ...(st.desk ? { desk: true, rooms: deskRooms(), assumedNights: !!st.assumedNights } : {})
         },
-        options: [
+        options: st.desk ? [] : [
           { label: "Change dates", action: { type: "edit", what: "dates" }, tone: "quiet" },
           { label: "Change guests or rooms", action: { type: "edit", what: "party" }, tone: "quiet" },
           restartOpt
         ],
-        hint: st.rooms === 1 ? "Tap a room, or type e.g. “room 3”" : "Tick the rooms, or type e.g. “rooms 2 and 5”"
+        hint: st.desk ? "Tick rooms and tap Book to hold them for the caller, or type e.g. “book room 7”"
+          : st.rooms === 1 ? "Tap a room, or type e.g. “room 3”" : "Tick the rooms, or type e.g. “rooms 2 and 5”"
       }
     };
   }
@@ -552,26 +660,59 @@ async function showRooms(st, ctx, prefix = ""){
     reply = `I'm sorry — ${ctx.hotel.name} is fully booked for ${when}.`;
   } else if (want.length === 0){
     reply = `I'm sorry — no ${typeWord}rooms are free for ${when}. ${F.plural(free.length, "room")} of another type ${free.length === 1 ? "is" : "are"} available: ${F.list(describeRooms(free))}.`;
-  } else if (want.length < st.rooms){
-    reply = `I'm sorry — only ${F.plural(want.length, typeWord + "room")} ${want.length === 1 ? "is" : "are"} free for ${when} (${F.list(describeRooms(want))}), and you asked for ${st.rooms}.`;
+  } else if (want.length < need){
+    reply = `I'm sorry — only ${F.plural(want.length, typeWord + "room")} ${want.length === 1 ? "is" : "are"} free for ${when} (${F.list(describeRooms(want))}), and you asked for ${need}.`;
   } else {
-    reply = `I'm sorry — the ${typeWord}rooms free for ${when} don't have enough beds for ${F.plural(st.guests, "guest")} in ${F.plural(st.rooms, "room")}.`;
+    reply = `I'm sorry — the ${typeWord}rooms free for ${when} don't have enough beds for ${F.plural(party, "guest")} in ${F.plural(need, "room")}.`;
   }
-  if (st.roomType !== "any"){
-    for (const t of ["Normal", "Luxury"].filter(t => t !== st.roomType)){
+  if (st.desk) reply = reply.replace("I'm sorry — ", "").replace(/^./, c => c.toUpperCase()).replace(/, and you asked for (\d+)\./, ", and $1 are needed.");
+  if (type !== "any"){
+    for (const t of ["Normal", "Luxury"].filter(t => t !== type)){
       const n = free.filter(r => r.room_type === t).length;
-      if (n >= st.rooms) opts.push(setOpt(`See ${t} rooms (${n} free)`, "roomType", t));
+      if (n >= need) opts.push(setOpt(`See ${t} rooms (${n} free)`, "roomType", t));
     }
-    if (free.length >= st.rooms && beds(preselect(free, st.rooms, st.guests)) >= st.guests) opts.push(setOpt("Either type", "roomType", "any"));
+    if (free.length >= need && beds(preselect(free, need, party)) >= party) opts.push(setOpt("Either type", "roomType", "any"));
   }
-  if (want.length && want.length < st.rooms && beds(want) >= st.guests) opts.push({ label: `Book ${F.plural(want.length, "room")} instead`, action: { type: "set", slot: "party", value: { guests: st.guests, rooms: want.length } } });
-  opts.push({ label: "Change dates", action: { type: "edit", what: "dates" }, tone: opts.length ? "quiet" : "primary" }, restartOpt);
+  if (st.guests && want.length && want.length < need && beds(want) >= st.guests) opts.push({ label: `Book ${F.plural(want.length, "room")} instead`, action: { type: "set", slot: "party", value: { guests: st.guests, rooms: want.length } } });
+  // The desk also looks either side of the dates asked for, so the
+  // receptionist can offer the caller something that is really free.
+  const nearby = st.desk ? await nearbyStays(st, ctx, { type, need, party }) : [];
+  for (const s of nearby){
+    opts.push({ label: `${F.shortDay(s.checkIn)} – ${F.shortDay(s.checkOut)} (${s.free} free)`, action: { type: "set", slot: "stay", value: { checkIn: s.checkIn, checkOut: s.checkOut } } });
+  }
+  if (!st.desk) opts.push({ label: "Change dates", action: { type: "edit", what: "dates" }, tone: opts.length ? "quiet" : "primary" }, restartOpt);
   delete st.offer;
   return {
-    kind: "answer", reply: [prefix, reply, "Would you like to try something else?"].filter(Boolean).join(" "), state: st,
-    data: { type: "availability", availableRooms: want.length, checkIn: st.checkIn, checkOut: st.checkOut, roomType: st.roomType },
-    ui: { options: opts, panel: { type: "unavailable", ...stayFields(st), freeCount: free.length, totalRooms: avail.length, matching: want.length, need: st.rooms, roomType: st.roomType } }
+    kind: "answer",
+    reply: [prefix, reply, st.desk ? (nearby.length ? "Nearby dates that work are below." : "") : "Would you like to try something else?"].filter(Boolean).join(" "),
+    state: st,
+    data: { type: "availability", availableRooms: want.length, checkIn: st.checkIn, checkOut: st.checkOut, roomType: type },
+    ui: { options: opts, panel: { type: "unavailable", ...stayFields(st), freeCount: free.length, totalRooms: avail.length, matching: want.length, need, roomType: type,
+                                  ...(st.desk ? { desk: true, rooms: deskRooms(), assumedNights: !!st.assumedNights,
+                                                  freeByType: ["Normal", "Luxury"].map(t => ({ type: t, free: free.filter(r => r.room_type === t).length })) } : {}) } }
   };
+}
+
+/* The same stay moved a day or two either way (never into the past), where
+   it would fit what was asked. At most two, nearest first. A failed look-up
+   here only means fewer suggestions. */
+async function nearbyStays(st, ctx, { type, need, party }){
+  const { today } = clock(ctx);
+  const shifts = [1, -1, 2, -2, 3].filter(d => addDays(st.checkIn, d) >= today);
+  const beds = rooms => rooms.reduce((s, r) => s + r.max_guests, 0);
+  let found;
+  try {
+    found = await Promise.all(shifts.map(async d => {
+      const checkIn = addDays(st.checkIn, d), checkOut = addDays(st.checkOut, d);
+      const rows = await ctx.repo.getAvailability(st.hotelId, checkIn, checkOut);
+      const fit = rows.filter(r => r.is_available && (type === "any" || r.room_type === type));
+      return fit.length >= need && beds(preselect(fit, need, party)) >= party ? { checkIn, checkOut, free: fit.length } : null;
+    }));
+  } catch (e){
+    ctx.log.warn("booking.nearby_failed", { error: e.message });
+    return [];
+  }
+  return found.filter(Boolean).slice(0, 2);
 }
 
 function lookupFailed(st, retry){
@@ -621,6 +762,7 @@ const HOLD_REASONS = {
 };
 
 async function book(st, pick, ctx){
+  if (st.desk){ delete st.pick; delete st.pickNumbers; }    // a new choice replaces one waiting for its party
   const step = nextStep(st);
   if (["checkIn", "arrivalTime", "checkOut", "party", "guests", "rooms", "roomType"].includes(step)) return ask(st, ctx);
   if (st.hold) return ask(st, ctx, "Your room is already held — let's finish the booking.");
@@ -650,6 +792,24 @@ async function book(st, pick, ctx){
   const taken = chosen.filter(r => !r.is_available);
   if (taken.length){
     return showRooms(st, ctx, `I'm sorry — room ${F.list(taken.map(r => r.room_number))} ${taken.length === 1 ? "is" : "are"} no longer available for your dates.`);
+  }
+  if (st.desk){
+    if (st.roomType && st.roomType !== "any" && chosen.some(r => r.room_type !== st.roomType)){
+      // Ticking a room of the other type is a choice, not a mistake.
+      st.roomType = "any";
+    }
+    if (!st.guests){
+      st.pick = chosen.map(r => r.room_id);
+      st.pickNumbers = chosen.map(r => r.room_number).sort((a, b) => a - b);
+      return ask(st, ctx);
+    }
+    // Rooms worked out from the party follow what was actually ticked.
+    if (!st.rooms || st.roomsAuto){
+      if (chosen.length > st.guests){
+        return showRooms(st, ctx, `Each room needs at least one guest, so ${F.plural(st.guests, "guest")} can take at most ${F.plural(st.guests, "room")}.`);
+      }
+      st.rooms = chosen.length;
+    }
   }
   if (chosen.length !== st.rooms){
     return showRooms(st, ctx, `You asked for ${F.plural(st.rooms, "room")}, so please choose exactly ${st.rooms}.`);
@@ -712,6 +872,10 @@ async function book(st, pick, ctx){
   // With the guest's details already given, the summary that follows says
   // how long the hold lasts; saying it here too would say it twice.
   const until = guestComplete(st) ? "" : ` until ${holdUntil(st, ctx)} while you complete the booking`;
+  if (st.desk){
+    return ask(st, ctx,
+      `${label} held${guestComplete(st) ? "" : ` until ${holdUntil(st, ctx)}`} — ${F.plural(b.nights, "night")}, ${F.inr(st.hold.total)} in total. Not booked until you confirm.`);
+  }
   return ask(st, ctx,
     `${label} held for you${until} — ${F.plural(b.nights, "night")}, ${F.inr(st.hold.total)} in total. It isn't booked until you confirm.`);
 }
@@ -771,7 +935,8 @@ async function confirm(st, ctx){
       name: st.guest.name, email: st.guest.email, phone: st.guest.phone,
       arrival: st.arrival === "flexible" ? null : st.arrival,
       departure: st.departure || ctx.hotel.check_out_time,
-      userId: ctx.user ? ctx.user.id : null
+      // A desk booking belongs to the caller, not to the receptionist's account.
+      userId: ctx.user && !st.desk ? ctx.user.id : null
     });
   } catch (e){
     // The request may or may not have reached the database. Say so, and make
@@ -787,11 +952,19 @@ async function confirm(st, ctx){
   if (res && res.ok){
     const b = res.booking;
     ctx.log.info("booking.confirmed", { rooms: b.rooms.length, nights: b.nights, already: !!res.already });
-    const done = { v: 1, flow: null, hotelId: st.hotelId, lastRef: b.booking_ref };
+    const done = { v: 1, flow: null, hotelId: st.hotelId, lastRef: b.booking_ref, ...(st.desk ? { desk: true } : {}) };
     const rooms = b.rooms.map(r => ({ number: r.room_number, type: r.room_type, price: Number(r.price_per_night), priceLabel: F.inr(r.price_per_night), guests: r.num_guests, total: Number(r.total_price), totalLabel: F.inr(r.total_price) }));
+    if (st.desk && !res.already){
+      // Shown as a front-desk booking on the Reservations page. Only a label:
+      // the booking stands whether or not this write lands.
+      try { await ctx.repo.markDeskBooking(b.booking_ref); }
+      catch (e){ ctx.log.warn("booking.desk_label_failed", { error: e.message }); }
+    }
     return {
       kind: "answer", state: done,
-      reply: `Your booking is confirmed! Your booking reference is ${b.booking_ref}. We look forward to welcoming you to ${ctx.hotel.name} on ${F.formatDay(b.check_in)}. Please keep this reference — you'll need it, with your email or phone number, to look the booking up.`,
+      reply: st.desk
+        ? `Booked. Reference ${b.booking_ref} — read it to the caller: ${ctx.hotel.name}, ${F.formatDay(b.check_in)} to ${F.formatDay(b.check_out)}, ${F.inr(b.total_price)} in total.`
+        : `Your booking is confirmed! Your booking reference is ${b.booking_ref}. We look forward to welcoming you to ${ctx.hotel.name} on ${F.formatDay(b.check_in)}. Please keep this reference — you'll need it, with your email or phone number, to look the booking up.`,
       data: { type: "booking", bookingRef: b.booking_ref, status: b.status },
       ui: {
         panel: {
@@ -800,7 +973,7 @@ async function confirm(st, ctx){
           rooms, total: Number(b.total_price), totalLabel: F.inr(b.total_price),
           guest: { name: b.guest_name, email: b.guest_email, phone: b.guest_phone }
         },
-        options: [{ label: "Book another stay", action: { type: "start" } }]
+        options: [{ label: st.desk ? "New caller" : "Book another stay", action: { type: "start" } }]
       }
     };
   }
@@ -828,15 +1001,16 @@ async function confirm(st, ctx){
 /* ---- entry points --------------------------------------------------------- */
 
 async function start(message, ctx){
-  const st = fresh(ctx.hotel);
-  if (!message) return ask(st, ctx, "", { intro: true });
+  const st = fresh(ctx.hotel, !!ctx.desk);
+  const intro = !ctx.desk;                 // the desk needs no welcome
+  if (!message) return ask(st, ctx, "", { intro });
   const { today } = clock(ctx);
   const x = extract(message, { today, step: null });
   const upd = pickSlots(x);
-  if (x.badDate) return ask(st, ctx, "I couldn't read that date.", { intro: true });
+  if (x.badDate) return ask(st, ctx, "I couldn't read that date.", { intro });
   const res = await apply(st, upd, ctx);
   keepGuest(st, x, res.notes);
-  return respond(st, ctx, res, { intro: true });
+  return respond(st, ctx, res, { intro });
 }
 
 function pickSlots(x){
@@ -860,6 +1034,11 @@ async function respond(st, ctx, { applied, notes, error }, { intro = false } = {
     r.reply = QUESTION_STEPS.has(nextStep(st)) ? prefix : [prefix, r.reply].join(" ");
     return r;
   }
+  // Desk: rooms ticked before the party was known are held once it is.
+  if (st.desk && st.pick && st.guests){
+    const ids = st.pick;
+    return book(st, { ids }, ctx);
+  }
   const ORDER = ["checkIn", "arrival", "checkOut", "nights", "guests", "rooms", "roomType"];
   const shown = applied.filter(k => k !== "departure").sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
   // A changed answer is always read back, even on its own, so a misheard
@@ -871,7 +1050,10 @@ async function respond(st, ctx, { applied, notes, error }, { intro = false } = {
                   party: ["guests", "rooms"], guests: ["guests"], rooms: ["rooms"], roomType: ["roomType"] };
   const ahead = shown.length === 1 && ASKED[st.asked] && !ASKED[st.asked].includes(shown[0]);
   delete st.changing;
-  if (shown.length >= 2 || changed || ahead){
+  // The desk shows what it understood in its request bar instead.
+  if (st.desk){
+    prefix = "";
+  } else if (shown.length >= 2 || changed || ahead){
     // "1 Luxury room", not "1 room and Luxury rooms".
     const oneRoomLine = shown.includes("rooms") && shown.includes("roomType") && st.roomType !== "any";
     const labels = shown.filter(k => !(oneRoomLine && k === "roomType"))
@@ -900,12 +1082,15 @@ async function handleText(st, message, ctx){
   if (RESTART_RE.test(lower)) return handleAction(st, { type: "restart" }, ctx);
   if (CANCEL_RE.test(lower)) return handleAction(st, { type: "cancel" }, ctx);
   if (step === "review"){
+    // At the desk text never books: a "yes" said to the caller and picked up
+    // by the microphone must not confirm anything.
+    if (st.desk && CONFIRM_RE.test(lower)) return ask(st, ctx, "To book, tap Confirm booking.");
     if (CONFIRM_RE.test(lower)) return confirm(st, ctx);
     if (DECLINE_RE.test(lower)) return ask(st, ctx, "No problem — nothing has been booked. Change anything you like, or confirm when you're ready.");
   }
 
   const { today } = clock(ctx);
-  const x = extract(message, { today, step });
+  const x = extract(message, { today, step, desk: !!st.desk });
 
   if (step === "select"){
     if (x.roomNumbers) return book(st, { numbers: x.roomNumbers }, ctx);
@@ -968,7 +1153,7 @@ async function handleText(st, message, ctx){
   return respond(st, ctx, res);
 }
 
-const SLOTS = new Set(["checkIn", "checkOut", "arrival", "departure", "party", "guests", "rooms", "roomType"]);
+const SLOTS = new Set(["checkIn", "checkOut", "arrival", "departure", "party", "guests", "rooms", "roomType", "stay"]);
 const EDITS = new Set(["dates", "party", "roomType", "rooms", "guest"]);
 
 class ActionError extends Error {}
@@ -998,6 +1183,11 @@ function readAction(a){
       } else if (a.slot === "party"){
         if (!v || typeof v !== "object" || !Number.isInteger(v.guests) || !Number.isInteger(v.rooms)) throw new ActionError("invalid_value");
         return { type: "set", slot: "party", value: { guests: v.guests, rooms: v.rooms } };
+      } else if (a.slot === "stay"){
+        // Both dates at once (the desk's nearby-dates suggestions).
+        const day = d => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d);
+        if (!v || typeof v !== "object" || !day(v.checkIn) || !day(v.checkOut)) throw new ActionError("invalid_value");
+        return { type: "set", slot: "stay", value: { checkIn: v.checkIn, checkOut: v.checkOut } };
       } else if (a.slot === "guests" || a.slot === "rooms"){
         if (!Number.isInteger(v)) throw new ActionError("invalid_value");
       } else if (a.slot === "roomType"){
@@ -1017,6 +1207,11 @@ function readAction(a){
         if (a[k] === undefined) continue;
         if (typeof a[k] !== "string" || a[k].length > 254) throw new ActionError("invalid_value");
         out[k] = a[k];
+      }
+      // The desk's form also takes an optional arrival time.
+      if (a.arrival !== undefined && a.arrival !== ""){
+        if (typeof a.arrival !== "string" || !TIME_RE.test(a.arrival)) throw new ActionError("invalid_value");
+        out.arrival = a.arrival;
       }
       return out;
     }
@@ -1057,7 +1252,7 @@ async function handleAction(st, action, ctx){
   if (!active){
     if (a.type === "cancel") return { kind: "answer", state: null, reply: "No problem.", ui: {} };
     // An option from an earlier conversation: begin a fresh booking with it.
-    const st2 = fresh(ctx.hotel);
+    const st2 = fresh(ctx.hotel, !!ctx.desk);
     if (a.type === "set") return handleAction(st2, a, ctx);
     return start(null, ctx);
   }
@@ -1065,7 +1260,7 @@ async function handleAction(st, action, ctx){
   switch (a.type){
     case "restart":
       await dropHold(st, ctx);
-      return ask(fresh(ctx.hotel), ctx, "Let's start again.", { intro: false });
+      return ask(fresh(ctx.hotel, !!st.desk), ctx, st.desk ? "" : "Let's start again.", { intro: false });
     case "cancel":
       await dropHold(st, ctx);
       return { kind: "answer", state: null,
@@ -1074,7 +1269,12 @@ async function handleAction(st, action, ctx){
     case "resume":
       return ask(st, ctx);
     case "set": {
-      const upd = a.slot === "party" ? { guests: a.value.guests, rooms: a.value.rooms } : { [a.slot]: a.value };
+      let upd = a.slot === "party" ? { guests: a.value.guests, rooms: a.value.rooms } : { [a.slot]: a.value };
+      if (a.slot === "stay"){
+        // A whole new stay: the old check-out is replaced, not checked against.
+        upd = { checkIn: a.value.checkIn, checkOut: a.value.checkOut };
+        if (upd.checkIn !== st.checkIn){ delete st.checkOut; delete st.assumedNights; }
+      }
       const res = await apply(st, upd, ctx);
       return respond(st, ctx, res);
     }
@@ -1082,6 +1282,10 @@ async function handleAction(st, action, ctx){
       return book(st, { ids: a.roomIds }, ctx);
     case "guest": {
       const errors = applyGuest(st, a);
+      if (a.arrival !== undefined){
+        const res = await apply(st, { arrival: a.arrival }, ctx);
+        if (res.error) errors.push(res.error);
+      }
       const r = await ask(st, ctx, errors.join(" "));
       if (r.ui && r.ui.form) r.ui.form.errors = errors;
       return r;
@@ -1092,7 +1296,7 @@ async function handleAction(st, action, ctx){
       if (a.what === "dates"){ await dropHold(st, ctx); delete st.checkIn; delete st.checkOut; delete st.nights; delete st.arrival; delete st.departure; }
       if (a.what === "party"){ await dropHold(st, ctx); delete st.guests; delete st.adults; delete st.children; delete st.rooms; }
       if (a.what === "roomType"){ await dropHold(st, ctx); delete st.roomType; }
-      if (a.what === "rooms"){ await dropHold(st, ctx); }
+      if (a.what === "rooms"){ await dropHold(st, ctx); delete st.pick; delete st.pickNumbers; }
       if (a.what === "guest"){ delete st.reviewed; st.guestDraft = st.guest; st.guest = {}; }
       return ask(st, ctx);
   }
@@ -1107,4 +1311,4 @@ async function askAgain(st, ctx, prefix){
   return r;
 }
 
-module.exports = { start, handleText, handleAction, readAction, nextStep, ActionError, preselect, report, askAgain };
+module.exports = { start, handleText, handleAction, readAction, nextStep, ActionError, preselect, report, askAgain, dropHold, deskSummary };

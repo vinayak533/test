@@ -111,6 +111,15 @@ function fakeRepo({ reservations = [], rooms = ROOMS, hotels = [HOTEL], roomsByH
                                            user_id: args.userId || r.user_id || null }));
       return { ok: true, already, booking: booking(args.ref) };
     },
+    async staffHotelIds(user){
+      calls.push(["staff", user && user.id]); maybeFail("staff");
+      if (!user || !user.role) return [];
+      return user.role === "admin" ? hotels.map(h => h.id) : (user.hotels || []);
+    },
+    async markDeskBooking(ref){
+      calls.push(["desk_label", ref]);
+      res.filter(r => r.ref === ref).forEach(r => { r.source = "admin"; });
+    },
     async releaseHold(ref, hash){
       calls.push(["release", ref]);
       res.filter(r => r.ref === ref && r.token === hash && r.status === "held").forEach(r => { r.status = "expired"; });
@@ -128,7 +137,7 @@ function fakeRepo({ reservations = [], rooms = ROOMS, hotels = [HOTEL], roomsByH
 }
 
 /* A conversation driver over handleChat: keeps the state token like the page does. */
-function conversation({ repo = fakeRepo(), jev = null, config = CONFIG, now = NOW, user = null, authError = false, hotelId, progress } = {}){
+function conversation({ repo = fakeRepo(), jev = null, config = CONFIG, now = NOW, user = null, authError = false, hotelId, progress, mode } = {}){
   const { handleChat } = require("../server/chat");
   const codec = createStateCodec("test-secret-test-secret", { now: () => now().getTime() });
   const log = memoryLogger();
@@ -137,7 +146,7 @@ function conversation({ repo = fakeRepo(), jev = null, config = CONFIG, now = NO
   // The hotel the page has selected; it follows the replies, as the page does.
   let selected = hotelId;
   async function send(input){
-    const out = await handleChat({ ...input, state, ...(selected ? { hotelId: selected } : {}) }, deps);
+    const out = await handleChat({ ...input, state, ...(selected ? { hotelId: selected } : {}), ...(mode ? { mode } : {}) }, deps);
     if (out.hotel && selected) selected = out.hotel.id;
     if (out.state !== undefined) state = out.state;
     return out;
