@@ -63,8 +63,8 @@
   const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
   const BRAND = "GXP";   // the application's name, shown in place of the agency's own
-  const VIEWS = ["agency", "dashboard", "rooms", "reservations", "guests", "profile", "reports"];
-  const TITLES = { agency: "Agency overview", dashboard: "Dashboard", rooms: "Rooms", reservations: "Reservations", guests: "Guests",
+  const VIEWS = ["agency", "assistant", "dashboard", "rooms", "reservations", "guests", "profile", "reports"];
+  const TITLES = { agency: "Agency overview", assistant: "Desk assistant", dashboard: "Dashboard", rooms: "Rooms", reservations: "Reservations", guests: "Guests",
                    profile: "Hotel profile", reports: "Reports" };
   const LIVE = new Set(["confirmed", "checked_in"]);                   // holds a room for the night
   const SOLD = new Set(["confirmed", "checked_in", "checked_out"]);    // counts as revenue
@@ -425,6 +425,13 @@
     $("#hotelSwitch").value = S.hotelId;
     $("#hotelPick").hidden = data.length < 2;
     updateChrome();
+    deskHotel();
+  }
+
+  /* The desk assistant (hotel_desk.js) works on the selected hotel only. */
+  function deskHotel(){
+    const h = S.hotels.find(x => x.id === S.hotelId);
+    window.dispatchEvent(new CustomEvent("mm:desk-hotel", { detail: h ? { id: h.id, name: h.name } : null }));
   }
 
   /* Brand, breadcrumb and title: GXP on the overview, the client hotel
@@ -454,6 +461,7 @@
     HOTEL_PANES.forEach(s => { const n = $(s); if (n) n.innerHTML = ""; });
     clearProfile();
     updateChrome();
+    deskHotel();
     navOpen(false);
     loadAll();
     subscribe();
@@ -488,6 +496,7 @@
     closeDrawer();
     if (window.MMGuest) window.MMGuest.leave();
     if (was && window.MMChat) window.MMChat.reset();
+    window.dispatchEvent(new CustomEvent("mm:desk-hotel", { detail: null }));    // the desk drops its call
     $("#mmApp").hidden = true;
     $("#mmGate").hidden = false;
     document.title = "Misty Mountain";
@@ -647,11 +656,11 @@
 
   /* ================================================================ ROUTING */
 
-  /* Agency administrators start on the agency overview; a hotel manager has
-     no agency view and starts on their hotel's dashboard. */
+  /* Agency administrators start on the agency overview; a hotel manager —
+     the front desk — has no agency view and starts on the desk assistant. */
   function route(){
     if (S.mode !== "admin") return;
-    const home = S.role === "admin" ? "agency" : "dashboard";
+    const home = S.role === "admin" ? "agency" : "assistant";
     let v = (location.hash || "#" + home).slice(1);
     if (!VIEWS.includes(v) || (v === "agency" && S.role !== "admin")){
       v = home;
@@ -667,6 +676,7 @@
     navOpen(false);
     if (S.view === "reports" && S.user && S.hotel) loadReport();
     if (S.view === "agency" && S.user){ renderAgency(); loadAgency(); }
+    if (S.view === "assistant") window.dispatchEvent(new CustomEvent("mm:desk-shown"));
   }
 
   function navOpen(on){
@@ -1160,7 +1170,7 @@
     t.innerHTML = shown.length
       ? `<thead><tr><th>Booking</th><th>Guest</th><th>Stay</th><th>Rooms</th><th class="num">Guests</th><th class="num">Total</th><th>Status</th></tr></thead><tbody>` +
         shown.map(b => `<tr>
-          <td data-label="Booking"><button type="button" class="mm-rowbtn" data-ref="${esc(b.ref)}"><span class="ref">${esc(b.ref)}</span></button><span class="sub">${b.source === "chatbot" ? "ChatBot" : "Admin"} · ${fmtStamp(b.created_at)}</span></td>
+          <td data-label="Booking"><button type="button" class="mm-rowbtn" data-ref="${esc(b.ref)}"><span class="ref">${esc(b.ref)}</span></button><span class="sub">${b.source === "chatbot" ? "ChatBot" : "Front desk"} · ${fmtStamp(b.created_at)}</span></td>
           <td data-label="Guest">${who(b.guest_name, `${esc(b.guest_name || "—")}<span class="sub">${esc(b.guest_phone || "")}</span>`)}</td>
           <td data-label="Stay">${fmtShort(b.check_in)} → ${fmtShort(b.check_out)}<span class="sub">${plural(b.nights, "night")} · arrives ${fmtTime(b.arrival_time)}</span></td>
           <td data-label="Rooms">${b.rows.map(r => `<span class="mm-type mm-type--${esc(r.room_type)}">${(S.roomById.get(r.room_id) || {}).room_number || "?"}</span>`).join(" ")}</td>
@@ -1215,7 +1225,7 @@
         <dt>Check-in</dt><dd>${fmtDate(b.check_in)} · arrives ${fmtTime(b.arrival_time)}</dd>
         <dt>Check-out</dt><dd>${fmtDate(b.check_out)} · by ${fmtTime(b.departure_time)}</dd>
         <dt>Stay</dt><dd>${plural(b.nights, "night")} · ${plural(b.guests, "guest")} · ${plural(b.rows.length, "room")}</dd>
-        <dt>Booked</dt><dd>${fmtStamp(b.created_at)} via ${b.source === "chatbot" ? "ChatBot" : "admin"}</dd>
+        <dt>Booked</dt><dd>${fmtStamp(b.created_at)} via ${b.source === "chatbot" ? "ChatBot" : "the front desk"}</dd>
         ${b.confirmed_at ? `<dt>Confirmed</dt><dd>${fmtStamp(b.confirmed_at)}</dd>` : ""}
         ${b.status === "held" ? `<dt>Hold expires</dt><dd>${fmtStamp(b.hold_expires_at)}</dd>` : ""}
         ${b.cancelled_at ? `<dt>Cancelled</dt><dd>${fmtStamp(b.cancelled_at)}${b.cancel_reason ? " · " + esc(b.cancel_reason) : ""}</dd>` : ""}

@@ -71,9 +71,12 @@ function looksLikeAnswer(message){
 }
 
 async function handleChat(input, deps){
+  if (input && input.mode === "desk") return handleDesk(input, deps);
   const { config, repo, jev, log, codec } = deps;
   const now = deps.now ? deps.now() : new Date();
   let st = codec.decode(input && input.state);
+  // A front-desk conversation never carries over into the guest ChatBot.
+  if (st && st.desk) st = null;
   const action = input && input.action != null ? input.action : null;
   const message = action ? null : sanitizeMessage(input && input.message, config.maxMessageChars);
   const wanted = input && isHotelId(input.hotelId) ? input.hotelId : null;
@@ -277,6 +280,151 @@ async function handleChat(input, deps){
   // Not ours. The page answers from its knowledge base; a booking in
   // progress stays exactly where it was.
   return { handled: false, ...tag, bookingActive, ...about() };
+}
+
+/* ============================================================================
+   The front desk: a receptionist on the phone with a caller, in the staff
+   dashboard. Same flow, same database functions, same checks; what differs:
+
+     who     a signed-in staff account that manages the hotel asked about
+             (the hotels table for an agency administrator, hotel_staff for a
+             hotel manager) — anyone else is refused before anything is read
+     hotel   exactly the one the dashboard has selected. Naming another hotel
+             moves nothing: the receptionist switches hotel in the menu
+     intent  the deterministic rules only, never Jev: no round trip while a
+             caller waits, and nothing typed at the desk leaves the server
+     else    no knowledge base here, so anything that is not rooms, rates,
+             availability or a booking gets a short pointer; an existing
+             booking is found with the dashboard's own reservation search
+
+   Every reply carries `request`: what the desk has understood so far.
+   ============================================================================ */
+async function handleDesk(input, deps){
+  const { config, repo, log, codec } = deps;
+  const now = deps.now ? deps.now() : new Date();
+  let st = codec.decode(input.state);
+  if (st && !st.desk) st = null;
+  const action = input.action != null ? input.action : null;
+  const message = action ? null : sanitizeMessage(input.message, config.maxMessageChars);
+  if (!isHotelId(input.hotelId)) throw new InputError("invalid_hotel", "the desk needs a hotel");
+  if (message) flow.report(deps, "understand");
+
+  const tag = { intent: "desk", source: action ? "action" : "rules" };
+  const encode = s => (s === undefined ? undefined : s ? codec.encode(s) : null);
+  let hotel = null;
+  const finish = (r, extra = {}) => {
+    const out = { handled: true, kind: r.kind, reply: r.reply, ...tag, ...extra };
+    if (hotel) out.hotel = { id: hotel.id, name: hotel.name };
+    if (r.ui && Object.keys(r.ui).length) out.ui = r.ui;
+    if (r.data) out.data = r.data;
+    if (r.error) out.error = r.error;
+    const token = encode(r.state);
+    if (token !== undefined) out.state = token;
+    // What the desk holds after this turn: the new state, or the old one when
+    // the turn left it alone.
+    const after = r.state === undefined ? st : r.state;
+    out.request = flow.deskSummary(after);
+    return out;
+  };
+
+  if (!deps.user){
+    return finish({ kind: "error", error: deps.authError ? "auth_unavailable" : "desk_sign_in",
+                    reply: deps.authError ? "I couldn't check your sign-in just now. Please try again in a moment."
+                                          : "Please sign in with your staff account to use the front desk assistant." });
+  }
+
+  let hotels, allowed;
+  try {
+    [hotels, allowed] = await Promise.all([repo.listHotels(), repo.staffHotelIds(deps.user)]);
+  } catch (e){
+    log.error("desk.lookup_failed", { error: e.message });
+    return finish({ kind: "error", reply: R.lookupFailed(), error: "hotels_unavailable" });
+  }
+  hotel = hotels.find(h => h.id === input.hotelId) || null;
+  if (!hotel || !allowed.includes(hotel.id)){
+    log.warn("desk.forbidden", { hotel: input.hotelId });
+    hotel = null;
+    return finish({ kind: "error", error: "desk_forbidden",
+                    reply: "This account can't check rooms at that hotel. Choose one of your hotels from the menu." });
+  }
+
+  const ctx = {
+    hotel, hotels, repo, log, config, now, desk: true,
+    user: deps.user, authError: false,
+    lookupLimited: deps.lookupLimited, lookupFailed: deps.lookupFailed,
+    progress: deps.progress
+  };
+
+  // A conversation from another hotel (the selection changed under it) is
+  // closed, its hold given back, and never read here.
+  if (st && st.hotelId !== hotel.id){
+    if (st.flow === "booking") await flow.dropHold(st, ctx);
+    st = null;
+  }
+
+  const guarded = async run => {
+    try { return finish(await run()); }
+    catch (e){
+      if (e instanceof flow.ActionError) throw new InputError(e.message, "invalid action");
+      if (e instanceof InputError) throw e;
+      log.error("desk.turn_failed", { error: e.message });
+      return finish({ kind: "error", reply: R.lookupFailed(), error: "reservations_unavailable" });
+    }
+  };
+
+  if (action){
+    if (typeof action === "object" && (action.type === "switch" || (action.hotelId != null && action.hotelId !== hotel.id))){
+      throw new InputError("invalid_action", "the desk changes hotel from the menu only");
+    }
+    return guarded(() => flow.handleAction(st, action, ctx));
+  }
+
+  const quick = classifyWithRules(message, hotels);
+  const intent = quick.intent.name;
+
+  // Another of our hotels by name: say how to get there; change nothing.
+  if (quick.hotel.kind === "known" && quick.hotel.id !== hotel.id){
+    const other = hotels.find(h => h.id === quick.hotel.id);
+    return finish({ kind: "clarify", reply: R.deskOtherHotel(hotel, other) });
+  }
+
+  const x = extract(message, { today: todayIn(hotel.timezone || "Asia/Kolkata", now), step: null });
+  const staySaid = !!(x.checkIn || x.checkOut || x.nights || x.guests || x.rooms);
+  const booking = st && st.flow === "booking";
+
+  // Rates: straight from the rooms table. A search in progress is kept.
+  // ("the price of a luxury room" names one room, not a room count.)
+  if (intent === "room_info" && !(x.checkIn || x.checkOut || x.nights || x.guests)){
+    flow.report(ctx, "rooms");
+    return guarded(async () => {
+      const rooms = await repo.getRooms(hotel.id);
+      return {
+        kind: "answer", reply: R.deskRates(hotel, rooms, x.roomType),
+        ui: { panel: R.ratesPanel(hotel, rooms),
+              options: booking ? [{ label: "Back to the search", action: { type: "resume" }, tone: "primary" }] : [] }
+      };
+    });
+  }
+
+  // An existing booking: staff already search reservations in the
+  // dashboard, scoped to this hotel, with no contact check to pass.
+  if (intent === "guest_details" || readRef(message)){
+    const ref = readRef(message);
+    return finish({ kind: "answer", reply: R.deskLookup(ref), data: { type: "lookup", bookingRef: ref } });
+  }
+
+  if (booking){
+    return guarded(async () => {
+      const r = await flow.handleText(st, message, ctx);
+      if (r) return r;
+      return flow.askAgain(st, ctx, R.deskHelp(hotel, true));
+    });
+  }
+
+  if (staySaid || x.roomType || BOOKING_INTENTS.has(intent)){
+    return guarded(() => flow.start(message, ctx));
+  }
+  return finish({ kind: "clarify", reply: R.deskHelp(hotel, false) });
 }
 
 module.exports = { handleChat };

@@ -9,8 +9,8 @@
 --
 --   update public.hotels set is_active = true where id = 'royal_kuttikkanam';
 --
--- Safe to re-run. 006 re-runs before this file and never touches is_active,
--- so the two hotels stay off however often the migrations are applied.
+-- Safe to re-run. 006 re-runs before this file and never touches is_active.
+-- Superseded by 008_three_hotels.sql, which switches both back on.
 -- ============================================================================
 
 update public.hotels

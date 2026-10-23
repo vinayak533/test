@@ -6,7 +6,8 @@
    decides what to do with it, and validates it, using the step it had asked
    about as context ("3" answers "how many guests?" but not "which date?").
 
-   extract(text, { today, step }) →
+   extract(text, { today, step, desk }) →   (desk: the front desk, where
+                                             every date said is about the stay)
      { checkIn?, checkOut?, nights?, dates: [...], badDate?,
        arrival?, departure?, times: [...],
        guests?, adults?, children?, rooms?, roomType?, roomNumbers?: [...],
@@ -191,7 +192,7 @@ const CHECKIN_DATE_CUE  = /\b(check(?:ing)?[\s-]?in|arriv\w*|from|starting|comin
 
 /* ---- entry point ---------------------------------------------------------- */
 
-function extract(text, { today, step = null } = {}){
+function extract(text, { today, step = null, desk = false } = {}){
   const original = String(text || "");
   const lower = original.toLowerCase();
   const out = {};
@@ -279,14 +280,15 @@ function extract(text, { today, step = null } = {}){
       if (CHECKOUT_DATE_CUE.test(before)) out.checkOut = dates[0];
       else if (CHECKIN_DATE_CUE.test(before)) out.checkIn = dates[0];
       else if (step === "checkOut") out.checkOut = dates[0];
-      else if (step === "checkIn" || !step) out.checkIn = dates[0];
+      // At the desk a date said while looking at results is a new check-in.
+      else if (step === "checkIn" || !step || (desk && step === "select")) out.checkIn = dates[0];
       else out.loneDate = dates[0];
     } else {
       // "tomorrow", "this weekend", "next friday" — read only when a date is
       // what is being talked about, so "tonight" in a question about dinner
       // halfway through a booking moves nothing.
       const rel = relativeStart(s, today);
-      const aboutDates = !step || step === "checkIn" || step === "checkOut"
+      const aboutDates = !step || desk || step === "checkIn" || step === "checkOut"
         || /\b(check\w*|arriv\w*|stay\w*|book\w*|rooms?|nights?|from|until|till)\b/.test(s);
       if (rel && aboutDates){
         if (CHECKOUT_DATE_CUE.test(s) || (step === "checkOut" && !CHECKIN_DATE_CUE.test(s))) out.checkOut = rel.day;

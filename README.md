@@ -1,13 +1,13 @@
 # Kuttikkanam Hotel Agency — agency dashboard and booking ChatBot
 
-A hotel management agency platform, backed by Supabase. It serves one
-hotel, **Misty Mountain** in Kuttikkanam, Kerala — ten rooms — where guests
-check real availability and book through the ChatBot, and staff run the
-front desk from the dashboard. The platform is multi-hotel underneath: Royal
-Hotel and Taj Hotel (006) are still in the database but switched off by
-`007_misty_mountain_only.sql`, so they appear nowhere and cannot be booked;
-setting `is_active` back to true brings one back, with the agency view, per-hotel
-managers and hotel pickers described below.
+A hotel management agency platform, backed by Supabase, for three client
+hotels in Kuttikkanam, Kerala — **Misty Mountain**, **Royal Hotel** and **Taj
+Hotel**, ten rooms each, each with its own inventory, prices and bookings.
+Receptionists take phone enquiries with the **Desk assistant** (say or type what
+the caller wants, read live availability and prices, book on request), guests
+check availability and book through the ChatBot, and staff run the front desk
+from the dashboard. Royal Hotel and Taj Hotel, switched off by
+`007_misty_mountain_only.sql`, are live again from `008_three_hotels.sql`.
 
 The agency is the parent organisation (`agencies`) and every hotel is one of
 its clients (`hotels.agency_id`). Rooms, guests and reservations were already
@@ -21,6 +21,7 @@ keyed by `hotel_id`; who may see which hotel is decided in the database
 | `index.html` | The welcome screen with sign-in / sign-up, the guest area, the dashboard markup and the ChatBot. |
 | `hotel_admin.js` / `hotel_admin.css` | Supabase Auth sign-in and sign-up for everyone, then the staff dashboard: live data, edits, reports. The stylesheet covers the guest area too. |
 | `hotel_guest.js` | The signed-in guest's area: live room board for any dates, their own bookings, cancelling. |
+| `hotel_desk.js` / `hotel_desk.css` | The Desk assistant page of the staff dashboard, for receptionists on the phone (see "The Desk assistant"). |
 | `server/` | The backend for `POST /api/chat`, `GET /api/config` and `GET /api/hotels` (see below). |
 | `netlify/functions/` | Thin adapters from Netlify Functions to `server/app.js`. |
 | `supabase/migrations/` | Schema, seed, booking functions, security. Idempotent; run in order. |
@@ -156,7 +157,8 @@ answer says so and points at the reception number.
 | `004_security.sql` | RLS scoped to the hotels each user may manage, grants (including a hotel's editable contact details), the `guest_summaries` view, Realtime publication. |
 | `005_guest_accounts.sql` | Guest accounts: `room_board`, `my_bookings`, `cancel_my_booking`, and `inventory_pulse` (the change signal the guest area listens to). `reservations.user_id` (in `001`) links a booking to the account that made it. |
 | `006_seed_kuttikkanam_hotels.sql` | Royal Hotel (`royal_kuttikkanam`) and Taj Hotel (`taj_kuttikkanam`), rooms 1–10 each. Same re-run rules as `002`. Contact details are left empty for the admin to fill in. |
-| `007_misty_mountain_only.sql` | Switches Royal Hotel and Taj Hotel off (`is_active = false`): listed nowhere, never bookable, rooms and history kept. Re-running `006` never turns them back on. |
+| `007_misty_mountain_only.sql` | Switched Royal Hotel and Taj Hotel off (`is_active = false`), rooms and history kept. Superseded by 008. |
+| `008_three_hotels.sql` | Switches Royal Hotel and Taj Hotel back on, so all three client hotels are live. It runs after 007 on every migrate, so the end state is always all three. |
 
 Seeded inventory, ten rooms per hotel, each sleeping up to 3:
 
@@ -308,12 +310,72 @@ detail is wiped from the page on sign-out.
 |---|---|
 | Agency → Overview | Administrators only; where they land. Agency-wide total rooms, occupied / available / held tonight, occupancy, arrivals today, check-ins in the next 7 days, upcoming bookings and this month's room revenue; a card per client with its own figures and quick links (Open dashboard, Reservations, Rooms, Reports); and the clients compared in one table. All from `agency_overview()`, computed in the database from the rooms and reservations with the same rules as the hotel dashboard. Live: Realtime on `inventory_pulse` (any client's change), plus once a minute. |
 | Client hotel | The sidebar's picker chooses which hotel every Front desk page is about (the active hotels this account may manage — the database returns no others). Switching re-reads everything for that hotel and re-subscribes Realtime to it; the choice is kept for the tab. |
+| Desk assistant | Where a hotel manager (the front desk) lands. See "The Desk assistant" below. |
 | Dashboard | Tonight: total / available / occupied rooms and occupancy rate, arrivals and departures, month-to-date room revenue; a status board for all ten rooms for tonight or any night you pick (a ChatBot booking turns its room to *Booked* as soon as it is confirmed); next-7-day arrivals and departures; 14-night occupancy chart; latest bookings. Updates live through Supabase Realtime (and refreshes every minute regardless). |
 | Rooms | Availability check for any dates (the ChatBot's own calculation); one rate for all rooms of a type; per-room type, rate, capacity and bookable switch. Existing bookings keep their booked rate. |
 | Reservations | Search (reference, guest, email, phone, room), filter by status, type and dates; a detail panel with check-in, check-out, no-show and cancel (with a reason). Status only moves forward. |
 | Guests | Profiles with booking count, total spend, last and next stay, and full booking history. |
 | Hotel profile | The hotel's phone, email, address and description — what the ChatBot gives guests for that hotel (it says "call the hotel on …" once a phone is set) — editable; and its configuration (agency, id, rooms, check-in/out, hold time, longest stay), read-only because the booking rules depend on it. The name stays with the seed, because the ChatBot matches guests' words to it. |
 | Reports | Room revenue, room-nights sold, occupancy, ADR and RevPAR for any period up to a year, by night and by room type; CSV export and a table view. Computed in the database from actual reservations. |
+
+### The Desk assistant
+
+The staff dashboard's first page, for a receptionist on the phone with a
+caller. They type or speak what the caller wants and read the answer off the
+screen; nothing is spoken to the caller and nothing is sent or booked on its
+own. It works on the selected **Client hotel** only — changing hotel ends the
+call on screen and gives back any room it was holding.
+
+```
+"Check luxury rooms for three adults from today for two nights"
+  → check-in today, check-out in 2 nights, 3 adults, Luxury, 1 room (from the party)
+  → live availability from Supabase: matching rooms, prices, the stay total,
+    and a strip of every room for those nights (matches / free / booked)
+  → tick rooms → Book (a 15-minute hold) → caller's name, mobile, email,
+    optional arrival time → summary → Confirm booking → MM-XXXXXX to read out
+```
+
+It is `POST /api/chat` with `mode: "desk"` (`handleDesk` in `server/chat.js`),
+running the same booking flow, extraction rules, Supabase functions and
+double-booking protection as the ChatBot. What differs:
+
+* **Who:** a signed-in staff account that manages that hotel (every hotel for an
+  agency administrator, its `hotel_staff` rows for a manager), checked on every
+  turn with the service-role key. Anyone else gets `desk_forbidden` before
+  anything is read.
+* **Only what is missing is asked.** A check-in date is the one thing
+  availability can't be shown without. One night is assumed (and shown as
+  *assumed*) until a stay length is given; rooms follow from the party (shown
+  as *suggested*); no party shows every free room; the arrival time is never
+  asked (it is an optional field on the form). The party is asked only when
+  rooms are booked before it is known.
+* **Details add up across messages,** typed or spoken: "today", then "for 4
+  adults and 1 child", then "make it 3 nights", then "luxury only" is one
+  request. Each reply carries `request` — what has been understood — drawn as
+  chips above the results; the main ones clear with one tap.
+* **Nothing matches:** it says what there is (by type), offers the other type,
+  and looks a day or two either side for the same stay that would fit.
+* **Rates** ("What is the price of a luxury room?") come from the rooms table,
+  and a search in progress is kept.
+* **Booking:** only the *Confirm booking* button books; a typed or spoken "yes"
+  never does. The booking is not linked to the receptionist's account
+  (`user_id` stays empty) and is labelled `source = 'admin'` — *Front desk* on
+  the Reservations page.
+* **Never across hotels:** a conversation from another hotel is closed and its
+  hold released; naming another hotel only says to switch in the menu; no
+  action can move the desk to another hotel.
+* **No Jev, no knowledge base:** intent comes from the deterministic rules
+  only (no round trip while a caller waits); anything that is not rooms, rates,
+  availability or a booking gets a short pointer. An existing booking is
+  opened with the dashboard's own Reservations search.
+
+**Voice:** the microphone puts the receptionist's words into the text box —
+Whisper on this server where `/api/transcribe` runs, the browser's recognition
+otherwise — after anything already typed. The full transcript wraps in the box
+to be read and corrected, and goes nowhere until **Check** (or Enter) is
+pressed. Tap to start and stop, or hold while speaking; Escape cancels.
+Progress ("Understanding the request → Checking live availability → Matching
+rooms to the request") is shown as the server reaches each step.
 
 ### Guest accounts
 
@@ -382,9 +444,9 @@ typed. `netlify.toml` 404s `/.env*`, `/server/`, `/supabase/`, `/scripts/`,
 ### Tests
 
 ```bash
-npm test          # unit: extraction, state signing, the booking flow, routing, HTTP guards, Jev client
+npm test          # unit: extraction, state signing, the booking flow, the Desk assistant, routing, HTTP guards, Jev client
 npm run test:db   # live Supabase: schema, seed, RLS, availability, holds, concurrency, admin, look-ups, end-to-end,
-                  # the agency overview and hotel managers kept to their own hotel
+                  # the agency overview, hotel managers kept to their own hotel, the Desk assistant over HTTP
 npm run smoke     # pre-deploy checks on the page itself
 npm run test:stt  # the real Whisper model: loads once, non-speech comes back empty, bursts are refused
 ```

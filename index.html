@@ -6,6 +6,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&display=swap">
 <link rel="stylesheet" href="hotel_admin.css">
+<link rel="stylesheet" href="hotel_desk.css">
 
 <style>
 /* ============================================================
@@ -1399,6 +1400,10 @@ a{ color: inherit; }
       </a>
 
       <p class="mm-nav__label" id="navDeskLabel">Front desk</p>
+      <a href="#assistant" class="mm-nav__item" data-view="assistant">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.5h2.6l1.3 4-1.9 1.3a11 11 0 0 0 6.6 6.6l1.3-1.9 4 1.3v2.6a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z"/></svg>
+        <span>Desk assistant</span>
+      </a>
       <a href="#dashboard" class="mm-nav__item" data-view="dashboard">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.5 12 3.8l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"/></svg>
         <span>Dashboard</span>
@@ -1462,6 +1467,9 @@ a{ color: inherit; }
       <span class="mm-live" id="liveStatus" title="Live updates">
         <span class="mm-live__dot" aria-hidden="true"></span><span class="mm-live__text">Connecting…</span>
       </span>
+      <a href="#assistant" class="mm-btn mm-btn--gold mm-btn--sm mm-top__check" id="deskCheck">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.5h2.6l1.3 4-1.9 1.3a11 11 0 0 0 6.6 6.6l1.3-1.9 4 1.3v2.6a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z"/></svg><span>Check rooms</span>
+      </a>
       <a href="#desk" class="mm-btn mm-btn--outline mm-btn--sm mm-top__bot" id="deskLink">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l1.6 4.4 4.4 1.6-4.4 1.6L12 15.5l-1.6-4.4L6 9.5l4.4-1.6zM18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>Ask ChatBot
       </a>
@@ -1469,6 +1477,61 @@ a{ color: inherit; }
 
     <main class="mm-content" id="main-content" tabindex="-1">
       <div class="mm-banner" id="loadBanner" role="status" hidden></div>
+
+      <!-- ======================= FRONT DESK ASSISTANT ======================= -->
+      <!-- For a receptionist on the phone: say or type what the caller wants,
+           see live availability for the selected hotel, book on request.
+           hotel_desk.js; answers come from POST /api/chat in "desk" mode —
+           the same rules, Supabase functions and checks as the ChatBot. -->
+      <section class="mm-view dk" data-view-panel="assistant" aria-labelledby="hAssistant" hidden>
+        <div class="dk-head">
+          <div class="dk-head__title">
+            <h1 class="mm-view__title" id="hAssistant">Desk assistant</h1>
+            <span class="dk-hotel" id="dkHotel" title="Every search and booking here is for this hotel. Change it in the menu.">
+              <i aria-hidden="true"></i><span id="dkHotelName">—</span>
+            </span>
+          </div>
+          <button type="button" class="mm-btn mm-btn--outline mm-btn--sm" id="dkNew" title="Clear the request and release any held room">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New caller
+          </button>
+        </div>
+
+        <form class="dk-ask mm-card" id="dkForm" autocomplete="off">
+          <label class="dk-sr" for="dkText">What does the caller need?</label>
+          <div class="dk-ask__row">
+            <textarea id="dkText" rows="1" maxlength="500" spellcheck="true"
+                      placeholder="Type or speak the caller’s request"></textarea>
+            <button type="button" class="dk-mic" id="dkMic" aria-pressed="false" aria-label="Speak the request" title="Speak (tap to start and stop, or hold)" hidden>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+            </button>
+            <button type="submit" class="mm-btn mm-btn--gold dk-send" id="dkSend" disabled>Check</button>
+          </div>
+          <p class="dk-voice" id="dkVoice" role="status" aria-live="polite" hidden></p>
+          <p class="dk-example">e.g. “Luxury room for 3 adults from today for 2 nights” · “rooms from 25 to 28 Oct” · “price of a luxury room”</p>
+          <div class="dk-quick" id="dkQuick" aria-label="Quick searches">
+            <button type="button" class="dk-pill" data-quick="Rooms tonight">Tonight</button>
+            <button type="button" class="dk-pill" data-quick="Rooms tomorrow">Tomorrow</button>
+            <button type="button" class="dk-pill" data-quick="Rooms this weekend">This weekend</button>
+            <button type="button" class="dk-pill" data-quick="Room rates">Rates</button>
+          </div>
+        </form>
+
+        <div class="dk-request" id="dkRequest" aria-label="What the assistant understood" hidden></div>
+
+        <ol class="dk-steps" id="dkSteps" aria-live="polite" hidden></ol>
+
+        <div class="dk-answer" id="dkAnswer" aria-live="polite" hidden>
+          <p class="dk-reply" id="dkReply"></p>
+          <div class="dk-opts" id="dkOpts"></div>
+        </div>
+
+        <div class="dk-result" id="dkResult"></div>
+
+        <details class="dk-history" id="dkHistory" hidden>
+          <summary>This call so far <span id="dkHistoryCount"></span></summary>
+          <ol id="dkHistoryList"></ol>
+        </details>
+      </section>
 
       <!-- ========================= AGENCY OVERVIEW ========================= -->
       <!-- Every client hotel side by side, from agency_overview() — computed
@@ -5299,3 +5362,4 @@ window.MMChat = {
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="hotel_guest.js"></script>
 <script src="hotel_admin.js"></script>
+<script src="hotel_desk.js"></script>

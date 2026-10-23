@@ -112,7 +112,26 @@ function createRepository(supabase, { hotelCacheMs = 60 * 1000 } = {}){
       const u = data && data.user;
       if (!u || !u.id) return null;
       const meta = u.user_metadata || {};
-      return { id: u.id, email: u.email || "", name: typeof meta.full_name === "string" ? meta.full_name : "" };
+      // app_metadata is set only with the service-role key (scripts/create_admin.js).
+      const role = u.app_metadata && u.app_metadata.hotel_role;
+      return { id: u.id, email: u.email || "", name: typeof meta.full_name === "string" ? meta.full_name : "",
+               role: role === "admin" || role === "manager" ? role : null };
+    },
+
+    /* The hotels a staff account may work on, by the same rule as
+       staff_hotel_ids() in the database: every hotel for an agency
+       administrator, its hotel_staff rows for a manager, none for a guest.
+       Read on every desk turn, so taking a hotel away takes effect at once. */
+    async staffHotelIds(user){
+      if (!user || !user.role) return [];
+      if (user.role === "admin") return (await this.listHotels()).map(h => h.id);
+      return rows(await call(supabase.from("hotel_staff").select("hotel_id").eq("user_id", user.id), "staff query"), "staff query")
+        .map(r => r.hotel_id);
+    },
+
+    /* A booking made by a receptionist at the front desk is shown as one. */
+    async markDeskBooking(ref){
+      value(await call(supabase.from("reservations").update({ source: "admin" }).eq("booking_ref", ref), "desk label"), "desk label");
     },
 
     async releaseHold(ref, tokenHash){
